@@ -28,7 +28,6 @@ interface JewishCalendarSensorsConfig {
  * Delegate class for a HomeKit accessory, corresponding to a light device
  * or groups resource.
  *
- * @extends EventEmitter
  * @memberof AccessoryDelegate
  */
 export class JewishCalendarSensors {

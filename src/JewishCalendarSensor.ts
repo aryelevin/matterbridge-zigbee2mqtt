@@ -44,7 +44,7 @@ export class JewishCalendarSensor {
       params.debug,
     );
     // this.sensor.createDefaultIdentifyClusterServer();
-    this.sensor.createDefaultBasicInformationClusterServer(params.name, '0x88030475' /* , 4874, 'AL Systems', 77, 'Eve Door 20EBN9901', 1144, '1.2.8'*/);
+    this.sensor.createDefaultBridgedDeviceBasicInformationClusterServer(params.name, '0x88030475' /* , 4874, 'AL Systems', 77, 'Eve Door 20EBN9901', 1144, '1.2.8'*/);
     this.sensor.createDefaultBooleanStateClusterServer(true);
   }
 
