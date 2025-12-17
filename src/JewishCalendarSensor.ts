@@ -3,7 +3,7 @@
 //
 // Matterbridge plugin for Zigbee2MQTT.
 
-import EventEmitter from 'node:events';
+// import EventEmitter from 'node:events';
 
 import { MatterbridgeEndpoint, contactSensor } from 'matterbridge';
 import { BooleanState } from 'matterbridge/matter/clusters';
@@ -26,7 +26,7 @@ interface JewishCalendarSensorParams {
   debug: boolean;
 }
 
-export class JewishCalendarSensor extends EventEmitter {
+export class JewishCalendarSensor {
   sensor: MatterbridgeEndpoint;
 
   /**
@@ -36,7 +36,6 @@ export class JewishCalendarSensor extends EventEmitter {
    * @param {JewishCalendarSensorParams} params - The params.
    */
   constructor(accessory: MatterbridgeEndpoint, params: JewishCalendarSensorParams) {
-    super();
     this.sensor = accessory.addChildDeviceType(params.name, [contactSensor], { id: params.name }, params.debug);
     // this.sensor.createDefaultIdentifyClusterServer();
     // this.sensor.createDefaultBasicInformationClusterServer(params.name, '0x88030475', 4874, 'AL Systems', 77, 'Eve Door 20EBN9901', 1144, '1.2.8');

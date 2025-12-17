@@ -4,7 +4,7 @@
 // Matterbridge plugin for Zigbee2MQTT.
 
 // import { AccessoryDelegate } from 'homebridge-lib/AccessoryDelegate'
-import { EventEmitter } from 'node:stream';
+// import { EventEmitter } from 'node:stream';
 // import { debug } from 'node:console';
 
 import { MatterbridgeEndpoint, contactSensor } from 'matterbridge';
@@ -32,7 +32,7 @@ interface JewishCalendarSensorsConfig {
  * @extends EventEmitter
  * @memberof AccessoryDelegate
  */
-export class JewishCalendarSensors extends EventEmitter {
+export class JewishCalendarSensors {
   private lat: number;
   private long: number;
   private il: boolean;
@@ -56,8 +56,6 @@ export class JewishCalendarSensors extends EventEmitter {
    * @param {JewishCalendarSensorsConfig} jewishCalendarConfig - The config.
    */
   constructor(platform: ZigbeePlatform, jewishCalendarConfig: JewishCalendarSensorsConfig) {
-    super();
-
     this.lat = 32.08934; // parseFloat(platform.config.homeLocationCoords.latitude);
     this.long = 34.8376; // parseFloat(platform.config.homeLocationCoords.longitude);
     // this.name = jewishCalendarConfig.name;
