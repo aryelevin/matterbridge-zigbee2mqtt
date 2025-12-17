@@ -43,7 +43,7 @@ export class JewishCalendarSensor {
   }
 
   async update(isOpen: boolean) {
-    await this.sensor.setAttribute(BooleanState.Cluster.id, 'stateValue', isOpen, this.sensor.log);
-    await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: isOpen }, this.sensor.log);
+    await this.sensor.setAttribute(BooleanState.Cluster.id, 'stateValue', !isOpen, this.sensor.log);
+    await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: !isOpen }, this.sensor.log);
   }
 }
