@@ -7,7 +7,7 @@
 // import { EventEmitter } from 'node:stream';
 // import { debug } from 'node:console';
 
-import { MatterbridgeEndpoint, rootNode } from 'matterbridge';
+import { MatterbridgeEndpoint, bridgedNode } from 'matterbridge';
 
 import { ZigbeePlatform } from './module.js';
 import { JewishCalendarSensor } from './JewishCalendarSensor.js';
@@ -73,7 +73,7 @@ export class JewishCalendarSensors {
 
     this.services = {};
 
-    this.sensor = new MatterbridgeEndpoint([rootNode], undefined, platform.config.debug);
+    this.sensor = new MatterbridgeEndpoint([bridgedNode], { id: 'Jewish Calendar' }, platform.config.debug);
     this.sensor.createDefaultIdentifyClusterServer();
     this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar', '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar 20EBN9901', 1144, '1.2.8');
     // this.sensor.createDefaultBooleanStateClusterServer(true);
