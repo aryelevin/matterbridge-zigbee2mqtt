@@ -7,8 +7,7 @@
 // import { EventEmitter } from 'node:stream';
 // import { debug } from 'node:console';
 
-import { MatterbridgeEndpoint, contactSensor } from 'matterbridge';
-import { BooleanState } from 'matterbridge/matter/clusters';
+import { MatterbridgeEndpoint, rootNode } from 'matterbridge';
 
 import { ZigbeePlatform } from './module.js';
 import { JewishCalendarSensor } from './JewishCalendarSensor.js';
@@ -74,14 +73,14 @@ export class JewishCalendarSensors {
 
     this.services = {};
 
-    this.sensor = new MatterbridgeEndpoint([contactSensor], { id: 'Kodesh' }, platform.config.debug);
+    this.sensor = new MatterbridgeEndpoint([rootNode], { id: 'Jewish Calendar' }, platform.config.debug);
     this.sensor.createDefaultIdentifyClusterServer();
     this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar', '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar 20EBN9901', 1144, '1.2.8');
-    this.sensor.createDefaultBooleanStateClusterServer(true);
+    // this.sensor.createDefaultBooleanStateClusterServer(true);
 
     this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat', debug: platform.config.debug });
     this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov', debug: platform.config.debug });
-    this.services.Kodesh = this; // primary service
+    this.services.Kodesh = new JewishCalendarSensor(this.sensor, { name: 'Kodesh', debug: platform.config.debug }); // primary service
     this.services.RoshHashana = new JewishCalendarSensor(this.sensor, { name: 'Rosh Hashana', debug: platform.config.debug });
     this.services.YomKippur = new JewishCalendarSensor(this.sensor, { name: 'Yom Kippur', debug: platform.config.debug });
     this.services.Sukkot = new JewishCalendarSensor(this.sensor, { name: 'Sukkot', debug: platform.config.debug });
@@ -111,11 +110,6 @@ export class JewishCalendarSensors {
     // });
 
     // return Object.values(this.services);
-  }
-
-  async update(isOpen: boolean) {
-    await this.sensor.setAttribute(BooleanState.Cluster.id, 'stateValue', !isOpen, this.sensor.log);
-    await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: !isOpen }, this.sensor.log);
   }
 
   async updateSensors() {
