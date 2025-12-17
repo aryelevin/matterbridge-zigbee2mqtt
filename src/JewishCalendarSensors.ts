@@ -73,7 +73,7 @@ export class JewishCalendarSensors {
 
     this.services = {};
 
-    this.sensor = new MatterbridgeEndpoint([rootNode], { id: 'Jewish Calendar' }, platform.config.debug);
+    this.sensor = new MatterbridgeEndpoint([rootNode], { id: '0' }, platform.config.debug);
     this.sensor.createDefaultIdentifyClusterServer();
     this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar', '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar 20EBN9901', 1144, '1.2.8');
     // this.sensor.createDefaultBooleanStateClusterServer(true);
