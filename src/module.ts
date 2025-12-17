@@ -32,6 +32,7 @@ import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
+import { JewishCalendarSensors } from './JewishCalendarSensors.js';
 
 type DeviceFeatureBlackList = Record<string, string[]>;
 
@@ -430,6 +431,17 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     // Check if the platform is already initialized
     await this.ready;
+
+    const jewishCalendarSensors = new JewishCalendarSensors(this, {
+      israel: true,
+      sheminiatzeret_in_sukkot: false,
+      candlelighting: 25,
+      havdalah: 45,
+      sefiratHaOmerCustom: 'Ashkenazi',
+      threeWeeksCustom: 'Ashkenazi',
+      offset: 0,
+    });
+    this.registerDevice(jewishCalendarSensors.sensor);
 
     // Clear select device and entity since we have a bridge here and they will be recreated from the bridge
     await this.clearSelect();
