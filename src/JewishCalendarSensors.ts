@@ -81,7 +81,7 @@ export class JewishCalendarSensors {
 
     this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat', debug: platform.config.debug });
     this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov', debug: platform.config.debug });
-    // this.services.Kodesh = this.sensor; // primary service
+    this.services.Kodesh = this; // primary service
     this.services.RoshHashana = new JewishCalendarSensor(this.sensor, { name: 'Rosh Hashana', debug: platform.config.debug });
     this.services.YomKippur = new JewishCalendarSensor(this.sensor, { name: 'Yom Kippur', debug: platform.config.debug });
     this.services.Sukkot = new JewishCalendarSensor(this.sensor, { name: 'Sukkot', debug: platform.config.debug });
@@ -118,26 +118,26 @@ export class JewishCalendarSensors {
     await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: isOpen }, this.sensor.log);
   }
 
-  updateSensors() {
-    this.services.Shabbat.update(this.isShabbat());
-    this.services.YomTov.update(this.isYomTov());
-    this.services.Kodesh.update(this.isKodesh());
-    this.services.RoshHashana.update(this.isRoshHashana());
-    this.services.YomKippur.update(this.isYomKippur());
-    this.services.Sukkot.update(this.isSukkot());
-    this.services.SheminiAtzeret.update(this.isSheminiAtzeret());
-    this.services.Pesach.update(this.isPesach());
-    this.services.Shavuot.update(this.isShavuot());
-    this.services.Chanukah.update(this.isChanukah());
-    this.services.ThreeWeeks.update(this.isThreeWeeks());
-    this.services.SefiratHaOmerMourning.update(this.isSefiratHaOmerMourning());
-    this.services.SefiratHaOmer.update(this.isSefiratHaOmer());
-    this.services.Mourning.update(this.isMourning());
-    this.services.Purim.update(this.isPurim());
-    this.services.ShushanPurim.update(this.isShushanPurim());
-    this.services.PurimMeshulash.update(this.isPurimMeshulash());
-    this.services.ShvihiShelPesach.update(this.isShvihiShelPesach());
-    this.services.LeapYear.update(this.isLeapYear());
+  async updateSensors() {
+    await this.services.Shabbat.update(this.isShabbat());
+    await this.services.YomTov.update(this.isYomTov());
+    await this.services.Kodesh.update(this.isKodesh());
+    await this.services.RoshHashana.update(this.isRoshHashana());
+    await this.services.YomKippur.update(this.isYomKippur());
+    await this.services.Sukkot.update(this.isSukkot());
+    await this.services.SheminiAtzeret.update(this.isSheminiAtzeret());
+    await this.services.Pesach.update(this.isPesach());
+    await this.services.Shavuot.update(this.isShavuot());
+    await this.services.Chanukah.update(this.isChanukah());
+    await this.services.ThreeWeeks.update(this.isThreeWeeks());
+    await this.services.SefiratHaOmerMourning.update(this.isSefiratHaOmerMourning());
+    await this.services.SefiratHaOmer.update(this.isSefiratHaOmer());
+    await this.services.Mourning.update(this.isMourning());
+    await this.services.Purim.update(this.isPurim());
+    await this.services.ShushanPurim.update(this.isShushanPurim());
+    await this.services.PurimMeshulash.update(this.isPurimMeshulash());
+    await this.services.ShvihiShelPesach.update(this.isShvihiShelPesach());
+    await this.services.LeapYear.update(this.isLeapYear());
   }
 
   updateJewishDay() {
