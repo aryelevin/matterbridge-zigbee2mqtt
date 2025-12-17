@@ -7,7 +7,7 @@
 
 import { MatterbridgeEndpoint, contactSensor } from 'matterbridge';
 import { BooleanState } from 'matterbridge/matter/clusters';
-// import { LocationTag } from 'matterbridge/matter';
+import { LocationTag } from 'matterbridge/matter';
 
 // import * as Push from '../pushover.js'
 
@@ -40,11 +40,11 @@ export class JewishCalendarSensor {
     this.sensor = accessory.addChildDeviceType(
       params.name,
       [contactSensor],
-      { id: params.name /* , tagList: [{ mfgCode: null, namespaceId: LocationTag.Indoor.namespaceId, tag: LocationTag.Indoor.tag, label: params.name }]*/ },
+      { id: params.name, tagList: [{ mfgCode: null, namespaceId: LocationTag.Indoor.namespaceId, tag: LocationTag.Indoor.tag, label: params.name }] },
       params.debug,
     );
     // this.sensor.createDefaultIdentifyClusterServer();
-    // this.sensor.createDefaultBasicInformationClusterServer(params.name, '0x88030475' /* , 4874, 'AL Systems', 77, 'Eve Door 20EBN9901', 1144, '1.2.8'*/);
+    this.sensor.createDefaultBasicInformationClusterServer(params.name, '0x8803047534' /* , 4874, 'AL Systems', 77, 'Eve Door 20EBN9901', 1144, '1.2.8'*/);
     this.sensor.createDefaultBooleanStateClusterServer(true);
   }
 
