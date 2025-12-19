@@ -7,7 +7,7 @@
 // import { EventEmitter } from 'node:stream';
 // import { debug } from 'node:console';
 
-import { MatterbridgeEndpoint, bridgedNode } from 'matterbridge';
+import { MatterbridgeEndpoint, bridgedNode, modeSelect } from 'matterbridge';
 
 import { ZigbeePlatform } from './module.js';
 import { JewishCalendarSensor } from './JewishCalendarSensor.js';
@@ -72,10 +72,37 @@ export class JewishCalendarSensors {
 
     this.services = {};
 
-    this.sensor = new MatterbridgeEndpoint([bridgedNode], { id: 'Jewish Calendar' }, platform.config.debug);
+    this.sensor = new MatterbridgeEndpoint([bridgedNode, modeSelect], { id: 'Jewish Calendar' }, platform.config.debug);
     this.sensor.createDefaultIdentifyClusterServer();
     this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar', '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar 20EBN9901', 1144, '1.2.8');
     // this.sensor.createDefaultBooleanStateClusterServer(true);
+    this.sensor.createDefaultModeSelectClusterServer(
+      'Test Sensor',
+      [
+        { label: 'Off', mode: 0, semanticTags: [] },
+        { label: 'Shabbat', mode: 1, semanticTags: [] },
+        { label: 'Yom Tov', mode: 2, semanticTags: [] },
+        { label: 'Kodesh', mode: 3, semanticTags: [] },
+        { label: 'Rosh Hashana', mode: 4, semanticTags: [] },
+        { label: 'Yom Kippur', mode: 5, semanticTags: [] },
+        { label: 'Sukkot', mode: 6, semanticTags: [] },
+        { label: 'Shemini Atzeret', mode: 7, semanticTags: [] },
+        { label: 'Pesach', mode: 8, semanticTags: [] },
+        { label: 'Shavuot', mode: 9, semanticTags: [] },
+        { label: 'Chanukah', mode: 10, semanticTags: [] },
+        { label: 'Three Weeks', mode: 11, semanticTags: [] },
+        { label: 'Sefirat HaOmer Mourning', mode: 12, semanticTags: [] },
+        { label: 'Sefirat HaOmer', mode: 13, semanticTags: [] },
+        { label: 'Mourning', mode: 14, semanticTags: [] },
+        { label: 'Purim', mode: 15, semanticTags: [] },
+        { label: 'Shushan Purim', mode: 16, semanticTags: [] },
+        { label: 'Purim Meshulash', mode: 17, semanticTags: [] },
+        { label: 'Shvihi Shel Pesach', mode: 18, semanticTags: [] },
+        { label: 'Leap Year', mode: 19, semanticTags: [] },
+      ],
+      0,
+      0,
+    );
 
     this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat', debug: platform.config.debug });
     this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov', debug: platform.config.debug });
