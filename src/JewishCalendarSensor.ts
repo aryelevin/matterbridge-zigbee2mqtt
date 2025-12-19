@@ -30,6 +30,8 @@ interface JewishCalendarSensorParams {
 
 export class JewishCalendarSensor {
   sensor: MatterbridgeEndpoint;
+  private sensorState: boolean = false;
+  _testMode: boolean = false;
 
   /**
    * Instantiate a delegate for an accessory corresponding to a device.
@@ -53,7 +55,17 @@ export class JewishCalendarSensor {
   }
 
   async update(isOpen: boolean) {
+    this.sensorState = isOpen;
     await this.sensor.setAttribute(BooleanState.Cluster.id, 'stateValue', !isOpen, this.sensor.log);
     await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: !isOpen }, this.sensor.log);
+  }
+
+  public set testMode(value: boolean) {
+    this._testMode = value;
+    let contact = this.sensorState;
+    if (value === true) {
+      contact = !this.sensorState;
+    }
+    this.update(contact);
   }
 }
