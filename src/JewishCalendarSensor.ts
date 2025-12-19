@@ -72,10 +72,6 @@ export class JewishCalendarSensor {
 
   public set testMode(value: boolean) {
     this._testMode = value;
-    let contact = this.sensorState;
-    if (value === true) {
-      contact = !this.sensorState;
-    }
-    this.updateState(contact, false);
+    this.updateState(this.sensorState, false);
   }
 }
