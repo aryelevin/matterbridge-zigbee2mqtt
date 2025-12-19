@@ -103,14 +103,6 @@ export class JewishCalendarSensors {
       0,
       0,
     );
-    const sensorsByIndex: JewishCalendarSensor[] = [];
-    let currentMode = 0;
-    this.sensor.addCommandHandler('changeToMode', async ({ request: { mode } }) => {
-      this.sensor?.log.info(`Command changeToMode called request ${mode}`);
-      sensorsByIndex[currentMode].testMode = false;
-      sensorsByIndex[mode].testMode = true;
-      currentMode = mode;
-    });
 
     this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat', debug: platform.config.debug });
     this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov', debug: platform.config.debug });
@@ -131,7 +123,8 @@ export class JewishCalendarSensors {
     this.services.PurimMeshulash = new JewishCalendarSensor(this.sensor, { name: 'Purim Meshulash', debug: platform.config.debug });
     this.services.ShvihiShelPesach = new JewishCalendarSensor(this.sensor, { name: 'Shvihi Shel Pesach', debug: platform.config.debug });
     this.services.LeapYear = new JewishCalendarSensor(this.sensor, { name: 'Leap Year', debug: platform.config.debug });
-    sensorsByIndex.push(
+
+    const sensorsByIndex: JewishCalendarSensor[] = [
       this.services.Shabbat,
       this.services.YomTov,
       this.services.Kodesh,
@@ -151,7 +144,16 @@ export class JewishCalendarSensors {
       this.services.PurimMeshulash,
       this.services.ShvihiShelPesach,
       this.services.LeapYear,
-    );
+    ];
+    let currentMode = 0;
+    this.sensor.addCommandHandler('changeToMode', async ({ request: { mode } }) => {
+      this.sensor?.log.info(`Command changeToMode called request ${mode}`);
+      if (currentMode !== 0) {
+        sensorsByIndex[currentMode - 1].testMode = false;
+      }
+      sensorsByIndex[mode - 1].testMode = true;
+      currentMode = mode;
+    });
 
     // this.identify()
 
