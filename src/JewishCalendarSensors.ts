@@ -146,13 +146,13 @@ export class JewishCalendarSensors {
       this.services.LeapYear,
     ];
     let currentMode = 0;
-    this.sensor.addCommandHandler('changeToMode', async ({ request: { mode } }) => {
-      this.sensor?.log.info(`Command changeToMode called request ${mode}`);
+    this.sensor.addCommandHandler('changeToMode', async ({ request: { newMode } }) => {
+      this.sensor?.log.info(`Command changeToMode called request ${newMode}`);
       if (currentMode !== 0) {
         sensorsByIndex[currentMode - 1].testMode = false;
       }
-      sensorsByIndex[mode - 1].testMode = true;
-      currentMode = mode;
+      sensorsByIndex[newMode - 1].testMode = true;
+      currentMode = newMode;
     });
 
     // this.identify()
