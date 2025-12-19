@@ -55,9 +55,19 @@ export class JewishCalendarSensor {
   }
 
   async update(isOpen: boolean) {
-    this.sensorState = isOpen;
-    await this.sensor.setAttribute(BooleanState.Cluster.id, 'stateValue', !isOpen, this.sensor.log);
-    await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: !isOpen }, this.sensor.log);
+    await this.updateState(isOpen, true);
+  }
+
+  private async updateState(isOpen: boolean, updateSensorState?: boolean) {
+    if (updateSensorState !== false) {
+      this.sensorState = isOpen;
+    }
+    let contact = isOpen;
+    if (this._testMode === true) {
+      contact = !isOpen;
+    }
+    await this.sensor.setAttribute(BooleanState.Cluster.id, 'stateValue', !contact, this.sensor.log);
+    await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: !contact }, this.sensor.log);
   }
 
   public set testMode(value: boolean) {
@@ -66,6 +76,6 @@ export class JewishCalendarSensor {
     if (value === true) {
       contact = !this.sensorState;
     }
-    this.update(contact);
+    this.updateState(contact, false);
   }
 }
