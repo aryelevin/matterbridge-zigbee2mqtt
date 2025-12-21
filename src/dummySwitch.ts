@@ -191,5 +191,6 @@ export class DummySwitch {
 
   async setOnOff(value: boolean) {
     await this.device?.setAttribute(OnOff.Cluster.id, 'onOff', value, this.device.log);
+    await this.device?.triggerEvent(OnOff.Cluster.id, 'stateChange', { stateValue: value }, this.device.log);
   }
 }
