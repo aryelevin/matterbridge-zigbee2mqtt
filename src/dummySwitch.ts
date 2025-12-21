@@ -62,10 +62,10 @@ export class DummySwitch {
 
     if (this.config.type === 'switch') {
       // *********************** Create a switch device ***********************
-      this.device = new MatterbridgeEndpoint([onOffSwitch, bridgedNode, powerSource], { id: this.config.name + 'Switch' }, this.config.debug)
+      this.device = new MatterbridgeEndpoint([onOffSwitch, bridgedNode, powerSource], { id: this.config.name + ' Switch' }, this.config.debug)
         .createDefaultIdentifyClusterServer()
         .createDefaultGroupsClusterServer()
-        .createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + 'Switch', 'SWI00010', 0xfff1, 'AL Bridge', 'AL Switch')
+        .createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + ' Switch', 'SWI00010', 0xfff1, 'AL Bridge', 'AL Switch')
         .createDefaultOnOffClusterServer()
         .createDefaultPowerSourceWiredClusterServer();
 
@@ -85,10 +85,10 @@ export class DummySwitch {
       });
     } else if (this.config.type === 'dimmer') {
       // *********************** Create a dimmer device ***********************
-      this.device = new MatterbridgeEndpoint([dimmableLight, bridgedNode, powerSource], { id: this.config.name + 'Dimmer' }, this.config.debug)
+      this.device = new MatterbridgeEndpoint([dimmableLight, bridgedNode, powerSource], { id: this.config.name + ' Dimmer' }, this.config.debug)
         .createDefaultIdentifyClusterServer()
         .createDefaultGroupsClusterServer()
-        .createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + 'Dimmer', 'DMR00014', 0xfff1, 'AL Bridge', 'AL Dimmer')
+        .createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + ' Dimmer', 'DMR00014', 0xfff1, 'AL Bridge', 'AL Dimmer')
         .createDefaultOnOffClusterServer()
         .createDefaultLevelControlClusterServer()
         .createDefaultPowerSourceWiredClusterServer();
@@ -115,10 +115,10 @@ export class DummySwitch {
       });
     } else {
       // *********************** Create a on off light device ***********************
-      this.device = new MatterbridgeEndpoint([onOffLight, bridgedNode, powerSource], { id: this.config.name + 'Light (on/off)' }, this.config.debug)
+      this.device = new MatterbridgeEndpoint([onOffLight, bridgedNode, powerSource], { id: this.config.name + ' Light (on/off)' }, this.config.debug)
         .createDefaultIdentifyClusterServer()
         .createDefaultGroupsClusterServer()
-        .createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + 'Light (on/off)', 'LON00013', 0xfff1, 'AL Bridge', 'AL Light on/off')
+        .createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + ' Light (on/off)', 'LON00013', 0xfff1, 'AL Bridge', 'AL Light on/off')
         .createDefaultOnOffClusterServer()
         .createDefaultPowerSourceWiredClusterServer();
 
