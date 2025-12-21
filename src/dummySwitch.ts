@@ -56,7 +56,6 @@ export class DummySwitch {
   constructor(platform: ZigbeePlatform, config: DummySwitchConfig) {
     this.config = config;
 
-    this.config.time = config.time ? config.time * 1000 : 1000;
     this.timer = null;
     this.notificationMuted = false;
 
@@ -126,7 +125,7 @@ export class DummySwitch {
   }
 
   onOffDidSet(value: boolean) {
-    const delay = this.config.random ? randomize(this.config.time) : this.config.time;
+    const delay = this.config.random ? randomize(this.config.time || 1000) : (this.config.time || 1) * 1000;
     let msg = 'Setting switch to ' + value;
     if (!this.config.stateful) {
       if ((value && !this.config.reverse) || (!value && this.config.reverse)) {
