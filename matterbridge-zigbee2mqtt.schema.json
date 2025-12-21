@@ -198,6 +198,10 @@
                 "enum": ["light"]
               },
               {
+                "title": "Outlet",
+                "enum": ["outlet"]
+              },
+              {
                 "title": "Dimmer",
                 "enum": ["dimmer"]
               },

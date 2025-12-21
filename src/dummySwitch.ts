@@ -56,7 +56,7 @@ export class DummySwitch {
   constructor(platform: ZigbeePlatform, config: DummySwitchConfig) {
     this.config = config;
 
-    this.config.time = config.time ? config.time : 1000;
+    this.config.time = config.time ? config.time * 1000 : 1000;
     this.timer = null;
     this.notificationMuted = false;
 
