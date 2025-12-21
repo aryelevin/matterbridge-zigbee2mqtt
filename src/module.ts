@@ -453,12 +453,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     //   sefiratHaOmerCustom: 'Iyar',
     //   threeWeeksCustom: 'Ashkenazi',
     // });
-    // this.registerDevice(jewishCalendarSensors.sensor);
+    // await this.registerDevice(jewishCalendarSensors.sensor);
 
     const jewishCalendarConfig = this.config.jewishCalendarSensorConfig;
     if (jewishCalendarConfig && jewishCalendarConfig?.enabled === true) {
       this.jewishCalendarSensors = new JewishCalendarSensors(this, jewishCalendarConfig);
-      this.registerDevice(this.jewishCalendarSensors.sensor);
+      await this.registerDevice(this.jewishCalendarSensors.sensor);
     }
 
     const dummySwitches = this.config.dummySwitches;
@@ -468,7 +468,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       for (const switchConfig of dummySwitches) {
         const accessory = new DummySwitch(this, switchConfig);
         this.dummySwitchesAccessories.push(accessory);
-        this.registerDevice(accessory.device);
+        await this.registerDevice(accessory.device);
       }
     }
 
@@ -479,7 +479,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       //     this.platformAccessory.service.characteristicDelegate('switchesOn').value = !value
       //   }
       // }).value = !this.platformAccessory.service.characteristicDelegate('switchesOn').value
-      this.registerDevice(this.shabbatModeDummySwitch.device);
+      await this.registerDevice(this.shabbatModeDummySwitch.device);
     }
     // End of Added by me: Arye Levin
 
