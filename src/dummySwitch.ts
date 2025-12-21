@@ -5,7 +5,7 @@
 
 // import * as fs from 'node:fs';
 
-import { bridgedNode, MatterbridgeEndpoint, onOffLight, dimmableLight, powerSource, onOffSwitch } from 'matterbridge';
+import { bridgedNode, MatterbridgeEndpoint, onOffLight, dimmableLight, powerSource, onOffSwitch, onOffOutlet } from 'matterbridge';
 import { OnOff } from 'matterbridge/matter/clusters';
 
 import { ZigbeePlatform } from './module.js';
@@ -22,7 +22,7 @@ const p = new Pushover({
   // prevent app from exiting.
 });
 
-export type DummySwitchType = 'switch' | 'light' | 'dimmer';
+export type DummySwitchType = 'switch' | 'light' | 'dimmer' | 'outlet';
 
 export interface DummySwitchConfig {
   name: string;
@@ -70,19 +70,6 @@ export class DummySwitch {
         .createDefaultPowerSourceWiredClusterServer();
 
       // this.switch = await this.addDevice(this.switch);
-
-      // The cluster attributes are set by MatterbridgeOnOffServer
-      this.device?.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
-        this.device?.log.info(`Command identify called identifyTime:${identifyTime}`);
-      });
-      this.device?.addCommandHandler('on', async () => {
-        this.device?.log.info('Command on called');
-        this.onOffDidSet(true);
-      });
-      this.device?.addCommandHandler('off', async () => {
-        this.device?.log.info('Command off called');
-        this.onOffDidSet(false);
-      });
     } else if (this.config.type === 'dimmer') {
       // *********************** Create a dimmer device ***********************
       this.device = new MatterbridgeEndpoint([dimmableLight, bridgedNode, powerSource], { id: this.config.name + ' Dimmer' }, this.config.debug)
@@ -95,25 +82,14 @@ export class DummySwitch {
 
       // this.dimmer = await this.addDevice(this.dimmer);
 
-      // The cluster attributes are set by MatterbridgeOnOffServer and MatterbridgeLevelControlServer
-      this.device?.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
-        this.device?.log.info(`Command identify called identifyTime:${identifyTime}`);
-      });
-      this.device?.addCommandHandler('on', async () => {
-        this.device?.log.info('Command on called');
-        this.onOffDidSet(true);
-      });
-      this.device?.addCommandHandler('off', async () => {
-        this.device?.log.info('Command off called');
-        this.onOffDidSet(false);
-      });
+      // The cluster attributes are set by MatterbridgeLevelControlServer
       this.device?.addCommandHandler('moveToLevel', async ({ request: { level } }) => {
         this.device?.log.debug(`Command moveToLevel called request: ${level}`);
       });
       this.device?.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level } }) => {
         this.device?.log.debug(`Command moveToLevelWithOnOff called request: ${level}`);
       });
-    } else {
+    } else if (this.config.type === 'light') {
       // *********************** Create a on off light device ***********************
       this.device = new MatterbridgeEndpoint([onOffLight, bridgedNode, powerSource], { id: this.config.name + ' Light (on/off)' }, this.config.debug)
         .createDefaultIdentifyClusterServer()
@@ -123,20 +99,30 @@ export class DummySwitch {
         .createDefaultPowerSourceWiredClusterServer();
 
       // this.lightOnOff = await this.addDevice(this.lightOnOff);
+    } else {
+      // *********************** Create an outlet device ***********************
+      this.device = new MatterbridgeEndpoint([onOffOutlet, bridgedNode, powerSource], { id: this.config.name + ' Outlet' }, this.config.debug)
+        .createDefaultIdentifyClusterServer()
+        .createDefaultGroupsClusterServer()
+        .createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + ' Outlet', 'OUT00019', 0xfff1, 'AL Bridge', 'AL Outlet')
+        .createDefaultOnOffClusterServer()
+        .createDefaultPowerSourceWiredClusterServer();
 
-      // The cluster attributes are set by MatterbridgeOnOffServer
-      this.device?.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
-        this.device?.log.info(`Command identify called identifyTime:${identifyTime}`);
-      });
-      this.device?.addCommandHandler('on', async () => {
-        this.device?.log.info('Command on called');
-        this.onOffDidSet(true);
-      });
-      this.device?.addCommandHandler('off', async () => {
-        this.device?.log.info('Command off called');
-        this.onOffDidSet(false);
-      });
+      // this.outlet = await this.addDevice(this.outlet);
     }
+
+    // The cluster attributes are set by MatterbridgeOnOffServer
+    this.device?.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
+      this.device?.log.info(`Command identify called identifyTime:${identifyTime}`);
+    });
+    this.device?.addCommandHandler('on', async () => {
+      this.device?.log.info('Command on called');
+      this.onOffDidSet(true);
+    });
+    this.device?.addCommandHandler('off', async () => {
+      this.device?.log.info('Command off called');
+      this.onOffDidSet(false);
+    });
   }
 
   onOffDidSet(value: boolean) {

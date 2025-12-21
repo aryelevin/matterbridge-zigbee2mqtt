@@ -472,7 +472,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }
     }
 
-    if (this.config.addShabbatModeDummySwitchType !== null && this.config.addShabbatModeDummySwitchType !== undefined) {
+    if (this.config.addShabbatModeDummySwitchType !== undefined && this.config.addShabbatModeDummySwitchType !== 'dimmer') {
       this.shabbatModeDummySwitch = new DummySwitch(this, { name: 'System Shabbat Mode', type: this.config.addShabbatModeDummySwitchType, stateful: true });
       // this.shabbatModeDummySwitch.device.characteristicDelegate('on').on('didSet', (value, fromHomeKit) => {
       //   if (fromHomeKit) {

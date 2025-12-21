@@ -284,22 +284,22 @@
       "oneOf": [
         {
           "title": "None",
-          "enum": [null]
+          "enum": ["dimmer"]
         },
         {
           "title": "Light",
           "enum": ["light"]
         },
         {
-          "title": "Dimmer",
-          "enum": ["dimmer"]
+          "title": "Outlet",
+          "enum": ["outlet"]
         },
         {
           "title": "Switch",
           "enum": ["switch"]
         }
       ],
-      "default": null
+      "default": "dimmer"
     },
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",
