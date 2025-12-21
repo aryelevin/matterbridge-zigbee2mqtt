@@ -456,7 +456,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     // this.registerDevice(jewishCalendarSensors.sensor);
 
     const jewishCalendarConfig = this.config.jewishCalendarSensorConfig;
-    if (jewishCalendarConfig) {
+    if (jewishCalendarConfig && jewishCalendarConfig?.enabled === true) {
       this.jewishCalendarSensors = new JewishCalendarSensors(this, jewishCalendarConfig);
       this.registerDevice(this.jewishCalendarSensors.sensor);
     }
@@ -468,16 +468,18 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       for (const switchConfig of dummySwitches) {
         const accessory = new DummySwitch(this, switchConfig);
         this.dummySwitchesAccessories.push(accessory);
+        this.registerDevice(accessory.device);
       }
     }
 
-    if (this.config.addShabbatModeDummySwitchType !== undefined) {
+    if (this.config.addShabbatModeDummySwitchType !== null && this.config.addShabbatModeDummySwitchType !== undefined) {
       this.shabbatModeDummySwitch = new DummySwitch(this, { name: 'System Shabbat Mode', type: this.config.addShabbatModeDummySwitchType, stateful: true });
       // this.shabbatModeDummySwitch.device.characteristicDelegate('on').on('didSet', (value, fromHomeKit) => {
       //   if (fromHomeKit) {
       //     this.platformAccessory.service.characteristicDelegate('switchesOn').value = !value
       //   }
       // }).value = !this.platformAccessory.service.characteristicDelegate('switchesOn').value
+      this.registerDevice(this.shabbatModeDummySwitch.device);
     }
     // End of Added by me: Arye Levin
 

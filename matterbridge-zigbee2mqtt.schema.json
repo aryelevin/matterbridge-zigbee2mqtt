@@ -248,7 +248,7 @@
         "enabled": {"description": "Enables the jewish calendar sensors", "type": "boolean"},
         "candlelighting": {"description": "Minutes before sunset to trigger candlelighting sensor", "type": "number"},
         "havdalah": {"description": "Minutes after sunset to trigger havdalah sensor", "type": "number"},
-        "sheminiatzeret_in_sukkot": {"description": "Sets if sheminiatzeret is in sukkot", "type": "boolean"},
+        "shminiAtzeretInSukkot": {"description": "Sets if shmini atzeret is in sukkot", "type": "boolean"},
         "sefiratHaOmerCustom": {
           "description": "Custom month for sefirat haOmer counting",
           "type": "string",
@@ -276,7 +276,7 @@
         "israel": {"description": "Sets if the system is in israel", "type": "boolean"},
         "offset": {"description": "Offset of the current time", "type": "number"}
       },
-      "default": {"enabled": false}
+      "default": {"enabled": false, "candlelighting": 30, "havdalah": 45, "shminiAtzeretInSukkot": false, "sefiratHaOmerCustom": "Nisan", "threeWeeksCustom": "Ashkenazi", "israel": true, "offset": 0}
     },
     "addShabbatModeDummySwitchType": {
       "description": "Device type to use to expose shabbat mode if defined",

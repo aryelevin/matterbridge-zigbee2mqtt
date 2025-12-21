@@ -15,8 +15,9 @@ import { HeDate } from './heDate.js';
 import { SunCalc } from './suncalc.js';
 
 export interface JewishCalendarSensorsConfig {
+  enabled: boolean;
   israel: boolean;
-  sheminiatzeret_in_sukkot: boolean;
+  shminiAtzeretInSukkot: boolean;
   candlelighting: number;
   havdalah: number;
   sefiratHaOmerCustom: string;
@@ -253,7 +254,7 @@ export class JewishCalendarSensors {
   }
   isSukkot() {
     const begin = { month: this.hebrewMonths.Tishri, date: 14 };
-    const end = !this.config.israel && this.config.sheminiatzeret_in_sukkot ? { month: this.hebrewMonths.Tishri, date: 22 } : { month: this.hebrewMonths.Tishri, date: 21 };
+    const end = !this.config.israel && this.config.shminiAtzeretInSukkot ? { month: this.hebrewMonths.Tishri, date: 22 } : { month: this.hebrewMonths.Tishri, date: 21 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
   _isSukkotYomTov() {
