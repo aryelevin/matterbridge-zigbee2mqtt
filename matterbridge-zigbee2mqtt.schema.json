@@ -182,32 +182,77 @@
       "description": "Adds dummy entities based on a configuration",
       "type": "array",
       "uniqueItems": true,
-      "selectFrom": "name",
-      "additionalProperties": {
-        "description": "dummy entities based on a configuration",
+	    "items": {
         "type": "object",
-        "items": {
-          "type": "string"
-        },
-        "uniqueItems": true,
-        "selectDeviceEntityFrom": "name"
+	      "properties": {
+          "name": {
+            "description": "Name of the dummy switch",
+            "type": "string"
+          },
+          "type": {
+            "description": "Type of the dummy switch",
+            "type": "string",
+            "oneOf": [
+              {
+                "title": "Light",
+                "enum": ["light"]
+              },
+              {
+                "title": "Dimmer",
+                "enum": ["dimmer"]
+              },
+              {
+                "title": "Switch",
+                "enum": ["switch"]
+              }
+            ],
+            "default": "light"
+          },
+          "stateful": {
+            "description": "If true, the switch will remember its state after matterbridge restart",
+            "type": "boolean",
+            "default": false
+          },
+          "random": {
+            "description": "If true, the switch will have a random initial state",
+            "type": "boolean",
+            "default": false
+          },
+          "resetable": {
+            "description": "If true, the switch will reset to off state after 1 second when turned on",
+            "type": "boolean",
+            "default": false
+          },
+          "time": {
+            "description": "Timeout in seconds for the resetable switch (default 1 second)",
+            "type": "number",
+            "default": 1
+          },
+          "reverse": {
+            "description": "If true, the switch logic will be reversed (on -> off, off -> on)",
+            "type": "boolean",
+            "default": false
+          },
+          "debug": {
+            "description": "Enable debug for this dummy switch",
+            "type": "boolean",
+            "default": false
+          }
+        }
       }
     },
     "jewishCalendarSensorConfig": {
       "description": "Configures jewish calendar contact sensors.",
-      "type": "object",
-      "uniqueItems": true,
-      "selectFrom": "name",
+      "type": "boolean",
       "additionalProperties": {
-        "description": "Jewish calendar contact sensors.",
+        "description": "List of features not to be exposed for this device. Enter the feature (i.e. device_temperature) to exclude.",
         "type": "object",
-        "items": {
-          "israel": {"type": "boolean"},
-          "offset": {"type": "number"}
-        },
-        "uniqueItems": true,
-        "selectDeviceEntityFrom": "name"
-      }
+        "properties": {
+          "israel": {"description": "Sets if the system is in israel", "type": "boolean"},
+          "offset": {"description": "Offset of the current time", "type": "number"}
+        }
+      },
+      "default": false
     },
     "addShabbatModeDummySwitchType": {
       "description": "Device type to use to expose shabbat mode if defined",
