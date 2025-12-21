@@ -213,17 +213,17 @@
             "default": "light"
           },
           "stateful": {
-            "description": "If true, the switch will remember its state after matterbridge restart",
+            "description": "If true, the switch will not return to its opposite state by itself",
             "type": "boolean",
             "default": false
           },
           "random": {
-            "description": "If true, the switch will have a random initial state",
+            "description": "If true, the time setting is ignored and delay to return to the opposite state is randomized between 1 and the time setting",
             "type": "boolean",
             "default": false
           },
           "resetable": {
-            "description": "If true, the switch will reset to off state after 1 second when turned on",
+            "description": "If true, the switch will ...",
             "type": "boolean",
             "default": false
           },

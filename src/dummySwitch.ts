@@ -127,22 +127,27 @@ export class DummySwitch {
 
   onOffDidSet(value: boolean) {
     const delay = this.config.random ? randomize(this.config.time) : this.config.time;
-    // let msg = 'Setting switch to ' + value;
-    // if (this.config.random && !this.config.stateful) {
-    //   if ((value && !this.config.reverse) || (!value && this.config.reverse)) {
-    //     msg += ' (random delay ' + delay + 'ms)';
-    //   }
-    // }
-    // if (!this.disableLogging) {
-    //   this.device.log.info(msg);
-    // }
+    let msg = 'Setting switch to ' + value;
+    if (!this.config.stateful) {
+      if ((value && !this.config.reverse) || (!value && this.config.reverse)) {
+        msg += this.config.random ? ' (random delay ' : ' (delay ' + delay + ' ms)';
+      }
+    }
+    if (this.config.debug === true) {
+      this.device.log.info(msg);
+    }
 
-    if (value && !this.config.reverse && !this.config.stateful) {
+    if (
+      !this.config.stateful && // Only for stateless switches
+      ((value && !this.config.reverse) || // When reversed is set to false, then only when turns on, turn off after the delay
+        (!value && this.config.reverse)) // When reversed is set to true, then only when turns off, turn on after the delay
+    ) {
       if (this.config.resettable && this.timer !== null) {
         clearTimeout(this.timer);
       }
+      const afterDelayValue = !value;
       this.timer = setTimeout(() => {
-        this.setOnOff(false);
+        this.setOnOff(afterDelayValue);
       }, delay);
 
       if (this.config.notification) {
@@ -182,13 +187,6 @@ export class DummySwitch {
           this.device.log.info('notification is muted');
         }
       }
-    } else if (!value && this.config.reverse && !this.config.stateful) {
-      if (this.config.resettable && this.timer !== null) {
-        clearTimeout(this.timer);
-      }
-      this.timer = setTimeout(() => {
-        this.setOnOff(true);
-      }, delay);
     }
   }
 
