@@ -243,21 +243,49 @@
     },
     "jewishCalendarSensorConfig": {
       "description": "Configures jewish calendar contact sensors.",
-      "type": "boolean",
-      "additionalProperties": {
-        "description": "List of features not to be exposed for this device. Enter the feature (i.e. device_temperature) to exclude.",
-        "type": "object",
-        "properties": {
-          "israel": {"description": "Sets if the system is in israel", "type": "boolean"},
-          "offset": {"description": "Offset of the current time", "type": "number"}
-        }
+      "type": "object",
+      "properties": {
+        "enabled": {"description": "Enables the jewish calendar sensors", "type": "boolean"},
+        "candlelighting": {"description": "Minutes before sunset to trigger candlelighting sensor", "type": "number"},
+        "havdalah": {"description": "Minutes after sunset to trigger havdalah sensor", "type": "number"},
+        "sheminiatzeret_in_sukkot": {"description": "Sets if sheminiatzeret is in sukkot", "type": "boolean"},
+        "sefiratHaOmerCustom": {
+          "description": "Custom month for sefirat haOmer counting",
+          "type": "string",
+          "oneOf": [
+            {"title": "Nisan",
+              "enum": ["Nisan"]},
+            {"title": "Iyar",
+              "enum": ["Iyar"]},
+            {"title": "Sivan",
+              "enum": ["Sivan"]}
+          ],
+          "default": "Nisan"
+        },
+        "threeWeeksCustom": {
+          "description": "Custom custom for three weeks period",
+          "type": "string",
+          "oneOf": [
+            {"title": "Ashkenazi",
+              "enum": ["Ashkenazi"]},
+            {"title": "Sephardi",
+              "enum": ["Sephardi"]}
+          ],
+          "default": "Ashkenazi"
+        },
+        "israel": {"description": "Sets if the system is in israel", "type": "boolean"},
+        "offset": {"description": "Offset of the current time", "type": "number"}
       },
-      "default": false
+      "default": {"enabled": false}
     },
     "addShabbatModeDummySwitchType": {
       "description": "Device type to use to expose shabbat mode if defined",
       "type": "string",
       "oneOf": [
+        {
+          "title": "None",
+          "enum": [null]
+        },
         {
           "title": "Light",
           "enum": ["light"]
@@ -271,7 +299,7 @@
           "enum": ["switch"]
         }
       ],
-      "default": "light"
+      "default": null
     },
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",
