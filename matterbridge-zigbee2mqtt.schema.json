@@ -178,6 +178,56 @@
       "type": "boolean",
       "default": false
     },
+    "dummySwitches": {
+      "description": "Adds dummy entities based on a configuration",
+      "type": "array",
+      "uniqueItems": true,
+      "selectFrom": "name",
+      "additionalProperties": {
+        "description": "dummy entities based on a configuration",
+        "type": "object",
+        "items": {
+          "type": "string"
+        },
+        "uniqueItems": true,
+        "selectDeviceEntityFrom": "name"
+      }
+    },
+    "jewishCalendarSensorConfig": {
+      "description": "Configures jewish calendar contact sensors.",
+      "type": "object",
+      "uniqueItems": true,
+      "selectFrom": "name",
+      "additionalProperties": {
+        "description": "Jewish calendar contact sensors.",
+        "type": "object",
+        "items": {
+          "israel": {"type": "boolean"},
+          "offset": {"type": "number"}
+        },
+        "uniqueItems": true,
+        "selectDeviceEntityFrom": "name"
+      }
+    },
+    "addShabbatModeDummySwitchType": {
+      "description": "Device type to use to expose shabbat mode if defined",
+      "type": "string",
+      "oneOf": [
+        {
+          "title": "Light",
+          "enum": ["light"]
+        },
+        {
+          "title": "Dimmer",
+          "enum": ["dimmer"]
+        },
+        {
+          "title": "Switch",
+          "enum": ["switch"]
+        }
+      ],
+      "default": "light"
+    },
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",
       "type": "boolean",

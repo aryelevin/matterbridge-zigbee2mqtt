@@ -32,7 +32,8 @@ import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
-import { JewishCalendarSensors } from './JewishCalendarSensors.js';
+import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCalendarSensors.js';
+import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.js';
 
 type DeviceFeatureBlackList = Record<string, string[]>;
 
@@ -59,6 +60,11 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   scenesType: 'light' | 'outlet' | 'switch' | 'mounted_switch';
   scenesPrefix: boolean;
   postfix: string;
+  // Added by me: Arye Levin
+  dummySwitches?: DummySwitchConfig[];
+  jewishCalendarSensorConfig?: JewishCalendarSensorsConfig;
+  addShabbatModeDummySwitchType?: DummySwitchType;
+  // End of Added by me: Arye Levin
 }
 
 /**
@@ -83,6 +89,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public zigbeeEntities: ZigbeeEntity[] = [];
   private connectTimeout = 30000; // 30 seconds
   private availabilityTimeout = 10000; // 10 seconds
+  // Added by me: Arye Levin
+  public dummySwitchesAccessories: DummySwitch[] = [];
+  public jewishCalendarSensors: JewishCalendarSensors | undefined;
+  public shabbatModeDummySwitch: DummySwitch | undefined;
+  // End of Added by me: Arye Levin
 
   // debug
   private injectTimer: NodeJS.Timeout | undefined;
@@ -432,16 +443,43 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     // Check if the platform is already initialized
     await this.ready;
 
-    const jewishCalendarSensors = new JewishCalendarSensors(this, {
-      israel: true,
-      sheminiatzeret_in_sukkot: false,
-      candlelighting: 25,
-      havdalah: 45,
-      sefiratHaOmerCustom: 'Ashkenazi',
-      threeWeeksCustom: 'Ashkenazi',
-      offset: 0,
-    });
-    this.registerDevice(jewishCalendarSensors.sensor);
+    // Added by me: Arye Levin
+    // const jewishCalendarSensors = new JewishCalendarSensors(this, {
+    //   candlelighting: 30,
+    //   havdalah: 45,
+    //   offset: 0,
+    //   israel: true,
+    //   sheminiatzeret_in_sukkot: false,
+    //   sefiratHaOmerCustom: 'Iyar',
+    //   threeWeeksCustom: 'Ashkenazi',
+    // });
+    // this.registerDevice(jewishCalendarSensors.sensor);
+
+    const jewishCalendarConfig = this.config.jewishCalendarSensorConfig;
+    if (jewishCalendarConfig) {
+      this.jewishCalendarSensors = new JewishCalendarSensors(this, jewishCalendarConfig);
+      this.registerDevice(this.jewishCalendarSensors.sensor);
+    }
+
+    const dummySwitches = this.config.dummySwitches;
+    this.dummySwitchesAccessories = [];
+
+    if (dummySwitches?.length) {
+      for (const switchConfig of dummySwitches) {
+        const accessory = new DummySwitch(this, switchConfig);
+        this.dummySwitchesAccessories.push(accessory);
+      }
+    }
+
+    if (this.config.addShabbatModeDummySwitchType !== undefined) {
+      this.shabbatModeDummySwitch = new DummySwitch(this, { name: 'System Shabbat Mode', type: this.config.addShabbatModeDummySwitchType, stateful: true });
+      // this.shabbatModeDummySwitch.device.characteristicDelegate('on').on('didSet', (value, fromHomeKit) => {
+      //   if (fromHomeKit) {
+      //     this.platformAccessory.service.characteristicDelegate('switchesOn').value = !value
+      //   }
+      // }).value = !this.platformAccessory.service.characteristicDelegate('switchesOn').value
+    }
+    // End of Added by me: Arye Levin
 
     // Clear select device and entity since we have a bridge here and they will be recreated from the bridge
     await this.clearSelect();
