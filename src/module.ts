@@ -32,8 +32,10 @@ import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
+// Added by me: Arye Levin
 import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCalendarSensors.js';
 import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.js';
+// End of Added by me: Arye Levin
 
 type DeviceFeatureBlackList = Record<string, string[]>;
 
@@ -474,6 +476,13 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     if (this.config.addShabbatModeDummySwitchType !== undefined && this.config.addShabbatModeDummySwitchType !== 'dimmer') {
       this.shabbatModeDummySwitch = new DummySwitch(this, { name: 'System Shabbat Mode', type: this.config.addShabbatModeDummySwitchType, stateful: true });
+      // this.shabbatModeDummySwitch.device.commandHandler.removeHandler('on', () => {}); // will not work as we don't have reference to the function...
+      this.shabbatModeDummySwitch.device?.addCommandHandler('on', async () => {
+        this.log.info('Shabbat Mode on called');
+      });
+      this.shabbatModeDummySwitch.device?.addCommandHandler('off', async () => {
+        this.log.info('Shabbat Mode off called');
+      });
       // this.shabbatModeDummySwitch.device.characteristicDelegate('on').on('didSet', (value, fromHomeKit) => {
       //   if (fromHomeKit) {
       //     this.platformAccessory.service.characteristicDelegate('switchesOn').value = !value

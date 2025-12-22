@@ -257,30 +257,32 @@
           "description": "Custom month for sefirat haOmer counting",
           "type": "string",
           "oneOf": [
-            {"title": "Nisan",
-              "enum": ["Nisan"]},
-            {"title": "Iyar",
+            {"title": "Ashkenazi (Pessach to Lag Ba'Omer)",
+              "enum": ["Ashkenazi"]},
+            {"title": "Sephardic (Pessach to a day after Lag Ba'Omer)",
+              "enum": ["Sephardic"]},
+            {"title": "Iyar (Rosh Chodesh Iyar to 3 Sivan)",
               "enum": ["Iyar"]},
-            {"title": "Sivan",
-              "enum": ["Sivan"]}
+            {"title": "Iyar2 (After Rosh Chodesh Iyar to 5 Sivan)",
+              "enum": ["Iyar2"]}
           ],
-          "default": "Nisan"
+          "default": "Ashkenazi"
         },
         "threeWeeksCustom": {
-          "description": "Custom custom for three weeks period",
+          "description": "Custom for three weeks period (Calculates Nidcheh)",
           "type": "string",
           "oneOf": [
-            {"title": "Ashkenazi",
+            {"title": "Ashkenazi (17 Tamus to Tisha B'Av)",
               "enum": ["Ashkenazi"]},
-            {"title": "Sephardi",
-              "enum": ["Sephardi"]}
+            {"title": "Sephardic (1 B'Av to Tisha B'Av)",
+              "enum": ["Sephardic"]}
           ],
           "default": "Ashkenazi"
         },
         "israel": {"description": "Sets if the system is in israel", "type": "boolean"},
-        "offset": {"description": "Offset of the current time", "type": "number"}
+        "offset": {"description": "Offset of the current time (Can be used to check and debug the system)", "type": "number"}
       },
-      "default": {"enabled": false, "candlelighting": 30, "havdalah": 45, "shminiAtzeretInSukkot": false, "sefiratHaOmerCustom": "Nisan", "threeWeeksCustom": "Ashkenazi", "israel": true, "offset": 0}
+      "default": {"enabled": false, "candlelighting": 30, "havdalah": 45, "shminiAtzeretInSukkot": false, "sefiratHaOmerCustom": "Ashkenazi", "threeWeeksCustom": "Ashkenazi", "israel": true, "offset": 0}
     },
     "addShabbatModeDummySwitchType": {
       "description": "Device type to use to expose shabbat mode if defined",
