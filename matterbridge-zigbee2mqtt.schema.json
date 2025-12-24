@@ -317,12 +317,12 @@
       "default": "dimmer"
     },
     "aqaraS1ActionsConfigData": {
-      "description": "Configures Aqara S1 Scene Panels controls",
+      "description": "Configures an Aqara S1 Scene Panels controls",
       "type": "object",
       "selectFrom": "name",
       "uniqueItems": true,
       "additionalProperties": {
-        "description": "List of features not to be exposed for this device. Enter the feature (i.e. device_temperature) to exclude.",
+        "description": "Configures an Aqara S1 Scene Panel controls.",
         "type": "object",
         "properties": {
           "ac": {
@@ -336,7 +336,8 @@
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "AC"
               },
               "resources": {
                 "description": "Resources",
@@ -348,19 +349,20 @@
                 "selectFrom": "name"
               }
             }
-          }, 
+          },
           "light_1": {
             "description": "Light 1",
             "type": "object",
             "properties": {
               "enabled": {
-                "description": "Enable the controls of the Light No. 1",
+                "description": "Enable the controls of Light No. 1",
                 "type": "boolean",
                 "default": false
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "Light 1"
               },
               "type": {
                 "description": "Type",
@@ -391,19 +393,20 @@
                 "selectFrom": "name"
               }
             }
-          }, 
+          },
           "light_2": {
             "description": "Light 2",
             "type": "object",
             "properties": {
               "enabled": {
-                "description": "Enable the controls of the Light No. 2",
+                "description": "Enable the controls of Light No. 2",
                 "type": "boolean",
                 "default": false
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "Light 2"
               },
               "type": {
                 "description": "Type",
@@ -434,19 +437,20 @@
                 "selectFrom": "name"
               }
             }
-          }, 
+          },
           "light_3": {
             "description": "Light 3",
             "type": "object",
             "properties": {
               "enabled": {
-                "description": "Enable the controls of the Light No. 3",
+                "description": "Enable the controls of Light No. 3",
                 "type": "boolean",
                 "default": false
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "Light 3"
               },
               "type": {
                 "description": "Type",
@@ -473,19 +477,20 @@
                 "selectFrom": "name"
               }
             }
-          }, 
+          },
           "light_4": {
             "description": "Light 4",
             "type": "object",
             "properties": {
               "enabled": {
-                "description": "Enable the controls of the Light No. 4",
+                "description": "Enable the controls of Light No. 4",
                 "type": "boolean",
                 "default": false
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "Light 4"
               },
               "type": {
                 "description": "Type",
@@ -512,19 +517,20 @@
                 "selectFrom": "name"
               }
             }
-          }, 
+          },
           "light_5": {
             "description": "Light 5",
             "type": "object",
             "properties": {
               "enabled": {
-                "description": "Enable the controls of the Light No. 5",
+                "description": "Enable the controls of Light No. 5",
                 "type": "boolean",
                 "default": false
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "Light 5"
               },
               "type": {
                 "description": "Type",
@@ -551,7 +557,7 @@
                 "selectFrom": "name"
               }
             }
-          }, 
+          },
           "curtain_1": {
             "description": "Curtain 1",
             "type": "object",
@@ -563,7 +569,8 @@
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "Curtain 1"
               },
               "type": {
                 "description": "Type",
@@ -590,7 +597,7 @@
                 "selectFrom": "name"
               }
             }
-          }, 
+          },
           "curtain_2": {
             "description": "Curtain 2",
             "type": "object",
@@ -602,7 +609,8 @@
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "Curtain 2"
               },
               "type": {
                 "description": "Type",
@@ -629,7 +637,7 @@
                 "selectFrom": "name"
               }
             }
-          }, 
+          },
           "curtain_3": {
             "description": "Curtain 3",
             "type": "object",
@@ -641,7 +649,8 @@
               },
               "name": {
                 "description": "Name",
-                "type": "string"
+                "type": "string",
+                "default": "Curtain 3"
               },
               "type": {
                 "description": "Type",
@@ -666,6 +675,282 @@
                 },
                 "uniqueItems": true,
                 "selectFrom": "name"
+              }
+            }
+          },
+          "scene_1": {
+            "description": "Scene 1",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable Scene No. 1",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string",
+                "default": "Scene 1"
+              },
+              "icon": {
+                "description": "Type",
+                "type": "number",
+                "oneOf": [
+                  {
+                    "title": "Leave Home",
+                    "enum": [1]
+                  },
+                  {
+                    "title": "Arrive Home",
+                    "enum": [2]
+                  }
+                ],
+                "default": 0
+              },
+              "execute": {
+                "description": "Execute",
+                "type": "object",
+                "uniqueItems": true,
+                "selectFrom": "name",
+                "additionalProperties": {
+                  "description": "Resource",
+                  "type": "object",
+                  "additionalProperties": {
+                    "description": "Attribute",
+                    "type": "string"
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "scene_2": {
+            "description": "Scene 2",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable Scene No. 2",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string",
+                "default": "Scene 2"
+              },
+              "icon": {
+                "description": "Type",
+                "type": "number",
+                "oneOf": [
+                  {
+                    "title": "Leave Home",
+                    "enum": [1]
+                  },
+                  {
+                    "title": "Arrive Home",
+                    "enum": [2]
+                  }
+                ],
+                "default": 0
+              },
+              "execute": {
+                "description": "Execute",
+                "type": "object",
+                "uniqueItems": true,
+                "selectFrom": "name",
+                "additionalProperties": {
+                  "description": "Resource",
+                  "type": "object",
+                  "additionalProperties": {
+                    "description": "Attribute",
+                    "type": "string"
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "scene_3": {
+            "description": "Scene 3",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable Scene No. 3",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string",
+                "default": "Scene 3"
+              },
+              "icon": {
+                "description": "Type",
+                "type": "number",
+                "oneOf": [
+                  {
+                    "title": "Leave Home",
+                    "enum": [1]
+                  },
+                  {
+                    "title": "Arrive Home",
+                    "enum": [2]
+                  }
+                ],
+                "default": 0
+              },
+              "execute": {
+                "description": "Execute",
+                "type": "object",
+                "uniqueItems": true,
+                "selectFrom": "name",
+                "additionalProperties": {
+                  "description": "Resource",
+                  "type": "object",
+                  "additionalProperties": {
+                    "description": "Attribute",
+                    "type": "string"
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "scene_4": {
+            "description": "Scene 4",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable Scene No. 4",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string",
+                "default": "Scene 4"
+              },
+              "icon": {
+                "description": "Type",
+                "type": "number",
+                "oneOf": [
+                  {
+                    "title": "Leave Home",
+                    "enum": [1]
+                  },
+                  {
+                    "title": "Arrive Home",
+                    "enum": [2]
+                  }
+                ],
+                "default": 0
+              },
+              "execute": {
+                "description": "Execute",
+                "type": "object",
+                "uniqueItems": true,
+                "selectFrom": "name",
+                "additionalProperties": {
+                  "description": "Resource",
+                  "type": "object",
+                  "additionalProperties": {
+                    "description": "Attribute",
+                    "type": "string"
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "scene_5": {
+            "description": "Scene 5",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable Scene No. 5",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string",
+                "default": "Scene 5"
+              },
+              "icon": {
+                "description": "Type",
+                "type": "number",
+                "oneOf": [
+                  {
+                    "title": "Leave Home",
+                    "enum": [1]
+                  },
+                  {
+                    "title": "Arrive Home",
+                    "enum": [2]
+                  }
+                ],
+                "default": 0
+              },
+              "execute": {
+                "description": "Execute",
+                "type": "object",
+                "uniqueItems": true,
+                "selectFrom": "name",
+                "additionalProperties": {
+                  "description": "Resource",
+                  "type": "object",
+                  "additionalProperties": {
+                    "description": "Attribute",
+                    "type": "string"
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "scene_6": {
+            "description": "Scene 6",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable Scene No. 6",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string",
+                "default": "Scene 6"
+              },
+              "icon": {
+                "description": "Type",
+                "type": "number",
+                "oneOf": [
+                  {
+                    "title": "Leave Home",
+                    "enum": [1]
+                  },
+                  {
+                    "title": "Arrive Home",
+                    "enum": [2]
+                  }
+                ],
+                "default": 0
+              },
+              "execute": {
+                "description": "Execute",
+                "type": "object",
+                "uniqueItems": true,
+                "selectFrom": "name",
+                "additionalProperties": {
+                  "description": "Resource",
+                  "type": "object",
+                  "additionalProperties": {
+                    "description": "Attribute",
+                    "type": "string"
+                  },
+                  "uniqueItems": true
+                }
               }
             }
           }

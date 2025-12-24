@@ -53,9 +53,11 @@ export class JewishCalendarSensors {
     this.long = platform.config.homeLocation.longitude; // parseFloat(platform.config.homeLocationCoords.longitude);
 
     this.config = jewishCalendarConfig;
-    this.gDate = undefined as unknown as Date;
-    this.hDate = undefined as unknown as HeDate;
-    this.sunset = undefined as unknown as Date;
+
+    // Just initialize, its being set on the method updateJewishDay() at the end of this contsructor...
+    this.gDate = new Date();
+    this.hDate = new HeDate(this.gDate);
+    this.sunset = new Date();
     this.hebrewMonths = {};
 
     this.services = {};
@@ -230,7 +232,7 @@ export class JewishCalendarSensors {
   }
 
   isShabbat() {
-    const day = this.gDate.getDay();
+    const day = this.gDate?.getDay();
     const candletime = new Date(this.sunset);
     candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
 
@@ -241,7 +243,7 @@ export class JewishCalendarSensors {
 
   isRoshHashana() {
     // Because of year wraps, if it's Elul 29, we check candle lighting, otherwise, use normal DateRange
-    if (this.hDate.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 29) {
+    if (this.hDate?.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 29) {
       const candletime = new Date(this.sunset);
       candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
       return this.gDate > candletime;

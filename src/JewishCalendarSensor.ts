@@ -31,6 +31,7 @@ interface JewishCalendarSensorParams {
 export class JewishCalendarSensor {
   sensor: MatterbridgeEndpoint;
   private sensorState: boolean = false;
+  private calendarState = false;
   _testMode: boolean = false;
 
   /**
@@ -55,23 +56,26 @@ export class JewishCalendarSensor {
   }
 
   async update(isOpen: boolean) {
-    await this.updateState(isOpen, true);
+    this.calendarState = isOpen;
+    await this.updateState();
   }
 
-  private async updateState(isOpen: boolean, updateSensorState?: boolean) {
-    if (updateSensorState !== false) {
-      this.sensorState = isOpen;
-    }
-    let contact = isOpen;
+  private async updateState() {
+    let contact = this.calendarState;
     if (this._testMode === true) {
-      contact = !isOpen;
+      contact = !contact;
     }
-    await this.sensor.setAttribute(BooleanState.Cluster.id, 'stateValue', !contact, this.sensor.log);
-    await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: !contact }, this.sensor.log);
+
+    const newValue = !contact;
+    if (this.sensorState !== newValue) {
+      this.sensorState = newValue;
+      await this.sensor.updateAttribute(BooleanState.Cluster.id, 'stateValue', newValue, this.sensor.log);
+      await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: newValue }, this.sensor.log);
+    }
   }
 
   public set testMode(value: boolean) {
     this._testMode = value;
-    this.updateState(this.sensorState, false);
+    this.updateState();
   }
 }

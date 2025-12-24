@@ -7,6 +7,7 @@
 
 import { bridgedNode, MatterbridgeEndpoint, onOffLight, dimmableLight, powerSource, onOffSwitch, onOffOutlet } from 'matterbridge';
 import { OnOff } from 'matterbridge/matter/clusters';
+// import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
 
 import { ZigbeePlatform } from './module.js';
 import { Pushover } from './pushover.js';
@@ -53,8 +54,11 @@ export class DummySwitch {
   public device: MatterbridgeEndpoint;
   timer: NodeJS.Timeout | null;
   notificationMuted: boolean;
-  constructor(platform: ZigbeePlatform, config: DummySwitchConfig) {
+  callback?: (onOff: boolean) => void;
+
+  constructor(platform: ZigbeePlatform, config: DummySwitchConfig, callback?: (onOff: boolean) => void) {
     this.config = config;
+    this.callback = callback;
 
     this.timer = null;
     this.notificationMuted = false;
@@ -104,6 +108,11 @@ export class DummySwitch {
     this.device?.addCommandHandler('on', async () => {
       this.device?.log.info('Command on called');
       this.onOffDidSet(true);
+
+      // setTimeout(() => {
+      //   // this.device.triggerEvent(OnOff.Cluster.id, 'onOff$Changed', { stateValue: false }, this.device.log);
+      //   this.device.setStateOf(OnOffBaseServer, { onOff: false });
+      // }, 1000);
     });
     this.device?.addCommandHandler('off', async () => {
       this.device?.log.info('Command off called');
@@ -112,6 +121,10 @@ export class DummySwitch {
   }
 
   onOffDidSet(value: boolean) {
+    if (this.callback) {
+      this.callback(value);
+    }
+
     const delay = this.config.random ? randomize(this.config.time || 1000) : (this.config.time || 1) * 1000;
     let msg = 'Setting switch to ' + value;
     if (!this.config.stateful) {

@@ -385,6 +385,11 @@ export class ZigbeeEntity extends EventEmitter {
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round(hsl.s / 100 * 254));
           }
         }
+        // Added by me: Arye Levin
+        if (key === 'communication' && this.device?.model_id === 'lumi.switch.n4acn4') {
+          this.platform.aqaraS1ScenePanelConroller?.panelReceivedData(this.device.ieee_address, value as string);
+        }
+        // End of Added by me: Arye Levin
       });
     });
 
@@ -1741,7 +1746,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const system_mode = zigbeeDevice.propertyMap.get('system_mode');
       const system_mode_values = system_mode?.values;
       const heat = zigbeeDevice.propertyMap.get('occupied_heating_setpoint') || zigbeeDevice.propertyMap.get('unoccupied_heating_setpoint');
-      const cool = zigbeeDevice.propertyMap.get('occupied_cooling_setpoint') || zigbeeDevice.propertyMap.get('unoccupied_cooling_setpoint');
+      const cool = zigbeeDevice.propertyMap.get('occupied_cooling_setpoint') || zigbeeDevice.propertyMap.get('unoccupied_cooling_setpoint') /* Added by me: Arye Levin -> */ || heat; // <- This is for cases where the device uses one zigbee attribute for both heating and cooling (Aqara W100)
       const minHeating = heat && heat.value_min !== undefined && !isNaN(heat.value_min) ? heat.value_min : 0;
       const maxHeating = heat && heat.value_max !== undefined && !isNaN(heat.value_max) ? heat.value_max : 50;
       const minCooling = cool && cool.value_min !== undefined && !isNaN(cool.value_min) ? cool.value_min : 0;
@@ -1957,6 +1962,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
               zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_heating_setpoint'))
               zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { occupied_heating_setpoint: Math.round(value / 100) });
+            // Added by me: Arye Levin
+            if (!zigbeeDevice.propertyMap.has('current_cooling_setpoint') && !zigbeeDevice.propertyMap.has('occupied_cooling_setpoint') && zigbeeDevice.propertyMap.get('system_mode')?.values?.includes('cool')/* && zigbeeDevice.bridgedDevice?.getAttribute(Thermostat.Cluster.id, 'systemMode', zigbeeDevice.log) === Thermostat.SystemMode.Cool*/)
+              zigbeeDevice.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'occupiedCoolingSetpoint', value, zigbeeDevice.log);
+            // End of Added by me: Arye Levin
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
@@ -1970,10 +1979,17 @@ export class ZigbeeDevice extends ZigbeeEntity {
           'occupiedCoolingSetpoint',
           (value) => {
             zigbeeDevice.log.debug(`Subscribe occupiedCoolingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, value);
-            if (zigbeeDevice.propertyMap.has('current_heating_setpoint'))
+            if (zigbeeDevice.propertyMap.has('current_cooling_setpoint'))
               zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_cooling_setpoint'))
               zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { occupied_cooling_setpoint: Math.round(value / 100) });
+            // Added by me: Arye Levin
+            else if (!zigbeeDevice.propertyMap.has('current_cooling_setpoint') && !zigbeeDevice.propertyMap.has('occupied_cooling_setpoint') && zigbeeDevice.propertyMap.get('system_mode')?.values?.includes('cool'))
+              if (zigbeeDevice.propertyMap.has('current_heating_setpoint'))
+                zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
+              else if (zigbeeDevice.propertyMap.has('occupied_heating_setpoint'))
+                zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { occupied_heating_setpoint: Math.round(value / 100) });
+            // End of Added by me: Arye Levin
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;

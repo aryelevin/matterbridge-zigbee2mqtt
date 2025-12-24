@@ -36,6 +36,7 @@ import { Payload } from './payloadTypes.js';
 import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCalendarSensors.js';
 import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.js';
 import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js';
+import { PlatformControls } from './platformControls.js';
 
 export interface ALHomeLocationCoordinates {
   longitude: number;
@@ -101,9 +102,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private connectTimeout = 30000; // 30 seconds
   private availabilityTimeout = 10000; // 10 seconds
   // Added by me: Arye Levin
+  public platformControls: PlatformControls | undefined;
   public dummySwitchesAccessories: DummySwitch[] = [];
   public jewishCalendarSensors: JewishCalendarSensors | undefined;
   public shabbatModeDummySwitch: DummySwitch | undefined;
+  public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController | undefined;
   // End of Added by me: Arye Levin
 
   // debug
@@ -455,6 +458,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await this.ready;
 
     // Added by me: Arye Levin
+    this.platformControls = new PlatformControls(this);
+    await this.registerDevice(this.platformControls.device);
     // const jewishCalendarSensors = new JewishCalendarSensors(this, {
     //   candlelighting: 30,
     //   havdalah: 45,
@@ -484,14 +489,22 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
 
     if (this.config.addShabbatModeDummySwitchType !== undefined && this.config.addShabbatModeDummySwitchType !== 'dimmer') {
-      this.shabbatModeDummySwitch = new DummySwitch(this, { name: 'System Shabbat Mode', type: this.config.addShabbatModeDummySwitchType, stateful: true });
+      this.shabbatModeDummySwitch = new DummySwitch(this, { name: 'System Shabbat Mode', type: this.config.addShabbatModeDummySwitchType, stateful: true }, (onOff: boolean) => {
+        if (onOff) {
+          this.log.info('Shabbat Mode on called');
+        } else {
+          this.log.info('Shabbat Mode off called');
+        }
+      });
+
       // this.shabbatModeDummySwitch.device.commandHandler.removeHandler('on', () => {}); // will not work as we don't have reference to the function...
-      this.shabbatModeDummySwitch.device?.addCommandHandler('on', async () => {
-        this.log.info('Shabbat Mode on called');
-      });
-      this.shabbatModeDummySwitch.device?.addCommandHandler('off', async () => {
-        this.log.info('Shabbat Mode off called');
-      });
+      // this.shabbatModeDummySwitch.device?.addCommandHandler('on', async () => {
+      //   this.log.info('Shabbat Mode on called');
+      // });
+      // this.shabbatModeDummySwitch.device?.addCommandHandler('off', async () => {
+      //   this.log.info('Shabbat Mode off called');
+      // });
+
       // this.shabbatModeDummySwitch.device.characteristicDelegate('on').on('didSet', (value, fromHomeKit) => {
       //   if (fromHomeKit) {
       //     this.platformAccessory.service.characteristicDelegate('switchesOn').value = !value
@@ -501,8 +514,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
 
     if (this.config.aqaraS1ActionsConfigData) {
-      const aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, this.config.aqaraS1ActionsConfigData);
-      aqaraS1ScenePanelConroller.updateWeather(); // just to silence the unused var error... check if the right command location
+      this.aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, this.config.aqaraS1ActionsConfigData);
+      this.aqaraS1ScenePanelConroller.updateWeather(); // just to silence the unused var error... check if the right command location
     }
     // End of Added by me: Arye Levin
 

@@ -12,6 +12,7 @@ import { BridgedDeviceBasicInformation, ColorControl, LevelControl, OnOff, Therm
 
 import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
+import { EndpointNumber } from 'matterbridge/matter';
 // import { xyToHsl } from 'matterbridge/utils';
 
 declare module './entity.js' {
@@ -64,7 +65,7 @@ interface AqaraS1ScenePanelSceneConfig {
   enabled: boolean;
   name: string;
   icon: number;
-  execute?: { [key: string]: { [key: string]: number | boolean } };
+  execute?: { [key: string]: { [key: string]: string } };
 }
 
 export interface AqaraS1ScenePanelConfig {
@@ -77,7 +78,7 @@ export interface AqaraS1ScenePanelConfig {
   curtain_1?: AqaraS1ScenePanelCurtainConfig;
   curtain_2?: AqaraS1ScenePanelCurtainConfig;
   curtain_3?: AqaraS1ScenePanelCurtainConfig;
-  temperature_sensor?: AqaraS1ScenePanelControlledDeviceConfig;
+  temperature_sensor?: AqaraS1ScenePanelControlledDeviceConfig; // TODO: After implementation use its own type (see commented one above)...
   scene_1?: AqaraS1ScenePanelSceneConfig;
   scene_2?: AqaraS1ScenePanelSceneConfig;
   scene_3?: AqaraS1ScenePanelSceneConfig;
@@ -783,7 +784,7 @@ export class AqaraS1ScenePanelController {
 
   // TODO: Handle weather data asked from panel (after panel reboot for example)...
   panelReceivedData(deviceIeeeAddress: string, data: string) {
-    const dataStartIndex = 1;
+    const dataStartIndex = 0;
 
     const dataArray = this.fromHexStringToBytes(data);
 
@@ -815,7 +816,7 @@ export class AqaraS1ScenePanelController {
         const deviceSerialStr = this.toHexStringFromBytes(deviceSerial);
 
         if (commandCategory === 0x72 && commandAction === 0x01) { // State of device is reported and should set the controlled device to this state (Turn on or change position for example).
-          // if (this.platform.platformAccessory.service.values.switchesOn) {
+          if (this.platform.platformControls?.switchesOn) {
             if (deviceResourceType === 'air_cond' && stateParam[0] === 0x0e && stateParam[2] === 0x00 && stateParam[3] === 0x55 && (stateParam[1] === 0x20 || stateParam[1] === 0x02)) { // Updated Air conditioner/Heater-Cooler device state
               const onOff = dataArray[dataStartIndex + 21] >= 0x10;
               const mode = dataArray[dataStartIndex + 21] - (onOff ? 0x10 : 0x0);
@@ -829,16 +830,19 @@ export class AqaraS1ScenePanelController {
                 const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
 
                 if (deviceToControl) {
-                  /* await */ deviceToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, deviceToControl.bridgedDevice.log);
-                  deviceToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
-                  if (onOff) {
-                    /* await */ deviceToControl.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'systemMode', mode === 0 ? Thermostat.SystemMode.Heat : mode === 1 ? Thermostat.SystemMode.Cool : Thermostat.SystemMode.Auto, deviceToControl.bridgedDevice.log);
-                    // deviceToControl.bridgedDevice?.commandHandler.executeHandler('changeToMode', { newMode: mode });
+                  const endpointToControl = deviceToControl;
+                  if (endpointToControl) {
+                    /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
+                    endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
+                    if (onOff) {
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'systemMode', mode === 0 ? Thermostat.SystemMode.Heat : mode === 1 ? Thermostat.SystemMode.Cool : Thermostat.SystemMode.Auto, endpointToControl.bridgedDevice.log);
+                      // endpointToControl.bridgedDevice?.commandHandler.executeHandler('changeToMode', { newMode: mode });
 
-                    // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(fan === 0 ? 25 : fan === 1 ? 50 : fan === 2 ? 75 : 100)
-                    // if (mode === 0 || mode === 1) {
-                    //   serviceToControl._service.getCharacteristic(mode === 0 ? this.platform.Characteristics.hap.HeatingThresholdTemperature : this.platform.Characteristics.hap.CoolingThresholdTemperature).setValue(setTemperature)
-                    // }
+                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(fan === 0 ? 25 : fan === 1 ? 50 : fan === 2 ? 75 : 100)
+                      // if (mode === 0 || mode === 1) {
+                      //   serviceToControl._service.getCharacteristic(mode === 0 ? this.platform.Characteristics.hap.HeatingThresholdTemperature : this.platform.Characteristics.hap.CoolingThresholdTemperature).setValue(setTemperature)
+                      // }
+                    }
                   }
                 }
               }
@@ -855,8 +859,11 @@ export class AqaraS1ScenePanelController {
                   const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
 
                   if (deviceToControl) {
-                    /* await */ deviceToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position * 100, deviceToControl.bridgedDevice.log);
-                    deviceToControl.bridgedDevice?.commandHandler.executeHandler('goToLiftPercentage', { request: { liftPercent100thsValue: position * 100 } });
+                    const endpointToControl = deviceToControl;
+                    if (endpointToControl) {
+                      /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position * 100, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('goToLiftPercentage', { request: { liftPercent100thsValue: position * 100 } });
+                    }
                   }
                 }
               } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position State
@@ -869,22 +876,25 @@ export class AqaraS1ScenePanelController {
                   const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
 
                   if (deviceToControl) {
-                    if (positionState < 0x02) { // Open or Close
-                      // /* await */ deviceToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', (positionState === 0x01 ? 100 : 0) * 100, deviceToControl.bridgedDevice.log);
-                      deviceToControl.bridgedDevice?.commandHandler.executeHandler(positionState === 0x01 ? 'downOrClose' : 'upOrOpen');
-                      const operationState = positionState === 0x01 ? WindowCovering.MovementStatus.Closing : positionState === 0x00 ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Stopped;
-                      /* await */ deviceToControl?.bridgedDevice?.setAttribute(
-                        WindowCovering.Cluster.id,
-                        'operationalStatus',
-                        { global: operationState, lift: operationState, tilt: operationState },
-                        deviceToControl.bridgedDevice.log,
-                      );
-                    } else { // Stop
-                      // const position = deviceToControl?.bridgedDevice?.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', deviceToControl.bridgedDevice.log);
-                      // // if (isValidNumber(position, 0, 10000)) {
-                      // /* await */ deviceToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position, deviceToControl.bridgedDevice.log);
-                      // // }
-                      deviceToControl.bridgedDevice?.commandHandler.executeHandler('stopMotion');
+                    const endpointToControl = deviceToControl;
+                    if (endpointToControl) {
+                      if (positionState < 0x02) { // Open or Close
+                        // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', (positionState === 0x01 ? 100 : 0) * 100, endpointToControl.bridgedDevice.log);
+                        endpointToControl.bridgedDevice?.commandHandler.executeHandler(positionState === 0x01 ? 'downOrClose' : 'upOrOpen');
+                        const operationState = positionState === 0x01 ? WindowCovering.MovementStatus.Closing : positionState === 0x00 ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Stopped;
+                        /* await */ endpointToControl?.bridgedDevice?.setAttribute(
+                          WindowCovering.Cluster.id,
+                          'operationalStatus',
+                          { global: operationState, lift: operationState, tilt: operationState },
+                          endpointToControl.bridgedDevice.log,
+                        );
+                      } else { // Stop
+                        // const position = endpointToControl?.bridgedDevice?.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', endpointToControl.bridgedDevice.log);
+                        // // if (isValidNumber(position, 0, 10000)) {
+                        // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position, endpointToControl.bridgedDevice.log);
+                        // // }
+                        endpointToControl.bridgedDevice?.commandHandler.executeHandler('stopMotion');
+                      }
                     }
                   }
                 }
@@ -916,38 +926,41 @@ export class AqaraS1ScenePanelController {
                 const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
 
                 if (deviceToControl) {
-                  if (onOff !== undefined) {
-                    /* await */ deviceToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, deviceToControl.bridgedDevice.log);
-                    deviceToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
-                    // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.On).setValue(onOff);
-                    // serviceToControl.values.on = onOff
-                  }
-                  if (brightness !== undefined) {
-                    /* await */ deviceToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, deviceToControl.bridgedDevice.log);
-                    deviceToControl.bridgedDevice?.commandHandler.executeHandler('moveToLevel', { request: { level: brightness } });
-                    // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Brightness).setValue(brightness);
-                  }
-                  if (colorTemperature !== undefined) {
-                    /* await */ deviceToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, deviceToControl.bridgedDevice.log);
-                    /* await */ deviceToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, deviceToControl.bridgedDevice.log);
-                    deviceToControl.bridgedDevice?.commandHandler.executeHandler('moveToColorTemperature', { request: { colorTemperatureMireds: brightness } });
-                    // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.ColorTemperature).setValue(colorTemperature);
-                  }
-                  if (colorX !== undefined && colorY !== undefined) {
-                    /* await */ deviceToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, deviceToControl.bridgedDevice.log);
-                    /* await */ deviceToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, deviceToControl.bridgedDevice.log);
-                    /* await */ deviceToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, deviceToControl.bridgedDevice.log);
-                    deviceToControl.bridgedDevice?.commandHandler.executeHandler('moveToColor', { request: { colorX, colorY } });
+                  const endpointToControl = deviceToControl;
+                  if (endpointToControl) {
+                    if (onOff !== undefined) {
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
+                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.On).setValue(onOff);
+                      // serviceToControl.values.on = onOff
+                    }
+                    if (brightness !== undefined) {
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToLevel', { request: { level: brightness } });
+                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Brightness).setValue(brightness);
+                    }
+                    if (colorTemperature !== undefined) {
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColorTemperature', { request: { colorTemperatureMireds: colorTemperature } });
+                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.ColorTemperature).setValue(colorTemperature);
+                    }
+                    if (colorX !== undefined && colorY !== undefined) {
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColor', { request: { colorX, colorY } });
 
-                    // const { h, s } = xyToHsl(colorX / 65535.0, colorY / 65535.0);
+                      // const { h, s } = xyToHsl(colorX / 65535.0, colorY / 65535.0);
 
-                    // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Hue).setValue(h);
-                    // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Saturation).setValue(s);
+                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Hue).setValue(h);
+                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Saturation).setValue(s);
+                    }
                   }
                 }
               }
             }
-          // }
+          }
         } else if (commandCategory === 0x71 && commandAction === 0x06) { // Panel asking for data...
           this.log.debug('Asked data for param: ' + stateParam);
           if (stateParam[0] === 0x08 && stateParam[1] === 0x00 && stateParam[2] === 0x1f && stateParam[3] === 0xa5) { // Names
@@ -973,9 +986,12 @@ export class AqaraS1ScenePanelController {
               const deviceIeee = this.panelsToResources[panelDevicePath][0];
               const deviceToControl = this.getDeviceEntity(deviceIeee);
 
-              if (deviceToControl?.bridgedDevice) {
-                // accessoryToControl.service.updatePanel(panelDevicePath.split('/'));
-                this.sendACStateToPanel(deviceIeeeAddress, deviceToControl.bridgedDevice);
+              if (deviceToControl) {
+                const endpointToControl = deviceToControl;
+                if (endpointToControl?.bridgedDevice) {
+                  // accessoryToControl.service.updatePanel(panelDevicePath.split('/'));
+                  this.sendACStateToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                }
               }
             } else if (stateParam[0] === 0x08 && stateParam[1] === 0x00 && stateParam[2] === 0x1f && stateParam[3] === 0xa7) { // Modes
               const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress]['ac'];
@@ -1043,9 +1059,12 @@ export class AqaraS1ScenePanelController {
               const deviceIeee = this.panelsToResources[panelDevicePath][0];
               const deviceToControl = this.getDeviceEntity(deviceIeee);
 
-              if (deviceToControl?.bridgedDevice) {
-                // accessoryToControl.service.updatePanelPositionState(panelDevicePath.split('/'));
-                this.sendCoverPositionToPanel(deviceIeeeAddress, deviceToControl.bridgedDevice);
+              if (deviceToControl) {
+                const endpointToControl = deviceToControl;
+                if (endpointToControl?.bridgedDevice) {
+                  // accessoryToControl.service.updatePanelPositionState(panelDevicePath.split('/'));
+                  this.sendCoverPositionToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                }
               } else {
                 this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '01010055', this.getHexFromFloat32Bit(0));
               }
@@ -1054,9 +1073,12 @@ export class AqaraS1ScenePanelController {
               const deviceIeee = this.panelsToResources[panelDevicePath][0];
               const deviceToControl = this.getDeviceEntity(deviceIeee);
 
-              if (deviceToControl?.bridgedDevice) {
-                // accessoryToControl.service.updatePanelMovementState(panelDevicePath.split('/'));
-                this.sendCoverMovementModeToPanel(deviceIeeeAddress, deviceToControl.bridgedDevice);
+              if (deviceToControl) {
+                const endpointToControl = deviceToControl;
+                if (endpointToControl?.bridgedDevice) {
+                  // accessoryToControl.service.updatePanelMovementState(panelDevicePath.split('/'));
+                  this.sendCoverMovementModeToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                }
               } else {
                 this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '0e020055', '00000002');
               }
@@ -1066,19 +1088,22 @@ export class AqaraS1ScenePanelController {
             const deviceIeee = this.panelsToResources[panelDevicePath][0];
             const deviceToControl = this.getDeviceEntity(deviceIeee);
 
-            if (deviceToControl?.bridgedDevice /* && accessoryToControl.values.serviceName === 'Light'*/) {
-              if (stateParam[0] === 0x04 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light On/Off
-                // accessoryToControl.service.updatePanelOnOffState(panelDevicePath.split('/'));
-                this.sendLightOnOffToPanel(deviceIeeeAddress, deviceToControl.bridgedDevice);
-              } else if (stateParam[0] === 0x0e && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Brightness
-                // accessoryToControl.service.updatePanelBrightnessState(panelDevicePath.split('/'));
-                this.sendLightBrightnessToPanel(deviceIeeeAddress, deviceToControl.bridgedDevice);
-              } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light CT
-                // accessoryToControl.service.updatePanelColorTemperatureState(panelDevicePath.split('/'));
-                this.sendLightColorTemperatureToPanel(deviceIeeeAddress, deviceToControl.bridgedDevice);
-              } else if (stateParam[0] === 0x0e && stateParam[1] === 0x08 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Color
-                // accessoryToControl.service.updatePanelColorState(panelDevicePath.split('/'));
-                this.sendLightColorToPanel(deviceIeeeAddress, deviceToControl.bridgedDevice);
+            if (deviceToControl /* && accessoryToControl.values.serviceName === 'Light'*/) {
+              const endpointToControl = deviceToControl;
+              if (endpointToControl?.bridgedDevice) {
+                if (stateParam[0] === 0x04 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light On/Off
+                  // accessoryToControl.service.updatePanelOnOffState(panelDevicePath.split('/'));
+                  this.sendLightOnOffToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                } else if (stateParam[0] === 0x0e && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Brightness
+                  // accessoryToControl.service.updatePanelBrightnessState(panelDevicePath.split('/'));
+                  this.sendLightBrightnessToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light CT
+                  // accessoryToControl.service.updatePanelColorTemperatureState(panelDevicePath.split('/'));
+                  this.sendLightColorTemperatureToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                } else if (stateParam[0] === 0x0e && stateParam[1] === 0x08 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Color
+                  // accessoryToControl.service.updatePanelColorState(panelDevicePath.split('/'));
+                  this.sendLightColorToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                }
               }
             }
           }
@@ -1087,108 +1112,112 @@ export class AqaraS1ScenePanelController {
           // Might be i can just ignore it and let my timeout technique to resend the data...
           this.log.info('Light configuration notification received... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
         } else if (commandCategory === 0x73 && commandAction === 0x03) {
-          // if (this.platform.platformAccessory.service.values.switchesOn) {
-          //   const panelSensor = this.accessoryByRpath[rpath].serviceByRpath[rpath];
-          //   const sceneNo = parseInt(data[data.length - 1]);
-          //   const sceneConfigName = ('scene_' + sceneNo) as AqaraS1ScenePanelConfigKey;
+          if (this.platform.platformControls?.switchesOn) {
+            const panelDevice = this.getDeviceEntity(deviceIeeeAddress);
+            const sceneNo = parseInt(data[data.length - 1]);
+            const sceneConfigName = ('scene_' + sceneNo) as AqaraS1ScenePanelConfigKey;
 
-          //   const sceneConfig = this.aqaraS1ActionsConfigData?.[deviceIeeeAddress]?.[sceneConfigName] as AqaraS1ScenePanelSceneConfig | undefined;
-          //   const sceneExecutionData = sceneConfig?.execute;
-          //   if (sceneExecutionData) {
-          //     const resources = Object.keys(sceneExecutionData);
-          //     for (let i = resources.length - 1; i >= 0; i--) {
-          //       const resourceItem = resources[i];
-          //       const pathComponents = resourceItem.split('/');
-          //       const resourcePath = '/' + pathComponents[2] + '/' + pathComponents[3];
+            const sceneConfig = this.aqaraS1ActionsConfigData?.[deviceIeeeAddress]?.[sceneConfigName] as AqaraS1ScenePanelSceneConfig | undefined;
+            const sceneExecutionData = sceneConfig?.execute;
+            if (sceneExecutionData) {
+              const devicesIeee = Object.keys(sceneExecutionData);
+              for (let i = devicesIeee.length - 1; i >= 0; i--) {
+                const deviceIeeeItem = devicesIeee[i];
+                const sceneExecutionActions = sceneExecutionData[deviceIeeeItem];
+                const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
 
-          //       const accessoryToControl = this.platform.gatewayMap[pathComponents[1]].accessoryByRpath[resourcePath];
-          //       const sceneExecutionActions = sceneExecutionData[resourceItem];
+                if (deviceToControl) {
+                  const endpointToControl = deviceToControl;
+                  if (endpointToControl) {
+                    if (sceneExecutionActions.on !== undefined) {
+                      const onOff = Boolean(sceneExecutionActions.on);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
+                    }
+                    if (sceneExecutionActions.brightness !== undefined) {
+                      const brightness = Number(sceneExecutionActions.brightness);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToLevel', { request: { level: brightness } });
+                    }
+                    if (sceneExecutionActions.colorTemperature !== undefined) {
+                      const colorTemperature = Number(sceneExecutionActions.colorTemperature);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColorTemperature', { request: { colorTemperatureMireds: colorTemperature } });
+                    }
+                    if (sceneExecutionActions.colorX !== undefined && sceneExecutionActions.colorY !== undefined) {
+                      const colorX = Number(sceneExecutionActions.colorX);
+                      const colorY = Number(sceneExecutionActions.colorY);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColor', { request: { colorX, colorY } });
+                    }
+                    if (sceneExecutionActions.hue !== undefined && sceneExecutionActions.saturation !== undefined) {
+                      const hue = Number(sceneExecutionActions.hue);
+                      const saturation = Number(sceneExecutionActions.saturation);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentHue', hue, endpointToControl.bridgedDevice.log);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentSaturation', saturation, endpointToControl.bridgedDevice.log);
+                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, endpointToControl.bridgedDevice.log);
+                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToHueAndSaturation', { request: { hue, saturation } });
+                    }
+                    // if (sceneExecutionActions.active !== undefined) { // For ACs for example
+                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Active).setValue(sceneExecutionActions.active)
+                    // }
+                    // if (sceneExecutionActions.targetTemperature !== undefined) { // For ACs and thermostats
+                    //   const characteristic = undefined;
+                    //   if (typeof accessoryToControl === 'HeaterCooler') {
+                    //     const currentTargetHeaterCoolerState = serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.TargetHeaterCoolerState).value
+                    //     if (currentTargetHeaterCoolerState === this.platform.Characteristics.hap.TargetHeaterCoolerState.COOL) {
+                    //       characteristic = this.platform.Characteristics.hap.CoolingThresholdTemperature
+                    //     } else if (currentTargetHeaterCoolerState === this.platform.Characteristics.hap.TargetHeaterCoolerState.HEAT) {
+                    //       characteristic = this.platform.Characteristics.hap.HeatingThresholdTemperature
+                    //     }
+                    //   } else if (typeof accessoryToControl === 'Thermostat') {
+                    //     characteristic = this.platform.Characteristics.hap.TargetTemperature
+                    //   }
+                    //   if (characteristic !== undefined) {
+                    //     serviceToControl._service.getCharacteristic(characteristic).setValue(sceneExecutionActions.targetTemperature)
+                    //   }
+                    // }
+                    // if (sceneExecutionActions.targetState !== undefined) { // For ACs and thermostats
+                    //   const characteristic = undefined;
+                    //   if (typeof accessoryToControl === 'HeaterCooler') {
+                    //     characteristic = this.platform.Characteristics.hap.TargetHeaterCoolerState
+                    //   } else if (typeof accessoryToControl === 'Thermostat') {
+                    //     characteristic = this.platform.Characteristics.hap.TargetHeatingCoolingState
+                    //   }
+                    //   if (characteristic !== undefined) {
+                    //     serviceToControl._service.getCharacteristic(characteristic).setValue(sceneExecutionActions.targetState)
+                    //   }
+                    // }
+                    // if (sceneExecutionActions.rotationSpeed !== undefined) { // For ACs (, fans and thermostats?)
+                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(sceneExecutionActions.rotationSpeed)
+                    // }
+                    // if (sceneExecutionActions.swingMode !== undefined) { // For ACs (, fans and thermostats?)
+                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.SwingMode).setValue(sceneExecutionActions.swingMode)
+                    // }
+                    // if (sceneExecutionActions.holdPosition !== undefined) { // For WindowCovering
+                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.HoldPosition).setValue(sceneExecutionActions.holdPosition) // Supposed to be boolean
+                    // }
+                    // if (sceneExecutionActions.targetPosition !== undefined) { // For WindowCovering
+                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.TargetPosition).setValue(sceneExecutionActions.targetPosition)
+                    // }
 
-          //       if (accessoryToControl) {
-          //         const serviceToControl = accessoryToControl.serviceByRpath[resourcePath];
-          //         if (serviceToControl) {
-          //           if (sceneExecutionActions.on !== undefined) {
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.On).setValue(sceneExecutionActions.on)
-          //             // serviceToControl.values.on = sceneExecutionActions.on
-          //           }
-          //           if (sceneExecutionActions.brightness !== undefined) {
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Brightness).setValue(sceneExecutionActions.brightness)
-          //           }
-          //           if (sceneExecutionActions.colorTemperature !== undefined) {
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.ColorTemperature).setValue(sceneExecutionActions.colorTemperature)
-          //           }
-          //           if (sceneExecutionActions.colorX !== undefined && sceneExecutionActions.colorY !== undefined) {
-          //             const { h, s } = Colour.xyToHsv([sceneExecutionActions.colorX / 65535.0, sceneExecutionActions.colorY / 65535.0], accessoryToControl.service.capabilities.gamut)
-    
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Hue).setValue(h)
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Saturation).setValue(s)
-          //           }
-          //           if (sceneExecutionActions.hue !== undefined && sceneExecutionActions.saturation !== undefined) {
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Hue).setValue(sceneExecutionActions.hue)
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Saturation).setValue(sceneExecutionActions.saturation)
-          //           }
-          //           if (sceneExecutionActions.active !== undefined) { // For ACs for example
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Active).setValue(sceneExecutionActions.active)
-          //           }
-          //           if (sceneExecutionActions.targetTemperature !== undefined) { // For ACs and thermostats
-          //             const characteristic = undefined;
-          //             if (typeof accessoryToControl === 'HeaterCooler') {
-          //               const currentTargetHeaterCoolerState = serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.TargetHeaterCoolerState).value
-          //               if (currentTargetHeaterCoolerState === this.platform.Characteristics.hap.TargetHeaterCoolerState.COOL) {
-          //                 characteristic = this.platform.Characteristics.hap.CoolingThresholdTemperature
-          //               } else if (currentTargetHeaterCoolerState === this.platform.Characteristics.hap.TargetHeaterCoolerState.HEAT) {
-          //                 characteristic = this.platform.Characteristics.hap.HeatingThresholdTemperature
-          //               }
-          //             } else if (typeof accessoryToControl === 'Thermostat') {
-          //               characteristic = this.platform.Characteristics.hap.TargetTemperature
-          //             }
-          //             if (characteristic !== undefined) {
-          //               serviceToControl._service.getCharacteristic(characteristic).setValue(sceneExecutionActions.targetTemperature)
-          //             }
-          //           }
-          //           if (sceneExecutionActions.targetState !== undefined) { // For ACs and thermostats
-          //             const characteristic = undefined;
-          //             if (typeof accessoryToControl === 'HeaterCooler') {
-          //               characteristic = this.platform.Characteristics.hap.TargetHeaterCoolerState
-          //             } else if (typeof accessoryToControl === 'Thermostat') {
-          //               characteristic = this.platform.Characteristics.hap.TargetHeatingCoolingState
-          //             }
-          //             if (characteristic !== undefined) {
-          //               serviceToControl._service.getCharacteristic(characteristic).setValue(sceneExecutionActions.targetState)
-          //             }
-          //           }
-          //           if (sceneExecutionActions.rotationSpeed !== undefined) { // For ACs (, fans and thermostats?)
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(sceneExecutionActions.rotationSpeed)
-          //           }
-          //           if (sceneExecutionActions.swingMode !== undefined) { // For ACs (, fans and thermostats?)
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.SwingMode).setValue(sceneExecutionActions.swingMode)
-          //           }
-          //           if (sceneExecutionActions.holdPosition !== undefined) { // For WindowCovering
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.HoldPosition).setValue(sceneExecutionActions.holdPosition) // Supposed to be boolean
-          //           }
-          //           if (sceneExecutionActions.targetPosition !== undefined) { // For WindowCovering
-          //             serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.TargetPosition).setValue(sceneExecutionActions.targetPosition)
-          //           }
+                    // Allow also triggering buttons actions, so in HomeKit it will execute the button automation.
+                    if (sceneExecutionActions?.buttonAction === 'Single' || sceneExecutionActions?.buttonAction === 'Double' || sceneExecutionActions?.buttonAction === 'Long' || sceneExecutionActions?.buttonAction === 'Press' || sceneExecutionActions?.buttonAction === 'Release') {
+                      // TODO: Test if it functions properly.
+                      endpointToControl.bridgedDevice?.triggerSwitchEvent(sceneExecutionActions.buttonAction);
+                    }
+                  }
+                }
+              }
+            }
 
-          //           // Allow also triggering buttons actions, so in HomeKit it will execute the button automation.
-          //           if (sceneExecutionActions.buttonAction !== undefined) {
-          //             // TODO: Test if it functions properly.
-          //             const buttonRPath = sceneExecutionActions.buttonAction.rpath;
-          //             const buttonNo = sceneExecutionActions.buttonAction.buttonNo;
-          //             const buttonEvent = sceneExecutionActions.buttonAction.event;
-          //             const buttonAccessoryService = this.accessoryByRpath[buttonRPath].serviceByRpath[buttonRPath];
-          //             const buttonService = buttonAccessoryService.buttonServices[buttonNo];
-          //             buttonService.update(buttonEvent);
-          //           }
-          //         }
-          //       }
-          //     }
-          //   }
-
-          //   const buttonService = panelSensor.buttonServices[sceneNo];
-          //   buttonService.update((sceneNo * 1000) + 2); // issue a single press event...
-          //   this.log.info('Scene Activated... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
-          // }
+            // const buttonService = panelSensor.buttonServices[sceneNo];
+            panelDevice?.bridgedDevice?.getChildEndpoint(EndpointNumber(sceneNo))?.triggerSwitchEvent('Single'); // issue a single press event...
+            this.log.info('Scene Activated... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
+          }
         } else {
           this.log.error('Unknown message from: ' + deviceIeeeAddress + ', Hex data: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum + ', commandCategory: 0x' + commandCategory.toString(16) + ', commandType: 0x' + commandType.toString(16) + ', commandAction: 0x' + commandAction.toString(16) + ', paramsSize: 0x' + paramsSize.toString(16));
         }
