@@ -178,6 +178,15 @@
       "type": "boolean",
       "default": false
     },
+    "homeLocation": {
+      "description": "Sets the home location in Longitude and Latitude coordinates to allow jewish calendar and weather to function properly and according to this location.",
+      "type": "object",
+      "properties": {
+        "longitude": {"description": "The location longitude", "type": "number"},
+        "latitude": {"description": "The location latitude", "type": "number"}
+      },
+      "default": {"longitude": 34.8376, "latitude": 32.08934}
+    },
     "dummySwitches": {
       "description": "Adds dummy entities based on a configuration",
       "type": "array",
@@ -306,6 +315,364 @@
         }
       ],
       "default": "dimmer"
+    },
+    "aqaraS1ActionsConfigData": {
+      "description": "Configures Aqara S1 Scene Panels controls",
+      "type": "object",
+      "selectFrom": "name",
+      "uniqueItems": true,
+      "additionalProperties": {
+        "description": "List of features not to be exposed for this device. Enter the feature (i.e. device_temperature) to exclude.",
+        "type": "object",
+        "properties": {
+          "ac": {
+            "description": "AC",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of the AC",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }, 
+          "light_1": {
+            "description": "Light 1",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of the Light No. 1",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "type": {
+                "description": "Type",
+                "type": "string",
+                "oneOf": [
+                  {
+                    "title": "Dimmer",
+                    "enum": ["dimmable"]
+                  },
+                  {
+                    "title": "Color Temperature",
+                    "enum": ["ct"]
+                  },
+                  {
+                    "title": "Color",
+                    "enum": ["color"]
+                  }
+                ],
+                "default": "color"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }, 
+          "light_2": {
+            "description": "Light 2",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of the Light No. 2",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "type": {
+                "description": "Type",
+                "type": "string",
+                "oneOf": [
+                  {
+                    "title": "Dimmer",
+                    "enum": ["dimmable"]
+                  },
+                  {
+                    "title": "Color Temperature",
+                    "enum": ["ct"]
+                  },
+                  {
+                    "title": "Color",
+                    "enum": ["color"]
+                  }
+                ],
+                "default": "color"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }, 
+          "light_3": {
+            "description": "Light 3",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of the Light No. 3",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "type": {
+                "description": "Type",
+                "type": "string",
+                "oneOf": [
+                  {
+                    "title": "Dimmer",
+                    "enum": ["dimmable"]
+                  },
+                  {
+                    "title": "Color Temperature",
+                    "enum": ["ct"]
+                  }
+                ],
+                "default": "ct"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }, 
+          "light_4": {
+            "description": "Light 4",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of the Light No. 4",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "type": {
+                "description": "Type",
+                "type": "string",
+                "oneOf": [
+                  {
+                    "title": "Dimmer",
+                    "enum": ["dimmable"]
+                  },
+                  {
+                    "title": "Color Temperature",
+                    "enum": ["ct"]
+                  }
+                ],
+                "default": "ct"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }, 
+          "light_5": {
+            "description": "Light 5",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of the Light No. 5",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "type": {
+                "description": "Type",
+                "type": "string",
+                "oneOf": [
+                  {
+                    "title": "Dimmer",
+                    "enum": ["dimmable"]
+                  },
+                  {
+                    "title": "Color Temperature",
+                    "enum": ["ct"]
+                  }
+                ],
+                "default": "ct"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }, 
+          "curtain_1": {
+            "description": "Curtain 1",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of Curtain No. 1",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "type": {
+                "description": "Type",
+                "type": "string",
+                "oneOf": [
+                  {
+                    "title": "Curtain",
+                    "enum": ["curtain"]
+                  },
+                  {
+                    "title": "Roller",
+                    "enum": ["roller"]
+                  }
+                ],
+                "default": "curtain"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }, 
+          "curtain_2": {
+            "description": "Curtain 2",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of Curtain No. 2",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "type": {
+                "description": "Type",
+                "type": "string",
+                "oneOf": [
+                  {
+                    "title": "Curtain",
+                    "enum": ["curtain"]
+                  },
+                  {
+                    "title": "Roller",
+                    "enum": ["roller"]
+                  }
+                ],
+                "default": "curtain"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }, 
+          "curtain_3": {
+            "description": "Curtain 3",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the controls of Curtain No. 3",
+                "type": "boolean",
+                "default": false
+              },
+              "name": {
+                "description": "Name",
+                "type": "string"
+              },
+              "type": {
+                "description": "Type",
+                "type": "string",
+                "oneOf": [
+                  {
+                    "title": "Curtain",
+                    "enum": ["curtain"]
+                  },
+                  {
+                    "title": "Roller",
+                    "enum": ["roller"]
+                  }
+                ],
+                "default": "curtain"
+              },
+              "resources": {
+                "description": "Resources",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "selectFrom": "name"
+              }
+            }
+          }
+        },
+        "uniqueItems": true,
+        "selectDeviceEntityFrom": "name"
+      }
     },
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",

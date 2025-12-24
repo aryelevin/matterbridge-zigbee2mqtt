@@ -49,8 +49,8 @@ export class JewishCalendarSensors {
    * @param {JewishCalendarSensorsConfig} jewishCalendarConfig - The config.
    */
   constructor(platform: ZigbeePlatform, jewishCalendarConfig: JewishCalendarSensorsConfig) {
-    this.lat = 32.08934; // parseFloat(platform.config.homeLocationCoords.latitude);
-    this.long = 34.8376; // parseFloat(platform.config.homeLocationCoords.longitude);
+    this.lat = platform.config.homeLocation.latitude; // parseFloat(platform.config.homeLocationCoords.latitude);
+    this.long = platform.config.homeLocation.longitude; // parseFloat(platform.config.homeLocationCoords.longitude);
 
     this.config = jewishCalendarConfig;
     this.gDate = undefined as unknown as Date;

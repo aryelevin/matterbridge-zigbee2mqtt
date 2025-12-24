@@ -35,6 +35,12 @@ import { Payload } from './payloadTypes.js';
 // Added by me: Arye Levin
 import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCalendarSensors.js';
 import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.js';
+import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js';
+
+export interface ALHomeLocationCoordinates {
+  longitude: number;
+  latitude: number;
+}
 // End of Added by me: Arye Levin
 
 type DeviceFeatureBlackList = Record<string, string[]>;
@@ -63,9 +69,12 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   scenesPrefix: boolean;
   postfix: string;
   // Added by me: Arye Levin
+  homeLocation: ALHomeLocationCoordinates;
   dummySwitches?: DummySwitchConfig[];
   jewishCalendarSensorConfig?: JewishCalendarSensorsConfig;
   addShabbatModeDummySwitchType?: DummySwitchType;
+  aqaraS1ActionsConfigData?: { [key: string]: AqaraS1ScenePanelConfig };
+  aqaraS1ExecutedConfigurationsData?: { [key: string]: { [key: string]: string[] | { [key: number]: string } } };
   // End of Added by me: Arye Levin
 }
 
@@ -489,6 +498,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       //   }
       // }).value = !this.platformAccessory.service.characteristicDelegate('switchesOn').value
       await this.registerDevice(this.shabbatModeDummySwitch.device);
+    }
+
+    if (this.config.aqaraS1ActionsConfigData) {
+      const aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, this.config.aqaraS1ActionsConfigData);
+      aqaraS1ScenePanelConroller.updateWeather(); // just to silence the unused var error... check if the right command location
     }
     // End of Added by me: Arye Levin
 
