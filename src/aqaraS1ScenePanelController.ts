@@ -9,15 +9,16 @@ import * as https from 'node:https';
 import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
 import { MatterbridgeEndpoint } from 'matterbridge';
 import { BridgedDeviceBasicInformation, ColorControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { EndpointNumber } from 'matterbridge/matter';
 
 import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
-import { EndpointNumber } from 'matterbridge/matter';
+
 // import { xyToHsl } from 'matterbridge/utils';
 
 declare module './entity.js' {
   interface ZigbeeEntity {
-    sendAqaraS1CommunicationData(data: string): void;
+    sendAqaraS1CommunicationData(data: string, cache: boolean): void;
   }
 }
 
@@ -25,11 +26,15 @@ declare module './entity.js' {
 //   sendAqaraS1CommunicationData(data: string): string;
 // }
 
-ZigbeeEntity.prototype.sendAqaraS1CommunicationData = function (data: string): void {
+ZigbeeEntity.prototype.sendAqaraS1CommunicationData = function (data: string, cache: boolean): void {
   // this.saveCommands('off', dataToSend);
   // this.log.debug(`Aqara S1 Scene Panel Command send called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${dataToSend.endpoint?.maybeId}:${dataToSend.endpoint?.maybeNumber}`);
   // const isChildEndpoint = dataToSend.endpoint.deviceName !== this.entityName;
-  this.cachePublish('command', { ['command']: data });
+  if (cache) {
+    this.cachePublish('communication', { communication: data });
+  } else {
+    this.publishCommand('communication', this.device?.friendly_name as string, { communication: data });
+  }
 };
 
 type AqaraS1ScenePanelLightType = 'ct' | 'color' | 'dimmable' | 'onoff';
@@ -94,11 +99,13 @@ interface AqaraS1ScenePanelConfigCommand {
   commandsData: string[];
   meta: {
     index: number;
-    deviceIndex: number | string;
+    deviceIndex: number;
     panelIeeeAddresss: string;
     failureCount: number;
   };
 }
+
+const AqaraS1ScenePanelSceneConfigDeviceIndex = 999;
 
 export class AqaraS1ScenePanelController {
   public log: AnsiLogger;
@@ -110,15 +117,11 @@ export class AqaraS1ScenePanelController {
   configurationCommandsToExecute: AqaraS1ScenePanelConfigCommand[] = [];
   lastCommandTimeout: NodeJS.Timeout | undefined = undefined;
   aqaraS1ActionsConfigData: { [key: string]: AqaraS1ScenePanelConfig };
-  aqaraS1ExecutedConfigurationsData: { [key: string]: { [key: string]: string[] | { [key: number]: string } } };
+  aqaraS1ExecutedConfigurationsData?: { [key: string]: { [key: string]: string[] | { [key: number]: string } } };
 
   constructor(platform: ZigbeePlatform, actionConfig: { [key: string]: AqaraS1ScenePanelConfig }) {
     this.platform = platform;
     this.aqaraS1ActionsConfigData = actionConfig;
-    if (!platform.config.aqaraS1ExecutedConfigurationsData) {
-      platform.config.aqaraS1ExecutedConfigurationsData = {};
-    }
-    this.aqaraS1ExecutedConfigurationsData = platform.config.aqaraS1ExecutedConfigurationsData;
 
     this.log = new AnsiLogger({
       logName: 'AqaraS1ScenePanelController',
@@ -127,6 +130,10 @@ export class AqaraS1ScenePanelController {
     });
     this.log.debug(`Loaded: AqaraS1ScenePanelController`);
     this.log.debug('actionsConfigData contents: ' + JSON.stringify(this.aqaraS1ActionsConfigData));
+  }
+
+  async saveContext() {
+    await this.platform.context?.set('aqaraS1ExecutedConfigurationsData', this.aqaraS1ExecutedConfigurationsData);
   }
 
   getDeviceEntity(ieee_address: string) {
@@ -195,17 +202,17 @@ export class AqaraS1ScenePanelController {
                     for (let index = 0; index < this.allPanels.length; index++) {
                       const panelIeeeAddresss = this.allPanels[index];
                       if (weathercode !== this.lastWeatherData.weathercode) {
-                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address, '0d020055', weathercode.toString(16).padStart(8, '0'));
+                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2), '0d020055', weathercode.toString(16).padStart(8, '0'));
                       }
                       // TODO: Send temperature and humidity only if no temperature sensor is configured on the panel configuration...
                       if (temperature !== this.lastWeatherData.temperature) {
-                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address, '00040055', this.getHexFromFloat32Bit(temperature));
+                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2), '00040055', this.getHexFromFloat32Bit(temperature));
                       }
                       if (humidity !== this.lastWeatherData.humidity) {
-                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address, '00050055', this.getHexFromFloat32Bit(humidity));
+                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2), '00050055', this.getHexFromFloat32Bit(humidity));
                       }
                       if (uvindex !== this.lastWeatherData.uvindex) {
-                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address, '00060055', this.getHexFromFloat32Bit(uvindex));
+                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2), '00060055', this.getHexFromFloat32Bit(uvindex));
                       }
                     }
                     this.lastWeatherData.weathercode = weathercode;
@@ -329,7 +336,7 @@ export class AqaraS1ScenePanelController {
 
   sendFeelPageDataToPanel(deviceIeeeAddress: string, device: string, parameter: string, content: string) {
     const dataToSend = this.generateAqaraS1ScenePanelCommands('08', device + parameter + content)[0];
-    this._writeDataToPanel(deviceIeeeAddress, dataToSend);
+    this._writeDataToPanel(deviceIeeeAddress, dataToSend, false);
   }
 
   sendStateToPanel(deviceIeeeAddress: string, device: string, parameter: string, content: string) {
@@ -337,10 +344,10 @@ export class AqaraS1ScenePanelController {
     this._writeDataToPanel(deviceIeeeAddress, dataToSend);
   }
 
-  _writeDataToPanel(deviceIeeeAddress: string, dataToSend: string) {
+  _writeDataToPanel(deviceIeeeAddress: string, dataToSend: string, cache: boolean = true) {
     this.log.debug('Going to set "' + dataToSend + '" at panel: ' + deviceIeeeAddress);
     const device = this.getDeviceEntity(deviceIeeeAddress);
-    device?.sendAqaraS1CommunicationData(dataToSend);
+    device?.sendAqaraS1CommunicationData(dataToSend, cache);
     // this.client
     //   .put(panelResourcePath, { preset: dataToSend })
     //   .then((obj) => {
@@ -394,7 +401,22 @@ export class AqaraS1ScenePanelController {
     this._writeDataToPanel(deviceIeeeAddress, data);
   }
 
-  setAqaraS1PanelsConfiguration() {
+  async setAqaraS1PanelsConfiguration() {
+    if (this.aqaraS1ExecutedConfigurationsData) {
+      this.log.error('setAqaraS1PanelsConfiguration called twice, returning...');
+      return;
+    }
+
+    const hasContext = await this.platform.context?.has('aqaraS1ExecutedConfigurationsData');
+    if (!hasContext) {
+      await this.platform.context?.set('aqaraS1ExecutedConfigurationsData', {});
+    }
+    this.aqaraS1ExecutedConfigurationsData = await this.platform.context?.get('aqaraS1ExecutedConfigurationsData');
+    if (!this.aqaraS1ExecutedConfigurationsData) {
+      this.log.error('aqaraS1ExecutedConfigurationsData not found, returning...');
+      return;
+    }
+
     // this.log(JSON.stringify(this.platform.config))
     if (this.aqaraS1ActionsConfigData) {
       const panels = Object.keys(this.aqaraS1ActionsConfigData);
@@ -406,7 +428,7 @@ export class AqaraS1ScenePanelController {
         const panelControls = Object.keys(panelData);
         for (const panelControl of panelControls) {
           const controlData = panelData[panelControl as AqaraS1ScenePanelConfigKey] as AqaraS1ScenePanelControlledDeviceConfig;
-          if (controlData.resources !== null) {
+          if (controlData.enabled && controlData.resources?.length) {
             this.panelsToResources['/' + panel + '/' + panelControl] = controlData.resources;
             for (let i = controlData.resources.length - 1; i >= 0; i--) {
               const rid = controlData.resources[i];
@@ -493,6 +515,7 @@ export class AqaraS1ScenePanelController {
       const commandsFunctionsToExecute: ((index: number) => void)[] = [];
 
       for (const panelIeeeAddresss of panels) {
+        const panelMACAddress = panelIeeeAddresss.slice(2); // From 0x54XXXXXXXXX to 54XXXXXXXXX
         const panelData = this.aqaraS1ActionsConfigData[panelIeeeAddresss];
         const panelLightObject = this.getDeviceEntity(panelIeeeAddresss);
         if (panelLightObject) {
@@ -521,56 +544,56 @@ export class AqaraS1ScenePanelController {
                 if (i <= 4) { // Lights
                   const lightConfig = deviceConfig as AqaraS1ScenePanelLightConfig;
                   // On/Off, general type...
-                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '04010055' + '260a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac0000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '3' + (lightConfig.type === 'color' ? '2' : '3') + '00');
+                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '04010055' + '260a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac0000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '3' + (lightConfig.type === 'color' ? '2' : '3') + '00');
                   // Brightness
-                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '0e010055' + '170a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '0ac1c1b6c8b0d9b7d6b1c8000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0' + (lightConfig.type === 'color' ? '2' : '4') + '00');
+                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '0e010055' + '170a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '0ac1c1b6c8b0d9b7d6b1c8000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0' + (lightConfig.type === 'color' ? '2' : '4') + '00');
                   // Name
-                  commandsData.push(slotPrefix + slots[4].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '08001fa5' + '140a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '08c9e8b1b8c3fbb3c60000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0' + (lightConfig.type === 'color' ? 'a' : 'b') + '00');
+                  commandsData.push(slotPrefix + slots[4].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa5' + '140a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '08c9e8b1b8c3fbb3c60000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0' + (lightConfig.type === 'color' ? 'a' : 'b') + '00');
                   // Online/Offline
-                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '080007fd' + '160a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '0ac9e8b1b8d4dacfdfc0eb0000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '3' + (lightConfig.type === 'color' ? 'c' : 'd') + '00');
+                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '080007fd' + '160a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '0ac9e8b1b8d4dacfdfc0eb0000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '3' + (lightConfig.type === 'color' ? 'c' : 'd') + '00');
                   if (lightConfig.type === 'ct') {
                     // Color Temperature
-                    commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '0e020055' + '130a0506c9abcec2d6b5000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0300');
+                    commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '0e020055' + '130a0506c9abcec2d6b5000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0300');
                   } else if (lightConfig.type === 'color') {
                     // Color
-                    commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '0e080055' + '130a0506d1d5c9ab7879000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0100');
+                    commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '0e080055' + '130a0506d1d5c9ab7879000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0100');
                   }
                 } else if (i <= 7) { // Curtains
                   const curtainConfig = deviceConfig as AqaraS1ScenePanelCurtainConfig;
                   // Opening/Closing/Stopped
                   // 38aa713244 0a65 02412f 64767f57 09 54ef4410000513ea 54ef44100005c83d 0e020055 150a0508b4b0c1b1d7b4ccac000000000000014 6 3300
-                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '0e020055' + '150a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '08b4b0c1b1d7b4ccac000000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3' + (curtainConfig.type === 'curtain' ? '2' : '3') + '00');
+                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '0e020055' + '150a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '08b4b0c1b1d7b4ccac000000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3' + (curtainConfig.type === 'curtain' ? '2' : '3') + '00');
                   // Position
                   // 3caa713644 0665 024133 64767f57 0a 54ef4410000513ea 54ef44100005c83d 01010055 190a050000010ab4b0c1b1b4f2bfaab0d90000000000014 6 0d00
-                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '01010055' + '190a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '0000010ab4b0c1b1b4f2bfaab0d90000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '0' + (curtainConfig.type === 'curtain' ? 'c' : 'd') + '00');
+                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '01010055' + '190a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '0000010ab4b0c1b1b4f2bfaab0d90000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '0' + (curtainConfig.type === 'curtain' ? 'c' : 'd') + '00');
                   // Online/Offline
                   // 39aa713344 0767 024130 64767f57 0b 54ef4410000513ea 54ef44100005c83d 080007fd 160a050ac9e8b1b8d4dacfdfc0eb0000000000014 6 3e00
-                  commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '080007fd' + '160a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '0ac9e8b1b8d4dacfdfc0eb0000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3' + (curtainConfig.type === 'curtain' ? 'c' : 'e') + '00');
+                  commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '080007fd' + '160a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '0ac9e8b1b8d4dacfdfc0eb0000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3' + (curtainConfig.type === 'curtain' ? 'c' : 'e') + '00');
                   // Name
                   // 37aa713144 0868 02412e 64767f57 0c 54ef4410000513ea 54ef44100005c83d 08001fa5 140a0508c9e8b1b8c3fbb3c60000000000014 6 0b00
-                  commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '08001fa5' + '140a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '08c9e8b1b8c3fbb3c60000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '0' + (curtainConfig.type === 'curtain' ? 'a' : 'b') + '00');
+                  commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa5' + '140a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '08c9e8b1b8c3fbb3c60000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '0' + (curtainConfig.type === 'curtain' ? 'a' : 'b') + '00');
                   // ??? Was on setup of roller shade...
                   // 3caa713644 0962 024133 64767f57 0e 54ef4410000513ea 54ef44100005c83d 00010055 190a050000010ab4b0c1b1d4cbd0d0cab10000000000014 6 3f00
-                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '00010055' + '190a050000010ab4b0c1b1d4cbd0d0cab10000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3f00');
+                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00010055' + '190a050000010ab4b0c1b1d4cbd0d0cab10000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3f00');
                 } else if (i === 8) { // AC
                   const acConfig = deviceConfig as AqaraS1ScenePanelACConfig;
                   // On/Off, general type...
-                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + (acConfig.internal_thermostat ? '0e020055' : '0e200055') + (acConfig.internal_thermostat ? '150a0608bfd8d6c6d7b4ccac000000000000012e0000' : '1708060abfd5b5f7d1b9cbf5d7b4000000000000012e0000'));
+                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + (acConfig.internal_thermostat ? '0e020055' : '0e200055') + (acConfig.internal_thermostat ? '150a0608bfd8d6c6d7b4ccac000000000000012e0000' : '1708060abfd5b5f7d1b9cbf5d7b4000000000000012e0000'));
                   // Online/Offline
-                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '080007fd' + '1608060ac9e8b1b8d4dacfdfc0eb0000000000012e6400');
+                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '080007fd' + '1608060ac9e8b1b8d4dacfdfc0eb0000000000012e6400');
                   // Name
-                  commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '08001fa5' + '14080608c9e8b1b8c3fbb3c60000000000012e1300');
+                  commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa5' + '14080608c9e8b1b8c3fbb3c60000000000012e1300');
                   // Modes
-                  commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '08001fa7' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1000');
+                  commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa7' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1000');
                   // Fan Modes
-                  commandsData.push(slotPrefix + slots[4].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '08001fa8' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1100');
+                  commandsData.push(slotPrefix + slots[4].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa8' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1100');
                   // Temperatures Ranges
-                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '08001fa9' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e0100');
+                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa9' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e0100');
                 } else if (i === 9) { // Temperature Sensor
                   // Temperature
-                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '00010055' + '1908023e00640a74656d706572617475720000000000012c0600');
+                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00010055' + '1908023e00640a74656d706572617475720000000000012c0600');
                   // Humidity
-                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelIeeeAddresss + deviceSerial + '00020055' + '1708021d00640868756d69646974790000000000012c0900');
+                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00020055' + '1708021d00640868756d69646974790000000000012c0900');
                 }
                 if (!parsedData[i] || JSON.stringify(parsedData[i]) !== JSON.stringify(commandsData)) {
                   const commandsToExecute = [];
@@ -598,9 +621,10 @@ export class AqaraS1ScenePanelController {
                     const deviceIndex = i;
                     const executeCommand = (index: number) => {
                       this.log.info('Going to send: ' + dataToSend);
-                      this.getDeviceEntity(panelIeeeAddresss)?.sendAqaraS1CommunicationData(dataToSend);
+                      this.getDeviceEntity(panelIeeeAddresss)?.sendAqaraS1CommunicationData(dataToSend, false);
                       // this.client.put(panel + '/config', { preset: dataToSend }).then((obj) => {
                           parsedData.names[deviceIndex] = name;
+                          this.saveContext();
                           if (index < commandsFunctionsToExecute.length) {
                             setTimeout(() => {
                               commandsFunctionsToExecute[index](index + 1);
@@ -621,7 +645,7 @@ export class AqaraS1ScenePanelController {
                   const commandsToExecute = [];
                   const commandsData = [];
                   for (let ii = slots.length - 1; ii >= 0; ii--) {
-                    const commandData = slotPrefix + slots[ii].toString(16).padStart(2, '0') + panelIeeeAddresss + '000000000000000000000000';
+                    const commandData = slotPrefix + slots[ii].toString(16).padStart(2, '0') + panelMACAddress + '000000000000000000000000';
                     commandsData.push(commandData);
                     commandsToExecute.push(...this.generateAqaraS1ScenePanelCommands('04', commandData));
                   }
@@ -659,7 +683,7 @@ export class AqaraS1ScenePanelController {
           for (let index = 0; index < sceneControls.length; index++) {
             const sceneName = sceneControls[index];
             const sceneConfig = panelData[sceneName] as AqaraS1ScenePanelSceneConfig | undefined;
-            if (sceneConfig) {
+            if (sceneConfig?.enabled) {
               // numberOfConfiguredScenes++
               // TODO: trim the name to the max of what possible on the panel...
               configuredScenesData += (sceneIDs[index] + sceneSerials[index] + sceneConfig.icon.toString(16).padStart(2, '0') + sceneConfig.name.length.toString(16).padStart(2, '0') + this.toHexStringFromCharacterString(sceneConfig.name));
@@ -679,13 +703,13 @@ export class AqaraS1ScenePanelController {
             commandsToExecute.push(...this.generateAqaraS1ScenePanelCommands('01', configuredScenesData, '73'));
           }
 
-          if (!parsedData.scenes || JSON.stringify(parsedData.scenes) !== JSON.stringify(commandsData)) {
+          if (!parsedData[AqaraS1ScenePanelSceneConfigDeviceIndex] || JSON.stringify(parsedData[AqaraS1ScenePanelSceneConfigDeviceIndex]) !== JSON.stringify(commandsData)) {
             this.configurationCommandsToExecute.push({
               commandsToExecute: commandsToExecute,
               commandsData: commandsData,
               meta: {
                 index: 0,
-                deviceIndex: 'scenes',
+                deviceIndex: AqaraS1ScenePanelSceneConfigDeviceIndex,
                 panelIeeeAddresss,
                 failureCount: 0,
               },
@@ -721,18 +745,24 @@ export class AqaraS1ScenePanelController {
           if (currentConfiguredDeviceCommandsArray.meta.failureCount < 3) {
             const deviceIndex = currentConfiguredDeviceCommandsArray.meta.deviceIndex;
             this.log.info('Finished configuration for deviceIndex ' + deviceIndex + ', Saving the sent commands in the context.');
-            const parsedData = this.aqaraS1ExecutedConfigurationsData[currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss];
-            if (currentConfiguredDeviceCommandsArray.commandsToExecute[0].endsWith('000000000000000000000000')) { // Its a removed configuration...
-              // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-              delete parsedData[deviceIndex];
-            } else {
-              parsedData[deviceIndex] = currentConfiguredDeviceCommandsArray.commandsData;
+            const parsedData = this.aqaraS1ExecutedConfigurationsData?.[currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss];
+            if (parsedData) {
+              if (currentConfiguredDeviceCommandsArray.commandsToExecute[0].endsWith('000000000000000000000000')) { // Its a removed configuration...
+                // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+                delete parsedData[deviceIndex];
+                // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+                delete parsedData.names[deviceIndex];
+              } else {
+                parsedData[deviceIndex] = currentConfiguredDeviceCommandsArray.commandsData;
+              }
+              this.saveContext();
             }
           }
           // Remove this device from the configuration commands array
           this.configurationCommandsToExecute.pop();
         } else {
           currentConfiguredDeviceCommandsArray.meta.index++;
+          currentConfiguredDeviceCommandsArray.meta.failureCount = 0; // Reset after a success so it will count it per command and not per device setup...
         }
       }
     }
@@ -753,7 +783,7 @@ export class AqaraS1ScenePanelController {
       // send the commands on the queue...
       const dataToSend = currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index];
       this.log.debug('Going to send: ' + dataToSend + ' to panel IEEE: ' + currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss);
-      device.sendAqaraS1CommunicationData(dataToSend);
+      device.sendAqaraS1CommunicationData(dataToSend, false);
       // this.client.put(currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss + '/config', { preset: dataToSend }).then((obj) => {
       //   this.log.info('Sent: ' + dataToSend + ' to panel IEEE: ' + currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss + ', which is a command of device index: ' + currentConfiguredDeviceCommandsArray.meta.deviceIndex + ', command no. ' + (currentConfiguredDeviceCommandsArray.meta.index + 1) + ' of ' + currentConfiguredDeviceCommandsArray.commandsToExecute.length + ' commands');
       //   })
@@ -770,13 +800,13 @@ export class AqaraS1ScenePanelController {
           this.executeNextConfigurationCommand();
         } else {
           // In case the timed out command is a multiple parts command (type 46), go back to the first part in the commands set...
-          if (currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index][9] === '6') {
-            const currentCommandPartNo = parseInt(currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index].substring(14, 16), 16);
+          if (currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index][7] === '6') {
+            const currentCommandPartNo = parseInt(currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index].substring(12, 14), 16);
             currentConfiguredDeviceCommandsArray.meta.index -= (currentCommandPartNo - 1);
           }
           this.configurationCommandTimeout();
         }
-      }, 5000); // 5 seconds timeout
+      }, 10000); // 10 seconds timeout
     } else {
       this.log.info('Finished all configuration commands');
     }
@@ -801,7 +831,7 @@ export class AqaraS1ScenePanelController {
     }
     const commandAction = dataArray[commandActionByteIndex]; // 1=state report/scenes config, 2=configs, 3=scenes activation, 4=removals, 5=set state/states ACKs, 6=state request
 
-    this.log.debug('Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum);
+    this.log.debug('Data hex: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum);
 
     if (sum === 512 || sum === 256 || sum === 768) {
       if (commandType === 0x84) {
@@ -976,6 +1006,7 @@ export class AqaraS1ScenePanelController {
 
               const dataToSend = this.generateNameCommand(name, deviceSerialStr);
               this._writeDataToPanel(deviceIeeeAddress, dataToSend);
+              // TODO: save the name in the context for proper handling...
             }
           } else if (stateParam[0] === 0x08 && stateParam[1] === 0x00 && stateParam[2] === 0x07 && stateParam[3] === 0xfd) { // Online/Offline
             // TODO: maybe set the state, on groups always online, on others, use the device.reachable state. What with multiple devices resources controller with one device???
@@ -1085,7 +1116,7 @@ export class AqaraS1ScenePanelController {
             }
           } else if (deviceResourceType.startsWith('lights/')) {
             const panelDevicePath = '/' + deviceIeeeAddress + '/light_' + deviceResourceType.charAt(deviceResourceType.length - 1);
-            const deviceIeee = this.panelsToResources[panelDevicePath][0];
+            const deviceIeee = this.panelsToResources[panelDevicePath]?.[0];
             const deviceToControl = this.getDeviceEntity(deviceIeee);
 
             if (deviceToControl /* && accessoryToControl.values.serviceName === 'Light'*/) {
@@ -1224,14 +1255,14 @@ export class AqaraS1ScenePanelController {
       } else if (commandType === 0x24) {
         const paramsSize = dataArray[dataStartIndex + 8];
 
-        if (commandCategory === 0x71 && commandAction === 0x02) { // ACKs for confguration commmands...
+        if (commandCategory === 0x71 && commandAction === 0x02) { // ACKs for configuration commmands...
           if (this.configurationCommandsToExecute.length) {
             const configuredSlotID = this.toHexStringFromBytes([dataArray[dataStartIndex + 10], dataArray[dataStartIndex + 11], dataArray[dataStartIndex + 12], dataArray[dataStartIndex + 13], dataArray[dataStartIndex + 14]]);
             const currentConfiguredDeviceCommandsObject = this.configurationCommandsToExecute[this.configurationCommandsToExecute.length - 1];
             let currentCommand = currentConfiguredDeviceCommandsObject.commandsToExecute[currentConfiguredDeviceCommandsObject.meta.index];
-            let slotIdIndex = 20;
-            if (currentCommand[9] === '6') {
-              slotIdIndex = 24;
+            let slotIdIndex = 18;
+            if (currentCommand[7] === '6') {
+              slotIdIndex = 22;
               // check we're in the last commands part and set currentCommand to the first command of series...
               // const totalParts =  dataArray[dataStartIndex + 5]
               const partNo = dataArray[dataStartIndex + 6];
@@ -1310,7 +1341,7 @@ export class AqaraS1ScenePanelController {
             if (this.configurationCommandsToExecute.length) {
               const commandsSetData = this.configurationCommandsToExecute[this.configurationCommandsToExecute.length - 1];
               const commandBytes = this.fromHexStringToBytes(commandsSetData.commandsToExecute[commandsSetData.meta.index]);
-              if (partNo === commandBytes[7]) {
+              if (partNo === commandBytes[6]) {
                 this.executeNextConfigurationCommand();
               }
             }
@@ -1346,9 +1377,9 @@ export class AqaraS1ScenePanelController {
     if (dataSize <= 0x37) {
       const cmdType = '44'; // Single ZCL Command
       const commandSize = dataSize + 3;
-      const totalSize = commandSize + 6;
+      // const totalSize = commandSize + 6;
       const integrity = 512 - (parseInt('aa', 16) + parseInt(cmdCatergory, 16) + commandSize + parseInt(cmdType, 16) + parseInt(counter, 16));
-      const dataToSend = totalSize.toString(16).padStart(2, '0') + 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + data;
+      const dataToSend = /* totalSize.toString(16).padStart(2, '0') + */ 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + data;
       commandsToExecute.push(dataToSend);
     } else {
       const cmdType = '46'; // Multiple ZCL Commands
@@ -1372,13 +1403,13 @@ export class AqaraS1ScenePanelController {
         const partData = partsData[index];
         const partDataSize = partData.length / 2;
         const commandSize = partDataSize + (index === 0 ? 3 : 0); // The first command contains the cmdType, dataType and dataSize.
-        const partCommandTotalSize = commandSize + 8;
+        // const partCommandTotalSize = commandSize + 8;
         const integrity = 512 - (parseInt('aa', 16) + parseInt(cmdCatergory, 16) + commandSize + parseInt(cmdType, 16) + parseInt(counter, 16) + parseInt('' + partsData.length, 16) + parseInt('' + (index + 1), 16));
         if (index === 0) {
-          const dataToSend = partCommandTotalSize.toString(16).padStart(2, '0') + 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + partData;
+          const dataToSend = /* partCommandTotalSize.toString(16).padStart(2, '0') +*/ 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + partData;
           commandsToExecute.push(dataToSend);
         } else {
-          const dataToSend = partCommandTotalSize.toString(16).padStart(2, '0') + 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0') + partData;
+          const dataToSend = /* partCommandTotalSize.toString(16).padStart(2, '0') +*/ 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0') + partData;
           commandsToExecute.push(dataToSend);
         }
       }

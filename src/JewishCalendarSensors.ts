@@ -7,7 +7,7 @@
 // import { EventEmitter } from 'node:stream';
 // import { debug } from 'node:console';
 
-import { MatterbridgeEndpoint, bridgedNode, modeSelect } from 'matterbridge';
+import { MatterbridgeEndpoint, bridgedNode, modeSelect, powerSource } from 'matterbridge';
 
 import { ZigbeePlatform } from './module.js';
 import { JewishCalendarSensor } from './jewishCalendarSensor.js';
@@ -62,8 +62,8 @@ export class JewishCalendarSensors {
 
     this.services = {};
 
-    this.sensor = new MatterbridgeEndpoint([bridgedNode, modeSelect], { id: 'Jewish Calendar' }, platform.config.debug);
-    this.sensor.createDefaultIdentifyClusterServer();
+    this.sensor = new MatterbridgeEndpoint([bridgedNode, modeSelect, powerSource], { id: 'Jewish Calendar' }, platform.config.debug);
+    this.sensor.createDefaultIdentifyClusterServer().createDefaultPowerSourceWiredClusterServer();
     this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar', '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar 20EBN9901', 1144, '1.2.8');
     // this.sensor.createDefaultBooleanStateClusterServer(true);
     this.sensor.createDefaultModeSelectClusterServer(
@@ -148,8 +148,15 @@ export class JewishCalendarSensors {
     // this.identify()
 
     this.updateJewishDay();
-    this.updateSensors();
-    setTimeout(this.updateLoop.bind(this), 30000);
+    // this.updateSensors();
+    // setTimeout(this.updateLoop.bind(this), 30000);
+
+    // setTimeout(() => {
+    //   this.updateLoop();
+    // }, 30000);
+    process.nextTick(() => {
+      this.updateLoop();
+    });
 
     // setImmediate(() => {
     //   this.debug('initialised');
@@ -160,6 +167,9 @@ export class JewishCalendarSensors {
   }
 
   async updateSensors() {
+    if (!this.sensor.plugin) {
+      return;
+    }
     await this.services.Shabbat.update(this.isShabbat());
     await this.services.YomTov.update(this.isYomTov());
     await this.services.Kodesh.update(this.isKodesh());
@@ -228,7 +238,11 @@ export class JewishCalendarSensors {
     // }
 
     this.updateSensors();
-    setTimeout(this.updateLoop.bind(this), 30000);
+    // setTimeout(this.updateLoop.bind(this), 30000);
+
+    setTimeout(() => {
+      this.updateLoop();
+    }, 30000);
   }
 
   isShabbat() {

@@ -53,6 +53,10 @@ export class PlatformControls {
       this.swicthesOnEndpoint?.log.info('Command off called');
       this.onOffDidSet(false);
     });
+
+    process.nextTick(() => {
+      this.switchesOn = this.swicthesOnEndpoint.getAttribute(OnOff.Cluster.id, 'onOff', this.swicthesOnEndpoint.log);
+    });
   }
 
   onOffDidSet(value: boolean) {

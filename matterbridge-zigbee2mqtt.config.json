@@ -25,5 +25,6 @@
   "scenesPrefix": true,
   "postfix": "",
   "debug": false,
+  "homeLocation": {"longitude": 34.8376, "latitude": 32.08934},
   "unregisterOnShutdown": false
 }

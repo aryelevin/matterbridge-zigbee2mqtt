@@ -515,7 +515,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     if (this.config.aqaraS1ActionsConfigData) {
       this.aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, this.config.aqaraS1ActionsConfigData);
-      this.aqaraS1ScenePanelConroller.updateWeather(); // just to silence the unused var error... check if the right command location
     }
     // End of Added by me: Arye Levin
 
@@ -560,6 +559,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.z2mGroupsRegistered = true;
     }
 
+    // Added by me: Arye Levin
+    this.aqaraS1ScenePanelConroller?.setAqaraS1PanelsConfiguration();
+    this.aqaraS1ScenePanelConroller?.updateWeather();
+    // End of Added by me: Arye Levin
     this.log.info(`Started zigbee2mqtt dynamic platform v${this.version}: ` + reason);
   }
 
