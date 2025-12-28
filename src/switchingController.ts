@@ -54,9 +54,6 @@ export class SwitchingController {
   platform: ZigbeePlatform;
   switchesLinksConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {"0x541234567890abcd/l2_brightness": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
   switchesActionsConfigData: { [key: string]: string[] };
-  // entitiesEndpointsWaitingACKs: string[] = [];
-  // executed: number = 0;
-  // ignoreIeees: string[] = [];
   entitiesExecutionQueues: { [key: string]: { [key: string]: PayloadValue } } = {}; // {"0x541234567890abcd": {'brightness_l3_ON': 'brightness_l2'}}
 
   constructor(platform: ZigbeePlatform, switchesLinksConfig: { [key: string]: SwitchingControllerSwitchConfig }) {
@@ -113,32 +110,22 @@ export class SwitchingController {
   // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
   // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
   switchStateChanged(deviceEndpointPath: string, data: string | number | boolean, newPayload: Payload) {
-    // const possibleWaitingACKsIndex = this.entitiesEndpointsWaitingACKs.indexOf(deviceEndpointPath + data);
-    // if (possibleWaitingACKsIndex !== -1) {
-    //   this.entitiesEndpointsWaitingACKs.splice(possibleWaitingACKsIndex, 1);
-    //   return;
-    // }
-    // if (this.entitiesEndpointsWaitingACKs.length) {
-    //   return;
-    // }
-    // if (this.executed > 1) {
-    //   return;
-    // }
-    // if (this.ignoreIeees.includes(deviceEndpointPath.split('/')[0])) {
-    //   return;
-    // }
+    const linkedDevices = this.switchesActionsConfigData[deviceEndpointPath] || [];
+    if (!linkedDevices.length) {
+      return;
+    }
 
     const deviceEndpointPathComponents = deviceEndpointPath.split('/');
-    const deviceIeeeAddress = deviceEndpointPathComponents[0];
+    const deviceIeee = deviceEndpointPathComponents[0];
 
-    if (this.entitiesExecutionQueues[deviceIeeeAddress] && Object.keys(this.entitiesExecutionQueues[deviceIeeeAddress]).length > 1) { // > 1 because we save the data also and never remove it (will overwritten on new queue)
-      const queueData = this.entitiesExecutionQueues[deviceIeeeAddress]['data'];
-      const entityToControl = this.getDeviceEntity(deviceIeeeAddress);
+    if (this.entitiesExecutionQueues[deviceIeee] && Object.keys(this.entitiesExecutionQueues[deviceIeee]).length > 1) { // > 1 because we save the data also and never remove it (will overwritten when a new queue is constructed)
+      const queueData = this.entitiesExecutionQueues[deviceIeee]['data'];
+      const entityToControl = this.getDeviceEntity(deviceIeee);
       // Enforce the desired state until completion of the queue...
       if (queueData !== data) {
         entityToControl?.sendState('cachedPublishLight', { [deviceEndpointPathComponents[1]]: queueData }, false);
       } else {
-        const entityQueue = this.entitiesExecutionQueues[deviceIeeeAddress];
+        const entityQueue = this.entitiesExecutionQueues[deviceIeee];
         const nextExecution = entityQueue[deviceEndpointPathComponents[1] + '_' + data];
         if (nextExecution !== undefined) {
           if (nextExecution !== '') {
@@ -156,35 +143,7 @@ export class SwitchingController {
       return;
     }
 
-    if (newPayload) {
-      //
-    }
-
-    // let onOff = undefined;
-    // let brightness = undefined;
-    // let colorTemperature = undefined;
-    // let colorX = undefined;
-    // let colorY = undefined;
-
-    // if (data?.onOff) { // Light On/Off
-    //   onOff = data.onOff;
-    //   this.log.info('On/Off: ' + onOff);
-    // } else if (stateParam[0] === 0x0e && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Brightness
-    //   brightness = dataArray[dataStartIndex + 24];
-    //   this.log.info('Brightness: ' + brightness);
-    // } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light CT
-    //   colorTemperature = parseInt(dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'), 16);
-    //   this.log.info('Color Temperature: ' + colorTemperature);
-    // } else if (stateParam[0] === 0x0e && stateParam[1] === 0x08 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Color
-    //   colorX = parseInt(dataArray[dataStartIndex + 21].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 22].toString(16).padStart(2, '0'), 16);
-    //   colorY = parseInt(dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'), 16);
-    //   this.log.info('Color X: ' + colorX + ', Color Y: ' + colorY);
-    // }
-
-    const linkedDevices = this.switchesActionsConfigData[deviceEndpointPath] || [];
     const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
-    // const optimizedPayloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
-    // const ieeesToIgnore: string[] = []; // for waiting for acks...
     for (let i = linkedDevices.length - 1; i >= 0; i--) {
       const linkedDeviceItem = linkedDevices[i];
       const linkedDevicePathComponents = linkedDeviceItem.split('/');
@@ -192,92 +151,31 @@ export class SwitchingController {
       const entityToControl = this.getDeviceEntity(linkedDeviceIeee);
 
       if (entityToControl) {
-        const entityToControlEndpoints = entityToControl.device?.endpoints;
-        if (typeof entityToControlEndpoints === 'object' && Object.keys(entityToControlEndpoints).length === 1 && entityToControlEndpoints['1'].clusters.input.includes('manuSpecificTuya') && !entityToControlEndpoints['1'].clusters.input.includes('genOnOff')) {
-          // This is tuya, needs special queue logic
-          this.log.info('This is a Tuya device, using queues for switching control logic...');
-        }
         const paramToControl = linkedDevicePathComponents[1];
-        if (paramToControl) {
-          // if (newPayload[paramToControl] !== data) {
+        if ((linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== data) || (linkedDeviceIeee !== deviceIeee && entityToControl.getLastPayloadItem(paramToControl) !== data)) { // Don't update whats not needed to be updated...
+          // const entityToControlEndpoints = entityToControl.device?.endpoints;
+          // if (typeof entityToControlEndpoints === 'object' && Object.keys(entityToControlEndpoints).length === 1 && entityToControlEndpoints['1'].clusters.input.includes('manuSpecificTuya') && !entityToControlEndpoints['1'].clusters.input.includes('genOnOff')) {
+          //   // This is tuya, needs special queue logic
+          //   this.log.info('This is a Tuya device, using queues for switching control logic...');
+
             if (!payloads[linkedDeviceIeee]) {
               payloads[linkedDeviceIeee] = {};
             }
             payloads[linkedDeviceIeee][paramToControl] = data;
+          // } else {
+          //   entityToControl.sendState('cachedPublishLight', { [paramToControl]: data }, true);
+          // }
 
-            // if (!optimizedPayloads[linkedDeviceIeee]) {
-            //   optimizedPayloads[linkedDeviceIeee] = {};
-            // }
-            // const entityOptimizedPayloads = optimizedPayloads[linkedDeviceIeee];
-            // if (!Object.keys(entityOptimizedPayloads).length) {
-            //   entityOptimizedPayloads[paramToControl] = data;
-            // } else {
-            //   const paramComponents = paramToControl.split('_');
-            //   for (const endpoint in entityOptimizedPayloads) {
-            //     const endpointComponents = endpoint.split('_');
-            //     if (paramComponents[0] === endpointComponents[0]) { // Both are 'state' for example...
-            //       endpointComponents.push(paramComponents[1]);
-            //       entityOptimizedPayloads[endpointComponents.join('_')] = entityOptimizedPayloads[endpoint];
-            //       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-            //       delete entityOptimizedPayloads[endpoint];
-            //     } else {
-            //       entityOptimizedPayloads[paramToControl] = data;
-            //     }
-            //   }
-            // }
-            // if (!entityToControl.getLastPayloadItem(paramToControl)) {
-            //   entityToControl.updateLastPayloadItem(paramToControl, data);
-            //   newPayload[paramToControl] = data;
-            // }
-            // if (linkedDeviceItem !== deviceEndpointPath) {
-              // this.entitiesEndpointsWaitingACKs.push(linkedDeviceItem + data);
-            // }
-            // entityToControl.sendState('cachedPublishLight', { [paramToControl]: data });
-            // const endpoint = entityToControl.bridgedDevice?.getChildEndpointById(paramToControl.split('_')[1]);
-            // endpoint?.commandHandler.executeHandler(data === 'ON' ? 'on' : 'off', { cluster: OnOff.Cluster.id, endpoint: endpoint });
-            // if (!ieeesToIgnore.includes(linkedDeviceIeee)) {
-            //   ieeesToIgnore.push(linkedDeviceIeee);
-            // }
-            // process.nextTick(() => {
-            // });
-
+          // entityToControl.updateLastPayloadItem(paramToControl, data);
+          // if (linkedDeviceIeee === deviceIeee) {
+          //   newPayload[paramToControl] = data;
           // }
         }
-      //   const endpointToControl = linkedDevicePathComponents.length > 1 ? deviceToControl.bridgedDevice?.getChildEndpointById(linkedDevicePathComponents[1]) : deviceToControl.bridgedDevice;
-      //   if (endpointToControl) {
-      //     this.log.info('Going to set ' + data + ' on ', linkedDevicePathComponents);
-      //     if (onOff !== undefined) {
-      //       /* await */ endpointToControl.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.log);
-      //       endpointToControl.commandHandler.executeHandler(onOff ? 'on' : 'off');
-      //     }
-      //     if (brightness !== undefined) {
-      //       /* await */ endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.log);
-      //       endpointToControl.commandHandler.executeHandler('moveToLevel', { request: { level: brightness } });
-      //     }
-      //     if (colorTemperature !== undefined) {
-      //       /* await */ endpointToControl.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.log);
-      //       /* await */ endpointToControl.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.log);
-      //       endpointToControl.commandHandler.executeHandler('moveToColorTemperature', { request: { colorTemperatureMireds: colorTemperature } });
-      //     }
-      //     if (colorX !== undefined && colorY !== undefined) {
-      //       /* await */ endpointToControl.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.log);
-      //       /* await */ endpointToControl.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.log);
-      //       /* await */ endpointToControl.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.log);
-      //       endpointToControl.commandHandler.executeHandler('moveToColor', { request: { colorX, colorY } });
 
-      //       // const { h, s } = xyToHsl(colorX / 65535.0, colorY / 65535.0);
-      //     }
-      //   }
+        // const endpoint = entityToControl.bridgedDevice?.getChildEndpointById(paramToControl.split('_')[1]);
+        // endpoint?.commandHandler.executeHandler(data === 'ON' ? 'on' : 'off', { cluster: OnOff.Cluster.id, endpoint: endpoint });
       }
     }
-
-    // this.ignoreIeees.push(...ieeesToIgnore);
-    // setTimeout(() => {
-    //   for (let index = 0; index < ieeesToIgnore.length; index++) {
-    //     const element = ieeesToIgnore[index];
-    //     this.ignoreIeees.splice(this.ignoreIeees.indexOf(element), 1);
-    //   }
-    // }, 1000);
 
     for (const entity in payloads) {
       const payload = payloads[entity];
@@ -302,22 +200,9 @@ export class SwitchingController {
       }
     }
 
-    // for (const entity in optimizedPayloads) {
-    //   const payload = optimizedPayloads[entity];
-    //   const entityToControl = this.getDeviceEntity(entity);
-    //   if (payload && entityToControl) {
-    //     // const param = Object.keys(payload)[0];
-    //     // if (!entityToControl.getLastPayloadItem(param)) {
-    //     //   entityToControl.updateLastPayloadItem(param, data);
-    //     // }
-    //     // if (entity === deviceEndpointPath.split('/')[0]) {
-    //     //   newPayload[param] = data;
-    //     // }
-    //     // this.entitiesEndpointsWaitingACKs.push(entity + '/' + param + data);
-    //     // entityToControl.sendState('cachedPublishLight', payload);
-    //     // this.executed++;
-    //   }
-    // }
+    if (newPayload) {
+      //
+    }
 
     if (this.platform.platformControls?.switchesOn) {
       // const panelDevice = this.getDeviceEntity(deviceEndpointPath);
