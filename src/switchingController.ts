@@ -136,7 +136,7 @@ export class SwitchingController {
             setTimeout(() => {
               // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
               delete entityQueue[deviceEndpointPathComponents[1] + '_' + data];
-            }, 1000);
+            }, 2000); // When it was 1000, then controlling tuya from matterbridge itself too quickly used to create a racing condition and endless toggling of the all switches on this device entities involved...
           }
         }
       }
