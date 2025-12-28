@@ -217,6 +217,28 @@ export class ZigbeeEntity extends EventEmitter {
       }
       this.lastSeen = Date.now();
 
+      // Added by me: Arye Levin
+      // if (Object.keys(this.lastPayload).length) { // First check its not the first state update...
+      // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
+        for (const key in payload) {
+          const value = payload[key];
+          if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastPayload[key]) {
+            this.log.info('Value ' + key + ' changed from ' + this.lastPayload[key] + ' to ' + value + '.');
+            this.platform.switchingController?.switchStateChanged(this.entityName + '/' + key, value, payload);
+          }
+        }
+        this.log.info('Finished evaluating old payload vs new payload');
+      // }
+      // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
+      // for (const key in payload) {
+      //   const value = payload[key];
+      //   if (value !== null && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')/* && value !== this.lastPayload[key]*/) {
+      //     this.log.info('Value ' + key + ' changed to ' + value + '.');
+      //     this.platform.switchingController?.switchStateChanged(this.entityName + '/' + key, value, payload);
+      //   }
+      // }
+      // End of Added by me: Arye Levin
+
       // Check and deep copy the payload
       if (deepEqual(this.lastPayload, payload, this.ignoreFeatures)) return;
       this.lastPayload = deepCopy(payload);

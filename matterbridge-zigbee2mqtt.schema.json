@@ -959,6 +959,37 @@
         "selectDeviceEntityFrom": "name"
       }
     },
+    "switchesLinks": {
+      "description": "Configures links between switches (alternates, lights etc)",
+      "type": "object",
+      "selectFrom": "name",
+      "uniqueItems": true,
+      "additionalProperties": {
+        "description": "Source Device",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "description": "Enable the link",
+            "type": "boolean",
+            "default": false
+          },
+          "vice_versa": {
+            "description": "Whether the linked devices also controls the source device",
+            "type": "boolean",
+            "default": true
+          },
+          "linkedDevices": {
+            "description": "Destination Linked Devices",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true,
+            "selectFrom": "name"
+          }
+        }
+      }
+    },
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",
       "type": "boolean",

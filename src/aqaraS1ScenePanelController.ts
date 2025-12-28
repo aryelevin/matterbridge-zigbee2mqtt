@@ -129,7 +129,7 @@ export class AqaraS1ScenePanelController {
       logLevel: platform.config.debug ? LogLevel.DEBUG : platform.log.logLevel,
     });
     this.log.debug(`Loaded: AqaraS1ScenePanelController`);
-    this.log.debug('actionsConfigData contents: ' + JSON.stringify(this.aqaraS1ActionsConfigData));
+    this.log.debug('aqaraS1ActionsConfigData contents: ' + JSON.stringify(this.aqaraS1ActionsConfigData));
   }
 
   async saveContext() {
