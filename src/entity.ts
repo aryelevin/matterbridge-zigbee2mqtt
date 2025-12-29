@@ -223,7 +223,7 @@ export class ZigbeeEntity extends EventEmitter {
         const value = payload[key];
         if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastPayload[key]) {
           this.log.info('Value ' + key + ' changed from ' + this.lastPayload[key] + ' to ' + value + '.');
-          this.platform.switchingController?.switchStateChanged(this.entityName + '/' + key, value, payload);
+          this.platform.switchingController?.switchStateChanged(this.entityName, key, value, payload);
         }
       }
       // this.log.info('Finished evaluating old payload vs new payload');
@@ -1618,7 +1618,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             }
           } else {
             const actionName = actionItem;
-            const switchName = actionItem;
+            const switchName = supportedActions[actionItem] ? '' : actionItem;
             if (!switchesActions[switchName]) {
               switchesActions[switchName] = { switchNo: supportedSwitchesCount, switchActions: [] };
               supportedSwitchesCount++;
@@ -1636,8 +1636,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
           const buttonActions = buttonActionsData.switchActions;
           for (let index = 0; index < buttonActions.length; index++) {
             const actionItem = buttonActions[index];
-            zigbeeDevice.propertyMap.set('action_' + (buttonActions.length > 1 ? (actionItem + '_') : '') + buttonName, { name, type: '', endpoint: 'switch_' + buttonActionsData.switchNo, action: supportedActions[actionItem] });
-            zigbeeDevice.log.info(`-- Button ${buttonActionsData.switchNo}: ${hk}${supportedActionsDescriptions[actionItem]}${nf} <=> ${zb}${(buttonActions.length > 1 ? (actionItem + '_') : '') + buttonName}${nf}`);
+            zigbeeDevice.propertyMap.set('action_' + (buttonActions.length > 1 ? (actionItem + (buttonName.length ? '_' : '')) : '') + buttonName, { name, type: '', endpoint: 'switch_' + buttonActionsData.switchNo, action: supportedActions[actionItem] });
+            zigbeeDevice.log.info(`-- Button ${buttonActionsData.switchNo}: ${hk}${supportedActionsDescriptions[actionItem]}${nf} <=> ${zb}${(buttonActions.length > 1 ? (actionItem + (buttonName.length ? '_' : '')) : '') + buttonName}${nf}`);
           }
           const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
           tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + buttonActionsData.switchNo });

@@ -52,7 +52,7 @@ export interface SwitchingControllerSwitchLinkConfig {
 export interface SwitchingControllerSwitchConfig {
   enabled: boolean;
   switchType: number;
-  linkedDevices?: string[]; // ["0x54abcd0987654321/l1_brightness", "0x541234567890abcd/l1_brightness"]
+  linkedDevices?: { [key: string]: { [key: string]: PayloadValue } }; // {"0x54abcd0987654321": {'brightness_l1': 254, state_l1: 'ON', state_l2: 'OFF'}, "0x54abcd0987654321": {'brightness_l1': 254, state_l1: 'ON', state_l2: 'OFF'}, "0x541234567890abcd": {'brightness_l3': 4, state_l3: 'ON'}}
 }
 
 export class SwitchingController {
@@ -61,8 +61,8 @@ export class SwitchingController {
   switchesLinksConfig: { [key: string]: SwitchingControllerSwitchLinkConfig }; // {"0x541234567890abcd/l2_brightness": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
   switchesLinksConfigData: { [key: string]: string[] };
   entitiesExecutionQueues: { [key: string]: { [key: string]: PayloadValue } } = {}; // {"0x541234567890abcd": {'brightness_l3_ON': 'brightness_l2', 'data': 200}} // PayloadValue is because the data field...
-  switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {"0x541234567890abcd/l2_brightness": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
-  switchesActionsConfigData: { [key: string]: { [key: string]: PayloadValue } } = {}; // 
+  switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {"0x541234567890abcd/single": SwitchingControllerSwitchConfig, "0x541234567890abcd/hold": SwitchingControllerSwitchConfig, "0x541234567890abcd/double": SwitchingControllerSwitchConfig}
+  switchesActionsConfigData: { [key: string]: { [key: string]: PayloadValue } } = {};
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
 
   constructor(platform: ZigbeePlatform, switchesLinksConfig: { [key: string]: SwitchingControllerSwitchLinkConfig }, switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }) {
@@ -107,8 +107,8 @@ export class SwitchingController {
     for (const sourceDevice in this.switchesActionsConfig) {
       const actionsConfig = this.switchesActionsConfig[sourceDevice];
       if (actionsConfig.enabled) {
-        const linkedDevices = actionsConfig.linkedDevices || [];
-        this.switchesLinksConfigData[sourceDevice] = linkedDevices;
+        // const linkedDevices = actionsConfig.linkedDevices || {};
+        // this.switchesLinksConfigData[sourceDevice] = linkedDevices;
         // if (linkConfig.vice_versa) {
         //   for (let index = 0; index < linkedDevices.length; index++) {
         //     const linkedDeviceItem = linkedDevices[index];
@@ -152,33 +152,36 @@ export class SwitchingController {
 
   // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
   // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
-  switchStateChanged(deviceEndpointPath: string, data: string | number | boolean, newPayload: Payload) {
+  switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
+    if (key === 'action') {
+      this.processIncomingButtonEvent(deviceIeee, value as string);
+      return;
+    }
+    const deviceEndpointPath = deviceIeee + '/' + key;
+
     const linkedDevices = this.switchesLinksConfigData[deviceEndpointPath] || [];
     if (!linkedDevices.length) {
       return;
     }
 
-    const deviceEndpointPathComponents = deviceEndpointPath.split('/');
-    const deviceIeee = deviceEndpointPathComponents[0];
-
     if (this.entitiesExecutionQueues[deviceIeee] && Object.keys(this.entitiesExecutionQueues[deviceIeee]).length > 1) { // > 1 because we save the data also and never remove it (will overwritten when a new queue is constructed)
-      const queueData = this.entitiesExecutionQueues[deviceIeee]['data'];
+      const queueValue = this.entitiesExecutionQueues[deviceIeee]['value'];
       const entityToControl = this.getDeviceEntity(deviceIeee);
       // Enforce the desired state until completion of the queue...
-      if (queueData !== data) {
-        entityToControl?.sendState('cachedPublishLight', { [deviceEndpointPathComponents[1]]: queueData }, false);
+      if (queueValue !== value) {
+        entityToControl?.sendState('cachedPublishLight', { [key]: queueValue }, false);
       } else {
         const entityQueue = this.entitiesExecutionQueues[deviceIeee];
-        const nextExecution = entityQueue[deviceEndpointPathComponents[1] + '_' + data];
+        const nextExecution = entityQueue[key + '_' + value];
         if (nextExecution !== undefined) {
           if (nextExecution !== '') {
             // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-            delete entityQueue[deviceEndpointPathComponents[1] + '_' + data];
-            entityToControl?.sendState('cachedPublishLight', { [nextExecution as string]: data }, false);
+            delete entityQueue[key + '_' + value];
+            entityToControl?.sendState('cachedPublishLight', { [nextExecution as string]: value }, false);
           } else { // For the last action in the chain use delay to unlock the linkage (should be for Tuya only which have toggling issues when changing multiple endpoints of an entity in short amount of time).
             setTimeout(() => {
               // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-              delete entityQueue[deviceEndpointPathComponents[1] + '_' + data];
+              delete entityQueue[key + '_' + value];
             }, 2000); // When it was 1000, then controlling tuya from matterbridge itself too quickly used to create a racing condition and endless toggling of the all switches on this device entities involved...
           }
         }
@@ -196,7 +199,7 @@ export class SwitchingController {
 
         if (entityToControl) {
           const paramToControl = linkedDevicePathComponents[1];
-          if ((linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== data) || (linkedDeviceIeee !== deviceIeee && entityToControl.getLastPayloadItem(paramToControl) !== data)) { // Don't update whats not needed to be updated...
+          if ((linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) || (linkedDeviceIeee !== deviceIeee && entityToControl.getLastPayloadItem(paramToControl) !== value)) { // Don't update whats not needed to be updated...
             // const entityToControlEndpoints = entityToControl.device?.endpoints;
             // if (typeof entityToControlEndpoints === 'object' && Object.keys(entityToControlEndpoints).length === 1 && entityToControlEndpoints['1'].clusters.input.includes('manuSpecificTuya') && !entityToControlEndpoints['1'].clusters.input.includes('genOnOff')) {
             //   // This is tuya, needs special queue logic
@@ -205,7 +208,7 @@ export class SwitchingController {
               if (!payloads[linkedDeviceIeee]) {
                 payloads[linkedDeviceIeee] = {};
               }
-              payloads[linkedDeviceIeee][paramToControl] = data;
+              payloads[linkedDeviceIeee][paramToControl] = value;
             // } else {
             //   entityToControl.sendState('cachedPublishLight', { [paramToControl]: data }, true);
             // }
@@ -231,12 +234,12 @@ export class SwitchingController {
           }
           for (let index = 0; index < endpoints.length - 1; index++) {
             const endpoint = endpoints[index];
-            this.entitiesExecutionQueues[entity][endpoint + '_' + data] = endpoints[index + 1];
+            this.entitiesExecutionQueues[entity][endpoint + '_' + value] = endpoints[index + 1];
           }
-          this.entitiesExecutionQueues[entity][endpoints[endpoints.length - 1] + '_' + data] = '';
-          this.entitiesExecutionQueues[entity]['data'] = data;
+          this.entitiesExecutionQueues[entity][endpoints[endpoints.length - 1] + '_' + value] = '';
+          this.entitiesExecutionQueues[entity]['value'] = value;
           const paramToControl = endpoints[0];
-          entityToControl?.sendState('cachedPublishLight', { [paramToControl]: data }, false);
+          entityToControl?.sendState('cachedPublishLight', { [paramToControl]: value }, false);
         } else {
           if (payload && entityToControl) {
             entityToControl.sendState('cachedPublishLight', payload, true);
@@ -308,247 +311,251 @@ export class SwitchingController {
     // this.log.info('Scene Activated... from: ' + deviceEndpointPath + ', Hex data: ' + data);
   }
 
-  // processIncomingButtonEvent(rid: string, buttonevent: number) {
-  //   const actionsConfig = this.switchesActionsConfigData['/sensors/' + rid];
-  //   const sensorTypeInt = actionsConfig.switchType; // 0 = Old IKEA round 5 button remote, 1 = Hue Switch Remote, 2 = New IKEA rect 4 buttons (Supports the 2 buttons one [No CT control])
-  //   this.log.info('Switch: %s, button event: %s, config: %s', rid, JSON.stringify(buttonevent), JSON.stringify(actionsConfig));
-  //   let resourcesToExecute = actionsConfig.resources;
+  processIncomingButtonEvent(switchIeee: string, buttonEvent: string) {
+    return;
+    const actionsConfig = this.switchesActionsConfigData[switchIeee];
+    const sensorTypeInt = actionsConfig.switchType; // 0 = Old IKEA round 5 button remote, 1 = Hue Switch Remote, 2 = New IKEA rect 4 buttons (Supports the 2 buttons one [No CT control])
+    this.log.info('Switch: %s, button event: %s, config: %s', switchIeee, buttonEvent, JSON.stringify(actionsConfig));
+    let resourcesToExecute = actionsConfig.resources;
+    if (resourcesToExecute) {
+      resourcesToExecute = resourcesToExecute.toString; //
+    }
 
-  //   // For a non-preconfigured remote behaviour (switchType is not set), look for specific button resource list (per button controlled resource).
-  //   if (sensorTypeInt === undefined) {
-  //     const perButtonEventResourcesToExecute = actionsConfig.actionsToDo?.['' + buttonevent]?.resources;
-  //     if (perButtonEventResourcesToExecute) {
-  //       resourcesToExecute = resourcesToExecute ? resourcesToExecute.concat(perButtonEventResourcesToExecute) : perButtonEventResourcesToExecute;
-  //     }
-  //   }
+    // For a non-preconfigured remote behaviour (switchType is not set), look for specific button resource list (per button controlled resource).
+    if (sensorTypeInt === undefined) {
+      // const perButtonEventResourcesToExecute = actionsConfig.actionsToDo?.['' + buttonevent]?.resources;
+      // if (perButtonEventResourcesToExecute) {
+      //   resourcesToExecute = resourcesToExecute ? resourcesToExecute.concat(perButtonEventResourcesToExecute) : perButtonEventResourcesToExecute;
+      // }
+    }
 
-  //   for (let i = 0; i < resourcesToExecute.length; i++) {
-  //     // First cancel any timeouts we've created for the long press handling...
-  //     const keyForTimeoutAction = rid + i;
-  //     clearTimeout(this.longPressTimeoutIDs[keyForTimeoutAction]);
+    // for (let i = 0; i < resourcesToExecute.length; i++) {
+    //   // First cancel any timeouts we've created for the long press handling...
+    //   const keyForTimeoutAction = rid + i;
+    //   clearTimeout(this.longPressTimeoutIDs[keyForTimeoutAction]);
 
-  //     const resourceToExecute = resourcesToExecute[i];
+    //   const resourceToExecute = resourcesToExecute[i];
 
-  //     if (resourceToExecute.startsWith('/')) {
-  //       const pathComponents = resourceToExecute.split('/');
-  //       let actionToDo = '';
-  //       let continueRepeat = true;
+    //   if (resourceToExecute.startsWith('/')) {
+    //     const pathComponents = resourceToExecute.split('/');
+    //     let actionToDo = '';
+    //     let continueRepeat = true;
 
-  //       if (sensorTypeInt !== undefined) {
-  //         if (sensorTypeInt === 1) {
-  //           continueRepeat = false;
-  //         }
-  //         if (((sensorTypeInt === 2 && buttonevent === 1001) || ((sensorTypeInt === 0 || sensorTypeInt === 1) && buttonevent === 2001))) { // Start Increasing the Brightness and turn on at lowest brighness if Off...
-  //           actionToDo = 'on_low_bri_up';
-  //         } else if (((sensorTypeInt === 2 && buttonevent === 2001) || ((sensorTypeInt === 0 || sensorTypeInt === 1) && buttonevent === 3001))) {
-  //           actionToDo = 'bri_down';
-  //         } else if (((sensorTypeInt === 2 && buttonevent === 3001) || (sensorTypeInt === 0 && buttonevent === 4001))) {
-  //           actionToDo = 'ct_down';
-  //         } else if (((sensorTypeInt === 2 && buttonevent === 4001) || (sensorTypeInt === 0 && buttonevent === 5001))) {
-  //           actionToDo = 'ct_up';
-  //         } else {
-  //           continueRepeat = false;
+    //     if (sensorTypeInt !== undefined) {
+    //       if (sensorTypeInt === 1) {
+    //         continueRepeat = false;
+    //       }
+    //       if (((sensorTypeInt === 2 && buttonevent === 1001) || ((sensorTypeInt === 0 || sensorTypeInt === 1) && buttonevent === 2001))) { // Start Increasing the Brightness and turn on at lowest brighness if Off...
+    //         actionToDo = 'on_low_bri_up';
+    //       } else if (((sensorTypeInt === 2 && buttonevent === 2001) || ((sensorTypeInt === 0 || sensorTypeInt === 1) && buttonevent === 3001))) {
+    //         actionToDo = 'bri_down';
+    //       } else if (((sensorTypeInt === 2 && buttonevent === 3001) || (sensorTypeInt === 0 && buttonevent === 4001))) {
+    //         actionToDo = 'ct_down';
+    //       } else if (((sensorTypeInt === 2 && buttonevent === 4001) || (sensorTypeInt === 0 && buttonevent === 5001))) {
+    //         actionToDo = 'ct_up';
+    //       } else {
+    //         continueRepeat = false;
 
-  //           if ((sensorTypeInt === 0 || sensorTypeInt === 1) && buttonevent === 1001) { // Turn On with default settings (including CT)...
-  //             actionToDo = 'on_defaults';
-  //           } else if (sensorTypeInt === 0 && buttonevent === 1002) { // Toggle power and only if on, set to full brightness...
-  //             actionToDo = 'toggle_on_full_bri';
-  //           } else if ((sensorTypeInt === 1 && buttonevent === 1000)) { // Turn On and if On already, set to full brightness...
-  //             actionToDo = 'on_or_full_bri';
-  //           } else if ((sensorTypeInt === 2 && buttonevent === 1002)) { // Turn On at full brightness and if On already just increase the brightness...
-  //             actionToDo = 'on_full_bri_or_bri_up';
-  //           } else if (((sensorTypeInt === 1 && buttonevent === 2000) || (sensorTypeInt === 0 && buttonevent === 2002))) { // Turn On with lowest brightness or increase the brightness if On already
-  //             actionToDo = 'on_low_bri_up';
-  //           } else if (((sensorTypeInt === 1 && buttonevent === 3000) || (sensorTypeInt === 0 && buttonevent === 3002))) { // Decrease the brightness
-  //             actionToDo = 'bri_down';
-  //           } else if (((sensorTypeInt === 2 && buttonevent === 3002) || (sensorTypeInt === 0 && buttonevent === 4002))) { // Increase the CT
-  //             actionToDo = 'ct_down';
-  //           } else if (((sensorTypeInt === 2 && buttonevent === 4002) || (sensorTypeInt === 0 && buttonevent === 5002))) { // Decrease the CT
-  //             actionToDo = 'ct_up';
-  //           } else if ((sensorTypeInt === 2 && buttonevent === 2002) || (sensorTypeInt === 1 && buttonevent === 4000)) {
-  //             actionToDo = 'off';
-  //           }
-  //         }
-  //       } else {
-  //         continueRepeat = actionsConfig.actionsToDo['' + buttonevent].repeat;
-  //         actionToDo = actionsConfig.actionsToDo['' + buttonevent].action;
-  //       }
+    //         if ((sensorTypeInt === 0 || sensorTypeInt === 1) && buttonevent === 1001) { // Turn On with default settings (including CT)...
+    //           actionToDo = 'on_defaults';
+    //         } else if (sensorTypeInt === 0 && buttonevent === 1002) { // Toggle power and only if on, set to full brightness...
+    //           actionToDo = 'toggle_on_full_bri';
+    //         } else if ((sensorTypeInt === 1 && buttonevent === 1000)) { // Turn On and if On already, set to full brightness...
+    //           actionToDo = 'on_or_full_bri';
+    //         } else if ((sensorTypeInt === 2 && buttonevent === 1002)) { // Turn On at full brightness and if On already just increase the brightness...
+    //           actionToDo = 'on_full_bri_or_bri_up';
+    //         } else if (((sensorTypeInt === 1 && buttonevent === 2000) || (sensorTypeInt === 0 && buttonevent === 2002))) { // Turn On with lowest brightness or increase the brightness if On already
+    //           actionToDo = 'on_low_bri_up';
+    //         } else if (((sensorTypeInt === 1 && buttonevent === 3000) || (sensorTypeInt === 0 && buttonevent === 3002))) { // Decrease the brightness
+    //           actionToDo = 'bri_down';
+    //         } else if (((sensorTypeInt === 2 && buttonevent === 3002) || (sensorTypeInt === 0 && buttonevent === 4002))) { // Increase the CT
+    //           actionToDo = 'ct_down';
+    //         } else if (((sensorTypeInt === 2 && buttonevent === 4002) || (sensorTypeInt === 0 && buttonevent === 5002))) { // Decrease the CT
+    //           actionToDo = 'ct_up';
+    //         } else if ((sensorTypeInt === 2 && buttonevent === 2002) || (sensorTypeInt === 1 && buttonevent === 4000)) {
+    //           actionToDo = 'off';
+    //         }
+    //       }
+    //     } else {
+    //       continueRepeat = actionsConfig.actionsToDo['' + buttonevent].repeat;
+    //       actionToDo = actionsConfig.actionsToDo['' + buttonevent].action;
+    //     }
 
-  //       const accessoryToControl = this.platform.gatewayMap[pathComponents[1]].accessoryByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
-  //       if (accessoryToControl) {
-  //         const repeatZBFunction = (delay: number, timeoutKey: string) => {
-  //           this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-  //             const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]._service
-  //             if (actionToDo.startsWith('on_low_bri')) {
-  //               if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-  //                 if (!service.getCharacteristic(that.platform.Characteristics.hap.On).value) {
-  //                   service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(1)
-  //                   service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
-  //                   if (actionToDo === 'on_low_bri') {
-  //                     continueRepeat = false;
-  //                   }
-  //                 } else if (actionToDo === 'on_low_bri_up') {
-  //                   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-  //                   const newBrightnessState = Math.min(100, characteristic.value + 5)
-  //                   characteristic.setValue(newBrightnessState)
-  //                   if (newBrightnessState === 100) {
-  //                     continueRepeat = false;
-  //                   }
-  //                 } else {
-  //                   continueRepeat = false;
-  //                 }
-  //               } else {
-  //                 continueRepeat = false;
-  //               }
-  //             } else if (actionToDo === 'bri_down') {
-  //               if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-  //                 const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-  //                 const newBrightnessState = Math.max(1, characteristic.value - 5)
-  //                 characteristic.setValue(newBrightnessState)
-  //                 if (newBrightnessState === 1) {
-  //                   continueRepeat = false;
-  //                 }
-  //               } else {
-  //                 continueRepeat = false;
-  //               }
-  //             } else if (actionToDo === 'ct_down') {
-  //               if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-  //                 const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
-  //                 const newColorTemperatureState = Math.max(153, characteristic.value - 32)
-  //                 characteristic.setValue(newColorTemperatureState)
-  //                 if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
-  //                   continueRepeat = false;
-  //                 }
-  //               } else {
-  //                 continueRepeat = false;
-  //               }
-  //             } else if (actionToDo === 'ct_up') {
-  //               if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-  //                 const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
-  //                 const newColorTemperatureState = Math.min(500, characteristic.value + 32)
-  //                 characteristic.setValue(newColorTemperatureState)
-  //                 if (newColorTemperatureState === 500) {
-  //                   continueRepeat = false;
-  //                 }
-  //               } else {
-  //                 continueRepeat = false;
-  //               }
-  //             } else if (actionToDo === 'on_defaults') {
-  //               service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
-  //               if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-  //                 service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(100)
-  //               }
-  //               if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-  //                 service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
-  //               }
-  //             } else if (actionToDo.startsWith('toggle_on')) {
-  //               let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-  //               const newPowerState = !characteristic.value
-  //               characteristic.setValue(newPowerState)
-  //               if (actionToDo === 'toggle_on_full_bri' && newPowerState && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-  //                 characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-  //                 if (characteristic.value !== 100) {
-  //                   characteristic.setValue(100)
-  //                 }
-  //               }
-  //             } else if (actionToDo === 'on_or_full_bri') {
-  //               let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-  //               const originalValue = characteristic.value
-  //               characteristic.setValue(true)
-  //               if (originalValue && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-  //                 characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-  //                 if (characteristic.value !== 100) {
-  //                   characteristic.setValue(100)
-  //                 }
-  //               }
-  //             } else if (actionToDo === 'on_full_bri_or_bri_up') {
-  //               let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-  //               const originalValue = characteristic.value
-  //               if (!originalValue) {
-  //                 characteristic.setValue(true)
-  //               }
-  //               if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-  //                 characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-  //                 if (!originalValue) {
-  //                   if (characteristic.value !== 100) {
-  //                     characteristic.setValue(100)
-  //                   }
-  //                 } else {
-  //                   const newBrightnessState = Math.min(100, characteristic.value + 5)
-  //                   characteristic.setValue(newBrightnessState)
-  //                 }
-  //               }
-  //             } else if (actionToDo === 'off') {
-  //               const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-  //               characteristic.setValue(false)
-  //             } else if (actionToDo === 'characteristics') {
-  //               const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
-  //               const characteristics = actionsConfig.actionsToDo['' + buttonevent].characteristics
-  //               for (let ii = 0; ii < characteristics.length; ii++) {
-  //                 const characteristicData = characteristics[ii]
-  //                 service._characteristicDelegates[characteristicData.key]?._characteristic?.setValue(characteristicData.value)
-  //               }
-  //             }
+    //     const accessoryToControl = this.platform.gatewayMap[pathComponents[1]].accessoryByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
+    //     if (accessoryToControl) {
+    //       const repeatZBFunction = (delay: number, timeoutKey: string) => {
+    //         this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
+    //           const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]._service
+    //           if (actionToDo.startsWith('on_low_bri')) {
+    //             if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+    //               if (!service.getCharacteristic(that.platform.Characteristics.hap.On).value) {
+    //                 service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(1)
+    //                 service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
+    //                 if (actionToDo === 'on_low_bri') {
+    //                   continueRepeat = false;
+    //                 }
+    //               } else if (actionToDo === 'on_low_bri_up') {
+    //                 const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+    //                 const newBrightnessState = Math.min(100, characteristic.value + 5)
+    //                 characteristic.setValue(newBrightnessState)
+    //                 if (newBrightnessState === 100) {
+    //                   continueRepeat = false;
+    //                 }
+    //               } else {
+    //                 continueRepeat = false;
+    //               }
+    //             } else {
+    //               continueRepeat = false;
+    //             }
+    //           } else if (actionToDo === 'bri_down') {
+    //             if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+    //               const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+    //               const newBrightnessState = Math.max(1, characteristic.value - 5)
+    //               characteristic.setValue(newBrightnessState)
+    //               if (newBrightnessState === 1) {
+    //                 continueRepeat = false;
+    //               }
+    //             } else {
+    //               continueRepeat = false;
+    //             }
+    //           } else if (actionToDo === 'ct_down') {
+    //             if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
+    //               const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
+    //               const newColorTemperatureState = Math.max(153, characteristic.value - 32)
+    //               characteristic.setValue(newColorTemperatureState)
+    //               if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
+    //                 continueRepeat = false;
+    //               }
+    //             } else {
+    //               continueRepeat = false;
+    //             }
+    //           } else if (actionToDo === 'ct_up') {
+    //             if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
+    //               const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
+    //               const newColorTemperatureState = Math.min(500, characteristic.value + 32)
+    //               characteristic.setValue(newColorTemperatureState)
+    //               if (newColorTemperatureState === 500) {
+    //                 continueRepeat = false;
+    //               }
+    //             } else {
+    //               continueRepeat = false;
+    //             }
+    //           } else if (actionToDo === 'on_defaults') {
+    //             service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
+    //             if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+    //               service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(100)
+    //             }
+    //             if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
+    //               service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
+    //             }
+    //           } else if (actionToDo.startsWith('toggle_on')) {
+    //             let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
+    //             const newPowerState = !characteristic.value
+    //             characteristic.setValue(newPowerState)
+    //             if (actionToDo === 'toggle_on_full_bri' && newPowerState && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+    //               characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+    //               if (characteristic.value !== 100) {
+    //                 characteristic.setValue(100)
+    //               }
+    //             }
+    //           } else if (actionToDo === 'on_or_full_bri') {
+    //             let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
+    //             const originalValue = characteristic.value
+    //             characteristic.setValue(true)
+    //             if (originalValue && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+    //               characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+    //               if (characteristic.value !== 100) {
+    //                 characteristic.setValue(100)
+    //               }
+    //             }
+    //           } else if (actionToDo === 'on_full_bri_or_bri_up') {
+    //             let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
+    //             const originalValue = characteristic.value
+    //             if (!originalValue) {
+    //               characteristic.setValue(true)
+    //             }
+    //             if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+    //               characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+    //               if (!originalValue) {
+    //                 if (characteristic.value !== 100) {
+    //                   characteristic.setValue(100)
+    //                 }
+    //               } else {
+    //                 const newBrightnessState = Math.min(100, characteristic.value + 5)
+    //                 characteristic.setValue(newBrightnessState)
+    //               }
+    //             }
+    //           } else if (actionToDo === 'off') {
+    //             const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
+    //             characteristic.setValue(false)
+    //           } else if (actionToDo === 'characteristics') {
+    //             const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
+    //             const characteristics = actionsConfig.actionsToDo['' + buttonevent].characteristics
+    //             for (let ii = 0; ii < characteristics.length; ii++) {
+    //               const characteristicData = characteristics[ii]
+    //               service._characteristicDelegates[characteristicData.key]?._characteristic?.setValue(characteristicData.value)
+    //             }
+    //           }
 
-  //             if (continueRepeat) {
-  //               this.log.info('Long press being on ZigBee service!!!');
-  //               repeatZBFunction(300, timeoutKey);
-  //             }
-  //           }, delay);
-  //         };
-  //         repeatZBFunction(0, keyForTimeoutAction);
-  //       }
-  //     } else {
-  //       const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
-  //       if (/* this.platform.state.remotes_on && */ actionToDo) {
-  //         // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
-  //         // jsonObject.action = actionToDo
+    //           if (continueRepeat) {
+    //             this.log.info('Long press being on ZigBee service!!!');
+    //             repeatZBFunction(300, timeoutKey);
+    //           }
+    //         }, delay);
+    //       };
+    //       repeatZBFunction(0, keyForTimeoutAction);
+    //     }
+    //   } else {
+    //     const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
+    //     if (/* this.platform.state.remotes_on && */ actionToDo) {
+    //       // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
+    //       // jsonObject.action = actionToDo
 
-  //         const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
-  //         const data = JSON.stringify(jsonObject);
+    //       const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
+    //       const data = JSON.stringify(jsonObject);
 
-  //         const options = {
-  //           hostname: actionToDo.host,
-  //           port: actionToDo.port,
-  //           path: actionToDo.path,
-  //           method: 'POST',
-  //           headers: {
-  //             'Content-Type': 'application/json',
-  //             'Content-Length': data.length,
-  //           },
-  //         };
+    //       const options = {
+    //         hostname: actionToDo.host,
+    //         port: actionToDo.port,
+    //         path: actionToDo.path,
+    //         method: 'POST',
+    //         headers: {
+    //           'Content-Type': 'application/json',
+    //           'Content-Length': data.length,
+    //         },
+    //       };
 
-  //         const repeatFunction = (delay: number, timeoutKey: string) => {
-  //           this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-  //             this.log.info('Long press being on URL!!!');
+    //       const repeatFunction = (delay: number, timeoutKey: string) => {
+    //         this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
+    //           this.log.info('Long press being on URL!!!');
 
-  //             const req = http.request(options, (res) => {
-  //               this.log.info(`statusCode: ${res.statusCode}`);
+    //           const req = http.request(options, (res) => {
+    //             this.log.info(`statusCode: ${res.statusCode}`);
 
-  //               if (res.statusCode === 200) {
-  //                 this.log.info('Command sent and received successfully');
-  //               }
+    //             if (res.statusCode === 200) {
+    //               this.log.info('Command sent and received successfully');
+    //             }
 
-  //               res.on('data', d => {
-  //                 // process.stdout.write(d)
-  //                 this.log.info(d);
-  //               });
-  //             });
+    //             res.on('data', d => {
+    //               // process.stdout.write(d)
+    //               this.log.info(d);
+    //             });
+    //           });
 
-  //             req.on('error', (error) => {
-  //               console.error(error);
-  //             });
+    //           req.on('error', (error) => {
+    //             console.error(error);
+    //           });
 
-  //             req.write(data);
-  //             req.end();
+    //           req.write(data);
+    //           req.end();
 
-  //             // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
-  //             repeatFunction(300, timeoutKey);
-  //           }, delay);
-  //         };
-  //         repeatFunction(0, keyForTimeoutAction);
-  //       }
-  //     }
-  //   }
-  // }
+    //           // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
+    //           repeatFunction(300, timeoutKey);
+    //         }, delay);
+    //       };
+    //       repeatFunction(0, keyForTimeoutAction);
+    //     }
+    //   }
+    // }
+  }
 }
