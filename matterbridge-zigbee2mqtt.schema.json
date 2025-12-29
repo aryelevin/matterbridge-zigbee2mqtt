@@ -990,6 +990,36 @@
         }
       }
     },
+    "switchesOnStateCommands": {
+      "description": "Configures actions when enabling switches logic",
+      "type": "object",
+      "selectFrom": "name",
+      "uniqueItems": true,
+      "additionalProperties": {
+          "description": "Attribute Name",
+          "type": "object",
+          "additionalProperties": {
+            "description": "Attribute Setting",
+            "type": "string"
+          },
+          "uniqueItems": true
+      }
+    },
+    "switchesOffStateCommands": {
+      "description": "Configures actions when enabling switches logic",
+      "type": "object",
+      "selectFrom": "name",
+      "uniqueItems": true,
+      "additionalProperties": {
+          "description": "Attribute Name",
+          "type": "object",
+          "additionalProperties": {
+            "description": "Attribute Setting",
+            "type": "string"
+          },
+          "uniqueItems": true
+      }
+    },
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",
       "type": "boolean",

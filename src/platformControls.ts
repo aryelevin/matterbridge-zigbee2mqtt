@@ -11,15 +11,21 @@ import { OnOff } from 'matterbridge/matter/clusters';
 // import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
 
 import { ZigbeePlatform } from './module.js';
+import { Payload } from './payloadTypes.js';
+import { payloadStringify } from 'node-ansi-logger';
 
 export class PlatformControls {
   platform: ZigbeePlatform;
   public device: MatterbridgeEndpoint;
   public swicthesOnEndpoint: MatterbridgeEndpoint;
   public switchesOn: boolean = false;
+  public switchesOnCommandsConfig?: { [key: string]: { [key: string]: string } };
+  public switchesOffCommandsConfig?: { [key: string]: { [key: string]: string } };
 
   constructor(platform: ZigbeePlatform) {
     this.platform = platform;
+    this.switchesOnCommandsConfig = this.platform.config.switchesOnCommands;
+    this.switchesOffCommandsConfig = this.platform.config.switchesOffCommands;
 
     this.device = new MatterbridgeEndpoint([bridgedNode, powerSource], { id: 'Platform Controls' }, this.platform.config.debug);
     this.device.createDefaultIdentifyClusterServer().createDefaultPowerSourceWiredClusterServer();
@@ -62,33 +68,12 @@ export class PlatformControls {
   onOffDidSet(value: boolean) {
     this.switchesOn = value;
 
-    const commandsToExecute = value ? this.platform.config.switchesOnStateCommands : this.platform.config.switchesOffStateCommands;
+    const commandsToExecute = value ? this.switchesOnCommandsConfig : this.switchesOffCommandsConfig;
     if (commandsToExecute) {
-      // for (const cmdEnum in commandsToExecute) {
-      //   const cmd = commandsToExecute[cmdEnum]
-      //   const cmdPath = cmd.resourcePath;
-      //   const cmdObject = cmd.objectData;
-      //   if (cmdPath && cmdObject) {
-      //     const pathComponents = cmdPath.split('/');
-      //     if (pathComponents.length === 5) {
-      //       const aqaraS1Bridge = this.platform.gatewayMap[pathComponents[1]];
-      //       if (aqaraS1Bridge) {
-      //         aqaraS1Bridge.client.put('/' + pathComponents[2] + '/' + pathComponents[3] + '/' + pathComponents[4], cmdObject).then((obj) => {
-      //           // aqaraS1Bridge.log('Success')
-      //         }).catch((error) => {
-      //           // aqaraS1Bridge.log('Error')
-      //           this.device.log.error(error)
-      //         })
-      //       } else {
-      //         this.device.log.debug('Bridge not found');
-      //       }
-      //     } else {
-      //       this.device.log.debug('Command path is not correct length: ' + pathComponents.length);
-      //     }
-      //   } else {
-      //     this.device.log.debug('Missing command data: ' + JSON.stringify(cmd));
-      //   }
-      // }
+      for (const cmdPath in commandsToExecute) {
+        const cmdObject = commandsToExecute[cmdPath] as Payload;
+        this.platform.publish(cmdPath, 'set', payloadStringify(cmdObject));
+      }
     } else {
       this.swicthesOnEndpoint.log.debug('No commands to execute');
     }

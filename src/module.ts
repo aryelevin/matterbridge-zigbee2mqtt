@@ -37,7 +37,7 @@ import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCale
 import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.js';
 import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js';
 import { PlatformControls } from './platformControls.js';
-import { SwitchingController, SwitchingControllerSwitchConfig } from './switchingController.js';
+import { SwitchingController, SwitchingControllerSwitchLinkConfig, SwitchingControllerSwitchConfig } from './switchingController.js';
 
 export interface ALHomeLocationCoordinates {
   longitude: number;
@@ -77,7 +77,10 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   addShabbatModeDummySwitchType?: DummySwitchType;
   aqaraS1ActionsConfigData?: { [key: string]: AqaraS1ScenePanelConfig };
   aqaraS1ExecutedConfigurationsData?: { [key: string]: { [key: string]: string[] | { [key: number]: string } } };
-  switchesLinks?: { [key: string]: SwitchingControllerSwitchConfig };
+  switchesLinks?: { [key: string]: SwitchingControllerSwitchLinkConfig };
+  switchesActions?: { [key: string]: SwitchingControllerSwitchConfig };
+  switchesOnCommands?: { [key: string]: { [key: string]: string } };
+  switchesOffCommands?: { [key: string]: { [key: string]: string } };
   // End of Added by me: Arye Levin
 }
 
@@ -520,7 +523,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, this.config.aqaraS1ActionsConfigData);
     }
 
-    this.switchingController = new SwitchingController(this, this.config.switchesLinks || {});
+    this.switchingController = new SwitchingController(this, this.config.switchesLinks || {}, this.config.switchesActions || {});
     // End of Added by me: Arye Levin
 
     // Clear select device and entity since we have a bridge here and they will be recreated from the bridge

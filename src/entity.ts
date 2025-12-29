@@ -218,17 +218,15 @@ export class ZigbeeEntity extends EventEmitter {
       this.lastSeen = Date.now();
 
       // Added by me: Arye Levin
-      // if (Object.keys(this.lastPayload).length) { // First check its not the first state update...
       // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
-        for (const key in payload) {
-          const value = payload[key];
-          if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastPayload[key]) {
-            this.log.info('Value ' + key + ' changed from ' + this.lastPayload[key] + ' to ' + value + '.');
-            this.platform.switchingController?.switchStateChanged(this.entityName + '/' + key, value, payload);
-          }
+      for (const key in payload) {
+        const value = payload[key];
+        if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastPayload[key]) {
+          this.log.info('Value ' + key + ' changed from ' + this.lastPayload[key] + ' to ' + value + '.');
+          this.platform.switchingController?.switchStateChanged(this.entityName + '/' + key, value, payload);
         }
-        this.log.info('Finished evaluating old payload vs new payload');
-      // }
+      }
+      // this.log.info('Finished evaluating old payload vs new payload');
       // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
       // for (const key in payload) {
       //   const value = payload[key];
@@ -1597,19 +1595,53 @@ export class ZigbeeDevice extends ZigbeeEntity {
           zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint([bridgedNode], { id: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
         zigbeeDevice.hasEndpoints = true;
         // Mapping actions
-        const switchMap = ['Single Press', 'Double Press', 'Long Press  '];
-        const triggerMap = ['Single', 'Double', 'Long'];
-        let count = 1;
-        if (zigbeeDevice.actions.length <= 3) {
-          const actionsMap: string[] = [];
-          for (let a = 0; a < zigbeeDevice.actions.length; a++) {
-            actionsMap.push(zigbeeDevice.actions[a]);
-            zigbeeDevice.propertyMap.set('action_' + actionsMap[a], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a] });
-            zigbeeDevice.log.info(`-- Button ${count}: ${hk}${switchMap[a]}${nf} <=> ${zb}${actionsMap[a]}${nf}`);
+        // Added by me: Arye Levin
+        const supportedActionsDescriptions: { [key: string]: string } = { single: 'Single Press', double: 'Double Press', triple: 'Triple Press', hold: 'Long Press  ' };
+        const supportedActions: { [key: string]: string } = { single: 'Single', double: 'Double', triple: 'Triple', hold: 'Long' };
+        const switchesActions: { [key: string]: { switchNo: number, switchActions: string[] } } = {};
+        let supportedSwitchesCount = 1;
+        for (let a = 0; a < zigbeeDevice.actions.length; a++) {
+          const actionItem = zigbeeDevice.actions[a];
+          const actionItemComponents = actionItem.split('_');
+          if (actionItemComponents.length === 2) {
+            const actionName = actionItemComponents[0];
+            const actionIsSupportedByMatterbridge = supportedActions[actionName] !== undefined;
+            const switchName = actionIsSupportedByMatterbridge ? actionItemComponents[1] : actionItem;
+            if (!switchesActions[switchName]) {
+              switchesActions[switchName] = { switchNo: supportedSwitchesCount, switchActions: [] };
+              supportedSwitchesCount++;
+            }
+            if (supportedActions[actionName]) {
+              switchesActions[switchName].switchActions.push(actionName);
+            } else {
+              switchesActions[switchName].switchActions.push('single');
+            }
+          } else {
+            const actionName = actionItem;
+            const switchName = actionItem;
+            if (!switchesActions[switchName]) {
+              switchesActions[switchName] = { switchNo: supportedSwitchesCount, switchActions: [] };
+              supportedSwitchesCount++;
+            }
+            if (supportedActions[actionName]) {
+              switchesActions[switchName].switchActions.push(actionName);
+            } else {
+              switchesActions[switchName].switchActions.push('single');
+            }
+          }
+        }
+
+        for (const buttonName in switchesActions) {
+          const buttonActionsData = switchesActions[buttonName];
+          const buttonActions = buttonActionsData.switchActions;
+          for (let index = 0; index < buttonActions.length; index++) {
+            const actionItem = buttonActions[index];
+            zigbeeDevice.propertyMap.set('action_' + (buttonActions.length > 1 ? (actionItem + '_') : '') + buttonName, { name, type: '', endpoint: 'switch_' + buttonActionsData.switchNo, action: supportedActions[actionItem] });
+            zigbeeDevice.log.info(`-- Button ${buttonActionsData.switchNo}: ${hk}${supportedActionsDescriptions[actionItem]}${nf} <=> ${zb}${(buttonActions.length > 1 ? (actionItem + '_') : '') + buttonName}${nf}`);
           }
           const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
-          tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
-          zigbeeDevice.mutableDevice.set('switch_' + count, {
+          tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + buttonActionsData.switchNo });
+          zigbeeDevice.mutableDevice.set('switch_' + buttonActionsData.switchNo, {
             tagList,
             deviceTypes: [genericSwitch],
             clusterServersIds: [...genericSwitch.requiredServerClusters],
@@ -1617,27 +1649,49 @@ export class ZigbeeDevice extends ZigbeeEntity {
             clusterClientsIds: [],
             clusterClientsOptions: [],
           });
-        } else {
-          for (let i = 0; i < zigbeeDevice.actions.length; i += 3) {
-            const actionsMap: string[] = [];
-            for (let a = i; a < i + 3 && a < zigbeeDevice.actions.length; a++) {
-              actionsMap.push(zigbeeDevice.actions[a]);
-              zigbeeDevice.propertyMap.set('action_' + actionsMap[a - i], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a - i] });
-              zigbeeDevice.log.info(`-- Button ${count}: ${hk}${switchMap[a - i]}${nf} <=> ${zb}${actionsMap[a - i]}${nf}`);
-            }
-            const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
-            tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
-            zigbeeDevice.mutableDevice.set('switch_' + count, {
-              tagList,
-              deviceTypes: [genericSwitch],
-              clusterServersIds: [...genericSwitch.requiredServerClusters],
-              clusterServersOptions: [],
-              clusterClientsIds: [],
-              clusterClientsOptions: [],
-            });
-            count++;
-          }
         }
+        // End of Added by me: Arye Levin
+        // const switchMap = ['Single Press', 'Double Press', 'Long Press  '];
+        // const triggerMap = ['Single', 'Double', 'Long'];
+        // let count = 1;
+        // if (zigbeeDevice.actions.length <= 3) {
+        //   const actionsMap: string[] = [];
+        //   for (let a = 0; a < zigbeeDevice.actions.length; a++) {
+        //     actionsMap.push(zigbeeDevice.actions[a]);
+        //     zigbeeDevice.propertyMap.set('action_' + actionsMap[a], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a] });
+        //     zigbeeDevice.log.info(`-- Button ${count}: ${hk}${switchMap[a]}${nf} <=> ${zb}${actionsMap[a]}${nf}`);
+        //   }
+        //   const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+        //   tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
+        //   zigbeeDevice.mutableDevice.set('switch_' + count, {
+        //     tagList,
+        //     deviceTypes: [genericSwitch],
+        //     clusterServersIds: [...genericSwitch.requiredServerClusters],
+        //     clusterServersOptions: [],
+        //     clusterClientsIds: [],
+        //     clusterClientsOptions: [],
+        //   });
+        // } else {
+        //   for (let i = 0; i < zigbeeDevice.actions.length; i += 3) {
+        //     const actionsMap: string[] = [];
+        //     for (let a = i; a < i + 3 && a < zigbeeDevice.actions.length; a++) {
+        //       actionsMap.push(zigbeeDevice.actions[a]);
+        //       zigbeeDevice.propertyMap.set('action_' + actionsMap[a - i], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a - i] });
+        //       zigbeeDevice.log.info(`-- Button ${count}: ${hk}${switchMap[a - i]}${nf} <=> ${zb}${actionsMap[a - i]}${nf}`);
+        //     }
+        //     const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+        //     tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
+        //     zigbeeDevice.mutableDevice.set('switch_' + count, {
+        //       tagList,
+        //       deviceTypes: [genericSwitch],
+        //       clusterServersIds: [...genericSwitch.requiredServerClusters],
+        //       clusterServersOptions: [],
+        //       clusterClientsIds: [],
+        //       clusterClientsOptions: [],
+        //     });
+        //     count++;
+        //   }
+        // }
         if (zigbeeDevice.composedType === '') zigbeeDevice.composedType = 'button';
       }
     }
