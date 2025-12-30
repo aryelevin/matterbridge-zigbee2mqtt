@@ -328,7 +328,20 @@ export class ZigbeeEntity extends EventEmitter {
             // this.log.debug(`Payload entry ${CYAN}${value}${db} => name: ${CYAN}${propertyMap.name}${db} endpoint: ${CYAN}${propertyMap.endpoint}${db} action: ${CYAN}${propertyMap.action}${db}`);
             const child = this.bridgedDevice.getChildEndpointByName(propertyMap.endpoint);
             if (child && child.maybeNumber) child.triggerSwitchEvent(propertyMap.action as 'Single' | 'Double' | 'Long', this.log);
-          } else this.log.debug(`*Payload entry ${CYAN}${('action_' + value) as string}${db} not found in propertyMap`);
+          } else {
+            this.log.debug(`*Payload entry ${CYAN}${('action_' + value) as string}${db} not found in propertyMap`);
+            // Added by me: Arye Levin
+            if ((value as string)?.startsWith('brightness_step_')) {
+              const newAction = (value as string).replace('brightness_step_', '');
+              const propertyMap1 = this.propertyMap.get(('action_' + newAction) as string);
+              if (propertyMap1) {
+                // this.log.debug(`Payload entry ${CYAN}${value}${db} => name: ${CYAN}${propertyMap1.name}${db} endpoint: ${CYAN}${propertyMap1.endpoint}${db} action: ${CYAN}${propertyMap1.action}${db}`);
+                const child = this.bridgedDevice.getChildEndpointByName(propertyMap1.endpoint);
+                if (child && child.maybeNumber) child.triggerSwitchEvent(propertyMap1.action as 'Single' | 'Double' | 'Long', this.log);
+              }
+            }
+            // End of Added by me: Arye Levin
+          }
         }
 
         // WindowCovering
