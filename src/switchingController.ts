@@ -61,11 +61,12 @@ const SwitchTypes = {
 // Extract a union type of all the values (0 | 1 | 2)
 type SwitchType = typeof SwitchTypes[keyof typeof SwitchTypes];
 
+// If the source switch is configured with the button action (/on_press for example), then it will be considered as per action config and switchType is ignored while repeat is considered, otherwise switchType is considered and needed whilst repeat is ignored...
 export interface SwitchingControllerSwitchConfig {
   enabled: boolean;
-  switchType: SwitchType;
-  repeat: boolean;
-  linkedDevices?: { [key: string]: { [key: string]: PayloadValue } }; // {"0x54abcd0987654321": {'brightness_l1': 254, state_l1: 'ON', state_l2: 'OFF'}, "0x54abcd0987654321": {'brightness_l1': 254, state_l1: 'ON', state_l2: 'OFF'}, "0x541234567890abcd": {'brightness_l3': 4, state_l3: 'ON'}}
+  switchType?: SwitchType;
+  repeat?: boolean;
+  linkedDevices: { [key: string]: PayloadValue }; // {"0x54abcd0987654321/brightness_l1": 254, "0x54abcd0987654321/state_l1": 'ON', "0x54abcd0987654321/state_l2": 'OFF', "0x54abcd0987654321/brightness_l1": 254, "0x54abcd0987654321/state_l1": 'ON', "0x54abcd0987654321/state_l2": 'OFF', "0x541234567890abcd/brightness_l3": 4, "0x541234567890abcd/state_l3": 'ON'}
 }
 
 export class SwitchingController {
@@ -74,7 +75,7 @@ export class SwitchingController {
   switchesLinksConfig: { [key: string]: SwitchingControllerSwitchLinkConfig }; // {"0x541234567890abcd/l2_brightness": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
   switchesLinksConfigData: { [key: string]: string[] };
   entitiesExecutionQueues: { [key: string]: { [key: string]: PayloadValue } } = {}; // {"0x541234567890abcd": {'brightness_l3_ON': 'brightness_l2', 'data': 200}} // PayloadValue is because the data field...
-  switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {"0x541234567890abcd/single": SwitchingControllerSwitchConfig, "0x541234567890abcd/hold": SwitchingControllerSwitchConfig, "0x541234567890abcd/double": SwitchingControllerSwitchConfig}
+  switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {'0x541234567890abcd': {'enabled': true, switchType: 2, 'linkedDevices': {'0x54abcd0987654321': 'l1', '0x54abcd0987654322': 'center'}}, '0x541234567890abcd/single': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/state_l1': 'ON', '0x54abcd0987654322/toggle_on': 'l3'}}, '0x541234567890abcd/hold': {'enabled': true, 'repeat': true, 'linkedDevices': {'0x54abcd0987654321/brightness_l1': 254, '0x54abcd0987654322/bri_up': 'center'}}, '0x541234567890abcd/double': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/characteristic': {state_left: ON}, '0x54abcd0987654322/bri_up': 'l2'}}}
   // switchesActionsConfigData: { [key: string]: { [key: string]: PayloadValue } } = {};
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
 
@@ -328,245 +329,255 @@ export class SwitchingController {
     const actionsConfigPreConfiguredSwitchType = this.switchesActionsConfig[switchIeee];
     const sensorTypeInt = actionsConfigPreConfiguredSwitchType?.switchType; // 0 = Old IKEA round 5 button remote, 1 = Hue Switch Remote, 2 = New IKEA rect 4 buttons (Supports the 2 buttons one [No CT control])
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/' + buttonEvent];
-    const endpointsToExecute = [];
+    const combinedLinks = [];
     if (actionsConfigPreConfiguredSwitchType && actionsConfigPreConfiguredSwitchType.enabled && sensorTypeInt) {
       this.log.info('Switch: %s, button event: %s, config: %s', switchIeee, buttonEvent, JSON.stringify(actionsConfigPreConfiguredSwitchType));
-      endpointsToExecute.push(actionsConfigPreConfiguredSwitchType.linkedDevices);
+      combinedLinks.push(actionsConfigPreConfiguredSwitchType.linkedDevices);
     }
     if (actionsConfig && actionsConfig.enabled) {
       this.log.info('Switch: %s, config: %s', switchIeee + '/' + buttonEvent, JSON.stringify(actionsConfig));
-      endpointsToExecute.push(actionsConfig.linkedDevices);
+      combinedLinks.push(actionsConfig.linkedDevices);
     }
 
-    if (endpointsToExecute.length) {
-      for (const endpointToExecute in endpointsToExecute) {
-        // First cancel any timeouts we've created for the long press handling...
-        const keyForTimeoutAction = switchIeee + endpointToExecute;
-        clearTimeout(this.longPressTimeoutIDs[keyForTimeoutAction]);
+    if (combinedLinks.length) {
+      for (let index = 0; index < combinedLinks.length; index++) {
+        const endpointsToExecute = combinedLinks[index];
 
-        // const endpointToExecuteItem = endpointsToExecute[endpointToExecute];
+        for (const endpointToExecute in endpointsToExecute) {
+          // First cancel any timeouts we've created for the long press handling...
+          const keyForTimeoutAction = switchIeee + endpointToExecute;
+          clearTimeout(this.longPressTimeoutIDs[keyForTimeoutAction]);
 
-        // if (resourceToExecute.startsWith('/')) { // TODO: find the correct way on this new system...
-          const pathComponents = endpointToExecute.split('/');
-          let actionToDo = '';
-          let continueRepeat = true;
+          const endpointToExecuteItem = endpointsToExecute[endpointToExecute]; // The value: like 'ON' in case of state...
 
-          if (pathComponents.length <= 1) {
-            if (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons) {
-              continueRepeat = false;
-            }
-            if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'brightness_move_up') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_up_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_hold')) { // Start Increasing the Brightness and turn on at lowest brighness if Off...
-              actionToDo = 'on_low_bri_up';
-            } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'brightness_move_down') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_down_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'down_hold')) {
-              actionToDo = 'bri_down';
-            } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_right_hold') {
-              actionToDo = 'ct_down';
-            } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_left_hold') {
-              actionToDo = 'ct_up';
-            } else {
-              continueRepeat = false;
+          // if (resourceToExecute.startsWith('/')) { // TODO: find the correct way on this new system...
+            const pathComponents = endpointToExecute.split('/');
+            let actionToDo = '';
+            let continueRepeat = true;
 
-              if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_hold')) { // Turn On with default settings (including CT)...
-                actionToDo = 'on_defaults';
-              } else if (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle') { // Toggle power and if  it turns on, set to full brightness...
-                actionToDo = 'toggle_on_full_bri';
-              } else if (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_press') { // Turn On and if On already, set to full brightness...
-                actionToDo = 'on_or_full_bri';
-              } else if (sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'on') { // Turn On at full brightness and if On already just increase the brightness...
-                actionToDo = 'on_full_bri_or_bri_up';
-              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_press') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_up_click')) { // Turn On with lowest brightness or increase the brightness if On already
-                actionToDo = 'on_low_bri_up';
-              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'down_press') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_down_click')) { // Decrease the brightness
-                actionToDo = 'bri_down';
-              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_right_click') { // Increase the CT
-                actionToDo = 'ct_down';
-              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_left_click') { // Decrease the CT
-                actionToDo = 'ct_up';
-              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'off') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'off_press')) {
-                actionToDo = 'off';
+            if (pathComponents.length <= 1) {
+              if (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons) {
+                continueRepeat = false;
               }
+              if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'brightness_move_up') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_up_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_hold')) { // Start Increasing the Brightness and turn on at lowest brighness if Off...
+                actionToDo = 'on_low_bri_up';
+              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'brightness_move_down') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_down_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'down_hold')) {
+                actionToDo = 'bri_down';
+              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_right_hold') {
+                actionToDo = 'ct_down';
+              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_left_hold') {
+                actionToDo = 'ct_up';
+              } else {
+                continueRepeat = false;
+
+                if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_hold')) { // Turn On with default settings (including CT)...
+                  actionToDo = 'on_defaults';
+                } else if (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle') { // Toggle power and if  it turns on, set to full brightness...
+                  actionToDo = 'toggle_on_full_bri';
+                } else if (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_press') { // Turn On and if On already, set to full brightness...
+                  actionToDo = 'on_or_full_bri';
+                } else if (sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'on') { // Turn On at full brightness and if On already just increase the brightness...
+                  actionToDo = 'on_full_bri_or_bri_up';
+                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_press') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_up_click')) { // Turn On with lowest brightness or increase the brightness if On already
+                  actionToDo = 'on_low_bri_up';
+                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'down_press') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_down_click')) { // Decrease the brightness
+                  actionToDo = 'bri_down';
+                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_right_click') { // Increase the CT
+                  actionToDo = 'ct_down';
+                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_left_click') { // Decrease the CT
+                  actionToDo = 'ct_up';
+                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'off') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'off_press')) {
+                  actionToDo = 'off';
+                }
+              }
+            } else {
+              continueRepeat = actionsConfig.repeat || false;
+              actionToDo = pathComponents[1];
             }
-          } else {
-            continueRepeat = actionsConfig.repeat;
-            actionToDo = pathComponents[1];
-          }
 
-          const entityToControl = this.getDeviceEntity(pathComponents[0]);
+            const entityToControl = this.getDeviceEntity(pathComponents[0]);
 
-          if (entityToControl) {
-            const repeatZBFunction = (delay: number, timeoutKey: string) => {
-              this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-                // const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]._service
-                if (actionToDo.startsWith('on_low_bri')) {
-                  // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                  //   if (!service.getCharacteristic(that.platform.Characteristics.hap.On).value) {
-                  //     service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(1)
-                  //     service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
-                  //     if (actionToDo === 'on_low_bri') {
-                  //       continueRepeat = false;
-                  //     }
-                  //   } else if (actionToDo === 'on_low_bri_up') {
-                  //     const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                  //     const newBrightnessState = Math.min(100, characteristic.value + 5)
-                  //     characteristic.setValue(newBrightnessState)
-                  //     if (newBrightnessState === 100) {
-                  //       continueRepeat = false;
-                  //     }
-                  //   } else {
-                  //     continueRepeat = false;
-                  //   }
-                  // } else {
-                  //   continueRepeat = false;
-                  // }
-                } else if (actionToDo === 'bri_down') {
-                  // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                  //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                  //   const newBrightnessState = Math.max(1, characteristic.value - 5)
-                  //   characteristic.setValue(newBrightnessState)
-                  //   if (newBrightnessState === 1) {
-                  //     continueRepeat = false;
-                  //   }
-                  // } else {
-                  //   continueRepeat = false;
-                  // }
-                } else if (actionToDo === 'ct_down') {
-                  // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-                  //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
-                  //   const newColorTemperatureState = Math.max(153, characteristic.value - 32)
-                  //   characteristic.setValue(newColorTemperatureState)
-                  //   if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
-                  //     continueRepeat = false;
-                  //   }
-                  // } else {
-                  //   continueRepeat = false;
-                  // }
-                } else if (actionToDo === 'ct_up') {
-                  // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-                  //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
-                  //   const newColorTemperatureState = Math.min(500, characteristic.value + 32)
-                  //   characteristic.setValue(newColorTemperatureState)
-                  //   if (newColorTemperatureState === 500) {
-                  //     continueRepeat = false;
-                  //   }
-                  // } else {
-                  //   continueRepeat = false;
-                  // }
-                } else if (actionToDo === 'on_defaults') {
-                  // service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
-                  // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                  //   service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(100)
-                  // }
-                  // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-                  //   service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
-                  // }
-                } else if (actionToDo.startsWith('toggle_on')) {
-                  // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-                  // const newPowerState = !characteristic.value
-                  // characteristic.setValue(newPowerState)
-                  // if (actionToDo === 'toggle_on_full_bri' && newPowerState && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                  //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                  //   if (characteristic.value !== 100) {
-                  //     characteristic.setValue(100)
-                  //   }
-                  // }
-                } else if (actionToDo === 'on_or_full_bri') {
-                  // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-                  // const originalValue = characteristic.value
-                  // characteristic.setValue(true)
-                  // if (originalValue && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                  //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                  //   if (characteristic.value !== 100) {
-                  //     characteristic.setValue(100)
-                  //   }
-                  // }
-                } else if (actionToDo === 'on_full_bri_or_bri_up') {
-                  // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-                  // const originalValue = characteristic.value
-                  // if (!originalValue) {
-                  //   characteristic.setValue(true)
-                  // }
-                  // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                  //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                  //   if (!originalValue) {
-                  //     if (characteristic.value !== 100) {
-                  //       characteristic.setValue(100)
-                  //     }
-                  //   } else {
-                  //     const newBrightnessState = Math.min(100, characteristic.value + 5)
-                  //     characteristic.setValue(newBrightnessState)
-                  //   }
-                  // }
-                } else if (actionToDo === 'off') {
-                  // const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-                  // characteristic.setValue(false)
-                } else if (actionToDo === 'characteristics') {
-                  // const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
-                  // const characteristics = actionsConfig.actionsToDo['' + buttonevent].characteristics
-                  // for (let ii = 0; ii < characteristics.length; ii++) {
-                  //   const characteristicData = characteristics[ii]
-                  //   service._characteristicDelegates[characteristicData.key]?._characteristic?.setValue(characteristicData.value)
-                  // }
-                }
+            if (entityToControl) {
+              const repeatZBFunction = (delay: number, timeoutKey: string) => {
+                this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
+                  // const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]._service
+                  if (actionToDo.startsWith('on_low_bri')) {
+                    // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+                    //   if (!service.getCharacteristic(that.platform.Characteristics.hap.On).value) {
+                    //     service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(1)
+                    //     service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
+                    //     if (actionToDo === 'on_low_bri') {
+                    //       continueRepeat = false;
+                    //     }
+                    //   } else if (actionToDo === 'on_low_bri_up') {
+                    //     const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+                    //     const newBrightnessState = Math.min(100, characteristic.value + 5)
+                    //     characteristic.setValue(newBrightnessState)
+                    //     if (newBrightnessState === 100) {
+                    //       continueRepeat = false;
+                    //     }
+                    //   } else {
+                    //     continueRepeat = false;
+                    //   }
+                    // } else {
+                    //   continueRepeat = false;
+                    // }
+                  } else if (actionToDo === 'bri_down') {
+                    // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+                    //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+                    //   const newBrightnessState = Math.max(1, characteristic.value - 5)
+                    //   characteristic.setValue(newBrightnessState)
+                    //   if (newBrightnessState === 1) {
+                    //     continueRepeat = false;
+                    //   }
+                    // } else {
+                    //   continueRepeat = false;
+                    // }
+                  } else if (actionToDo === 'ct_down') {
+                    // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
+                    //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
+                    //   const newColorTemperatureState = Math.max(153, characteristic.value - 32)
+                    //   characteristic.setValue(newColorTemperatureState)
+                    //   if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
+                    //     continueRepeat = false;
+                    //   }
+                    // } else {
+                    //   continueRepeat = false;
+                    // }
+                  } else if (actionToDo === 'ct_up') {
+                    // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
+                    //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
+                    //   const newColorTemperatureState = Math.min(500, characteristic.value + 32)
+                    //   characteristic.setValue(newColorTemperatureState)
+                    //   if (newColorTemperatureState === 500) {
+                    //     continueRepeat = false;
+                    //   }
+                    // } else {
+                    //   continueRepeat = false;
+                    // }
+                  } else if (actionToDo === 'on_defaults') {
+                    const payload: Payload = {['state_' + endpointToExecuteItem]: 'ON'};
+                    // service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
 
-                if (continueRepeat) {
-                  this.log.info('Long press being on ZigBee service!!!');
-                  repeatZBFunction(300, timeoutKey);
-                }
-              }, delay);
-            };
-            repeatZBFunction(0, keyForTimeoutAction);
-          }
-        // } else {
-        //   const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
-        //   if (/* this.platform.state.remotes_on && */ actionToDo) {
-        //     // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
-        //     // jsonObject.action = actionToDo
+                    // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+                    //   service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(100)
+                    // }
+                    // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
+                    //   service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
+                    // }
+                    entityToControl.sendState('cachedPublishLight', payload, true);
+                  } else if (actionToDo.startsWith('toggle_on')) {
+                    // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
+                    // const newPowerState = !characteristic.value
+                    // characteristic.setValue(newPowerState)
+                    // if (actionToDo === 'toggle_on_full_bri' && newPowerState && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+                    //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+                    //   if (characteristic.value !== 100) {
+                    //     characteristic.setValue(100)
+                    //   }
+                    // }
+                  } else if (actionToDo === 'on_or_full_bri') {
+                    // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
+                    // const originalValue = characteristic.value
+                    // characteristic.setValue(true)
+                    // if (originalValue && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+                    //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+                    //   if (characteristic.value !== 100) {
+                    //     characteristic.setValue(100)
+                    //   }
+                    // }
+                  } else if (actionToDo === 'on_full_bri_or_bri_up') {
+                    // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
+                    // const originalValue = characteristic.value
+                    // if (!originalValue) {
+                    //   characteristic.setValue(true)
+                    // }
+                    // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
+                    //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
+                    //   if (!originalValue) {
+                    //     if (characteristic.value !== 100) {
+                    //       characteristic.setValue(100)
+                    //     }
+                    //   } else {
+                    //     const newBrightnessState = Math.min(100, characteristic.value + 5)
+                    //     characteristic.setValue(newBrightnessState)
+                    //   }
+                    // }
+                  } else if (actionToDo === 'off') {
+                    // const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
+                    // characteristic.setValue(false)
+                    const endpointStateName = 'state_' + endpointToExecuteItem;
+                    entityToControl.sendState('cachedPublishLight', { [endpointStateName]: 'OFF' }, true);
+                  } else { // This is a command to send an endpoint...
+                    // const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
+                    // const characteristics = actionsConfig.actionsToDo['' + buttonevent].characteristics
+                    // for (let ii = 0; ii < characteristics.length; ii++) {
+                    //   const characteristicData = characteristics[ii]
+                    //   service._characteristicDelegates[characteristicData.key]?._characteristic?.setValue(characteristicData.value)
+                    // }
+                    entityToControl.sendState('cachedPublishLight', { [actionToDo]: endpointToExecuteItem }, true);
+                  }
 
-        //     const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
-        //     const data = JSON.stringify(jsonObject);
+                  if (continueRepeat) {
+                    this.log.info('Long press being on ZigBee service!!!');
+                    repeatZBFunction(300, timeoutKey);
+                  }
+                }, delay);
+              };
+              repeatZBFunction(0, keyForTimeoutAction);
+            }
+          // } else {
+          //   const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
+          //   if (/* this.platform.state.remotes_on && */ actionToDo) {
+          //     // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
+          //     // jsonObject.action = actionToDo
 
-        //     const options = {
-        //       hostname: actionToDo.host,
-        //       port: actionToDo.port,
-        //       path: actionToDo.path,
-        //       method: 'POST',
-        //       headers: {
-        //         'Content-Type': 'application/json',
-        //         'Content-Length': data.length,
-        //       },
-        //     };
+          //     const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
+          //     const data = JSON.stringify(jsonObject);
 
-        //     const repeatFunction = (delay: number, timeoutKey: string) => {
-        //       this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-        //         this.log.info('Long press being on URL!!!');
+          //     const options = {
+          //       hostname: actionToDo.host,
+          //       port: actionToDo.port,
+          //       path: actionToDo.path,
+          //       method: 'POST',
+          //       headers: {
+          //         'Content-Type': 'application/json',
+          //         'Content-Length': data.length,
+          //       },
+          //     };
 
-        //         const req = http.request(options, (res) => {
-        //           this.log.info(`statusCode: ${res.statusCode}`);
+          //     const repeatFunction = (delay: number, timeoutKey: string) => {
+          //       this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
+          //         this.log.info('Long press being on URL!!!');
 
-        //           if (res.statusCode === 200) {
-        //             this.log.info('Command sent and received successfully');
-        //           }
+          //         const req = http.request(options, (res) => {
+          //           this.log.info(`statusCode: ${res.statusCode}`);
 
-        //           res.on('data', d => {
-        //             // process.stdout.write(d)
-        //             this.log.info(d);
-        //           });
-        //         });
+          //           if (res.statusCode === 200) {
+          //             this.log.info('Command sent and received successfully');
+          //           }
 
-        //         req.on('error', (error) => {
-        //           console.error(error);
-        //         });
+          //           res.on('data', d => {
+          //             // process.stdout.write(d)
+          //             this.log.info(d);
+          //           });
+          //         });
 
-        //         req.write(data);
-        //         req.end();
+          //         req.on('error', (error) => {
+          //           console.error(error);
+          //         });
 
-        //         // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
-        //         repeatFunction(300, timeoutKey);
-        //       }, delay);
-        //     };
-        //     repeatFunction(0, keyForTimeoutAction);
-        //   }
-        // }
+          //         req.write(data);
+          //         req.end();
+
+          //         // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
+          //         repeatFunction(300, timeoutKey);
+          //       }, delay);
+          //     };
+          //     repeatFunction(0, keyForTimeoutAction);
+          //   }
+          // }
+        }
       }
     }
   }

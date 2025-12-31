@@ -1020,6 +1020,57 @@
           "uniqueItems": true
       }
     },
+    "switchesActions": {
+      "description": "Configures actions when enabling switches logic",
+      "type": "object",
+      "selectFrom": "name",
+      "uniqueItems": true,
+      "additionalProperties": {
+        "description": "Source Switch Device (/switch_button_action_name to control specific input action. Ignores switchType and expects repeat setting)",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "description": "Enable the action",
+            "type": "boolean",
+            "default": false
+          },
+          "switchType": {
+            "description": "In case the whole switch is in the source, controls the type of switch so behaviour is as expected",
+            "type": "number",
+            "oneOf": [
+              {
+                "title": "IKEA TRADFRI 5 Buttons Round",
+                "enum": [0]
+              },
+              {
+                "title": "Phillips Hue 4 Buttons Dimmer",
+                "enum": [1]
+              },
+              {
+                "title": "IKEA STYRBAR/RODRET",
+                "enum": [2]
+              }
+            ],
+            "default": 0
+          },
+          "repeat": {
+            "description": "If switchType is not in effect it controls whether to repeat the action until another button is triggered",
+            "type": "boolean",
+            "default": false
+          },
+          "linkedDevices": {
+            "description": "Destination Linked Devices (/Attribute Name or /action_to_do when switchType is not in effect)",
+            "type": "object",
+            "selectFrom": "name",
+            "uniqueItems": true,
+            "additionalProperties": {
+              "description": "Attribute Setting or endpoint name (like: left) to apply",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",
       "type": "boolean",
