@@ -1609,38 +1609,33 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.hasEndpoints = true;
         // Mapping actions
         // Added by me: Arye Levin
-        const supportedActionsDescriptions: { [key: string]: string } = { single: 'Single Press', double: 'Double Press', triple: 'Triple Press', hold: 'Long Press  ' };
-        const supportedActions: { [key: string]: string } = { single: 'Single', double: 'Double', triple: 'Triple', hold: 'Long' };
-        const switchesActions: { [key: string]: { switchNo: number, switchActions: string[] } } = {};
+        const supportedActionsDescriptions: { [key: string]: string } = { single: 'Single Press', press: 'Single Press', click: 'Single Press', double: 'Double Press', triple: 'Triple Press', hold: 'Long Press  ' };
+        const supportedActions: { [key: string]: string } = { single: 'Single', press: 'Single', click: 'Single', double: 'Double', triple: 'Triple', hold: 'Long' };
+        const switchesActions: { [key: string]: { switchNo: number; switchActions: { actionName: string; actionItem: string }[] } } = {};
         let supportedSwitchesCount = 1;
+        const actionNames = ['single', 'double', 'triple', 'hold_release', 'press_release', 'hold', 'press', 'release', 'click'];
         for (let a = 0; a < zigbeeDevice.actions.length; a++) {
           const actionItem = zigbeeDevice.actions[a];
-          const actionItemComponents = actionItem.split('_');
-          if (actionItemComponents.length === 2) {
-            const actionName = actionItemComponents[0];
-            const actionIsSupportedByMatterbridge = supportedActions[actionName] !== undefined;
-            const switchName = actionIsSupportedByMatterbridge ? actionItemComponents[1] : actionItem;
-            if (!switchesActions[switchName]) {
-              switchesActions[switchName] = { switchNo: supportedSwitchesCount, switchActions: [] };
-              supportedSwitchesCount++;
-            }
-            if (supportedActions[actionName]) {
-              switchesActions[switchName].switchActions.push(actionName);
-            } else {
-              switchesActions[switchName].switchActions.push('single');
-            }
+          const matchingSubstrings: string[] = actionNames.filter((substring) => actionItem.includes(substring));
+          // zigbeeDevice.log.info(actionItem + ' matchingSubstrings: ' + JSON.stringify(matchingSubstrings));
+          const actionName = matchingSubstrings[0] || actionItem;
+          let switchName = actionName !== actionItem ? actionItem.replace(actionName, '') : supportedActions[actionItem] ? '' : actionItem;
+          if (switchName.startsWith('_')) {
+            switchName = switchName.substring(1);
+          }
+          if (switchName.endsWith('_')) {
+            switchName = switchName.substring(0, switchName.length - 1);
+          }
+          zigbeeDevice.log.debug(actionItem + ' actionName: ' + actionName + ', switchName: ' + switchName);
+          const switchNameToUse = supportedActions[actionName] ? switchName : actionItem;
+          if (!switchesActions[switchNameToUse]) {
+            switchesActions[switchNameToUse] = { switchNo: supportedSwitchesCount, switchActions: [] };
+            supportedSwitchesCount++;
+          }
+          if (supportedActions[actionName]) {
+            switchesActions[switchNameToUse].switchActions.push({ actionName, actionItem });
           } else {
-            const actionName = actionItem;
-            const switchName = supportedActions[actionItem] ? '' : actionItem;
-            if (!switchesActions[switchName]) {
-              switchesActions[switchName] = { switchNo: supportedSwitchesCount, switchActions: [] };
-              supportedSwitchesCount++;
-            }
-            if (supportedActions[actionName]) {
-              switchesActions[switchName].switchActions.push(actionName);
-            } else {
-              switchesActions[switchName].switchActions.push('single');
-            }
+            switchesActions[switchNameToUse].switchActions.push({ actionName: 'single', actionItem });
           }
         }
 
@@ -1648,9 +1643,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
           const buttonActionsData = switchesActions[buttonName];
           const buttonActions = buttonActionsData.switchActions;
           for (let index = 0; index < buttonActions.length; index++) {
-            const actionItem = buttonActions[index];
-            zigbeeDevice.propertyMap.set('action_' + (buttonActions.length > 1 ? (actionItem + (buttonName.length ? '_' : '')) : '') + buttonName, { name, type: '', endpoint: 'switch_' + buttonActionsData.switchNo, action: supportedActions[actionItem] });
-            zigbeeDevice.log.info(`-- Button ${buttonActionsData.switchNo}: ${hk}${supportedActionsDescriptions[actionItem]}${nf} <=> ${zb}${(buttonActions.length > 1 ? (actionItem + (buttonName.length ? '_' : '')) : '') + buttonName}${nf}`);
+            const action = buttonActions[index];
+            zigbeeDevice.propertyMap.set('action_' + action.actionItem, { name, type: '', endpoint: 'switch_' + buttonActionsData.switchNo, action: supportedActions[action.actionName] });
+            zigbeeDevice.log.info(`-- Button ${buttonActionsData.switchNo}: ${hk}${supportedActionsDescriptions[action.actionName]}${nf} <=> ${zb}${action.actionItem}${nf}`);
           }
           const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
           tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + buttonActionsData.switchNo });
