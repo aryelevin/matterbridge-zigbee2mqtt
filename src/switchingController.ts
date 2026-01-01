@@ -8,7 +8,7 @@
 
 import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
 // import { MatterbridgeEndpoint } from 'matterbridge';
-// import { BridgedDeviceBasicInformation, ColorControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { ColorControl, LevelControl, OnOff /* , Thermostat, WindowCovering */ } from 'matterbridge/matter/clusters';
 // import { EndpointNumber } from 'matterbridge/matter';
 
 import { ZigbeePlatform } from './module.js';
@@ -350,7 +350,7 @@ export class SwitchingController {
 
           const endpointToExecuteItem = endpointsToExecute[endpointToExecute]; // The value: like 'ON' in case of state...
 
-          // if (resourceToExecute.startsWith('/')) { // TODO: find the correct way on this new system...
+          if (endpointToExecute.startsWith('/')) { // TODO: find the correct way on this new system...
             const pathComponents = endpointToExecute.split('/');
             let actionToDo = '';
             let continueRepeat = true;
@@ -400,112 +400,110 @@ export class SwitchingController {
             if (entityToControl) {
               const repeatZBFunction = (delay: number, timeoutKey: string) => {
                 this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-                  // const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]._service
                   if (actionToDo.startsWith('on_low_bri')) {
-                    // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                    //   if (!service.getCharacteristic(that.platform.Characteristics.hap.On).value) {
-                    //     service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(1)
-                    //     service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
-                    //     if (actionToDo === 'on_low_bri') {
-                    //       continueRepeat = false;
-                    //     }
-                    //   } else if (actionToDo === 'on_low_bri_up') {
-                    //     const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                    //     const newBrightnessState = Math.min(100, characteristic.value + 5)
-                    //     characteristic.setValue(newBrightnessState)
-                    //     if (newBrightnessState === 100) {
-                    //       continueRepeat = false;
-                    //     }
-                    //   } else {
-                    //     continueRepeat = false;
-                    //   }
-                    // } else {
-                    //   continueRepeat = false;
-                    // }
+                    if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      if (!entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff')) {
+                        entityToControl.sendState('cachedPublishLight', { ['brightness_' + endpointToExecuteItem]: 3, ['state_' + endpointToExecuteItem]: 'ON' }, true);
+                        if (actionToDo === 'on_low_bri') {
+                          continueRepeat = false;
+                        }
+                      } else if (actionToDo === 'on_low_bri_up') {
+                        const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                        const newBrightnessState = Math.min(254, currentBrightness + 13); // 254 is 100% in the 255 scale...
+                        const endpointStateName = 'brightness_' + endpointToExecuteItem;
+                        entityToControl.sendState('cachedPublishLight', { [endpointStateName]: newBrightnessState }, true);
+                        if (newBrightnessState === 254) {
+                          continueRepeat = false;
+                        }
+                      } else {
+                        continueRepeat = false;
+                      }
+                    } else {
+                      continueRepeat = false;
+                    }
                   } else if (actionToDo === 'bri_down') {
-                    // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                    //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                    //   const newBrightnessState = Math.max(1, characteristic.value - 5)
-                    //   characteristic.setValue(newBrightnessState)
-                    //   if (newBrightnessState === 1) {
-                    //     continueRepeat = false;
-                    //   }
-                    // } else {
-                    //   continueRepeat = false;
-                    // }
+                    if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                      const newBrightnessState = Math.max(3, currentBrightness - 13); // 3 is 1% in the 255 scale...
+                      const endpointStateName = 'brightness_' + endpointToExecuteItem;
+                      entityToControl.sendState('cachedPublishLight', { [endpointStateName]: newBrightnessState }, true);
+                      if (newBrightnessState === 3) {
+                        continueRepeat = false;
+                      }
+                    } else {
+                      continueRepeat = false;
+                    }
                   } else if (actionToDo === 'ct_down') {
-                    // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-                    //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
-                    //   const newColorTemperatureState = Math.max(153, characteristic.value - 32)
-                    //   characteristic.setValue(newColorTemperatureState)
-                    //   if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
-                    //     continueRepeat = false;
-                    //   }
-                    // } else {
-                    //   continueRepeat = false;
-                    // }
+                    if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                      const currentColorTemperature = entityToControl.bridgedDevice.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+                      const newColorTemperatureState = Math.max(153, currentColorTemperature - 32);
+                      const endpointStateName = 'color_temp_' + endpointToExecuteItem;
+                      entityToControl.sendState('cachedPublishLight', { [endpointStateName]: newColorTemperatureState }, true);
+                      if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
+                        continueRepeat = false;
+                      }
+                    } else {
+                      continueRepeat = false;
+                    }
                   } else if (actionToDo === 'ct_up') {
-                    // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-                    //   const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature)
-                    //   const newColorTemperatureState = Math.min(500, characteristic.value + 32)
-                    //   characteristic.setValue(newColorTemperatureState)
-                    //   if (newColorTemperatureState === 500) {
-                    //     continueRepeat = false;
-                    //   }
-                    // } else {
-                    //   continueRepeat = false;
-                    // }
+                    if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                      const currentColorTemperature = entityToControl.bridgedDevice.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+                      const newColorTemperatureState = Math.min(500, currentColorTemperature + 32);
+                      const endpointStateName = 'color_temp_' + endpointToExecuteItem;
+                      entityToControl.sendState('cachedPublishLight', { [endpointStateName]: newColorTemperatureState }, true);
+                      if (newColorTemperatureState === 500) { // TODO: take the min/max from the object itself...
+                        continueRepeat = false;
+                      }
+                    } else {
+                      continueRepeat = false;
+                    }
                   } else if (actionToDo === 'on_defaults') {
-                    const payload: Payload = {['state_' + endpointToExecuteItem]: 'ON'};
-                    // service.getCharacteristic(that.platform.Characteristics.hap.On).setValue(true)
-
-                    // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                    //   service.getCharacteristic(that.platform.Characteristics.hap.Brightness).setValue(100)
-                    // }
-                    // if (service.testCharacteristic(that.platform.Characteristics.hap.ColorTemperature)) {
-                    //   service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
-                    // }
+                    const payload: Payload = { ['state_' + endpointToExecuteItem]: 'ON' };
+                    if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      payload['brightness_' + endpointToExecuteItem] = 254;
+                    }
+                    if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                      // service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
+                      payload['color_temp_' + endpointToExecuteItem] = 363;
+                    }
                     entityToControl.sendState('cachedPublishLight', payload, true);
                   } else if (actionToDo.startsWith('toggle_on')) {
-                    // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-                    // const newPowerState = !characteristic.value
-                    // characteristic.setValue(newPowerState)
-                    // if (actionToDo === 'toggle_on_full_bri' && newPowerState && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                    //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                    //   if (characteristic.value !== 100) {
-                    //     characteristic.setValue(100)
-                    //   }
-                    // }
+                    const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    const newPowerState = !currentOnOff;
+                    const payload: Payload = { ['state_' + endpointToExecuteItem]: newPowerState ? 'ON' : 'OFF' };
+                    if (actionToDo === 'toggle_on_full_bri' && newPowerState && entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                      if (currentBrightness !== 254) {
+                        payload['brightness_' + endpointToExecuteItem] = 254;
+                      }
+                    }
+                    entityToControl.sendState('cachedPublishLight', payload, true);
                   } else if (actionToDo === 'on_or_full_bri') {
-                    // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-                    // const originalValue = characteristic.value
-                    // characteristic.setValue(true)
-                    // if (originalValue && service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                    //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                    //   if (characteristic.value !== 100) {
-                    //     characteristic.setValue(100)
-                    //   }
-                    // }
+                    const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    const payload: Payload = { ['state_' + endpointToExecuteItem]: 'ON' };
+                    if (currentOnOff && entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      if (Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255) !== 254) {
+                        payload['brightness_' + endpointToExecuteItem] = 254;
+                      }
+                    }
                   } else if (actionToDo === 'on_full_bri_or_bri_up') {
-                    // let characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-                    // const originalValue = characteristic.value
-                    // if (!originalValue) {
-                    //   characteristic.setValue(true)
-                    // }
-                    // if (service.testCharacteristic(that.platform.Characteristics.hap.Brightness)) {
-                    //   characteristic = service.getCharacteristic(that.platform.Characteristics.hap.Brightness)
-                    //   if (!originalValue) {
-                    //     if (characteristic.value !== 100) {
-                    //       characteristic.setValue(100)
-                    //     }
-                    //   } else {
-                    //     const newBrightnessState = Math.min(100, characteristic.value + 5)
-                    //     characteristic.setValue(newBrightnessState)
-                    //   }
-                    // }
+                    const payload: Payload = {};
+                    const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    if (!currentOnOff) {
+                      payload['state_' + endpointToExecuteItem] = 'ON';
+                    }
+                    if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                      if (!currentOnOff) {
+                        if (currentBrightness !== 254) {
+                          payload['brightness_' + endpointToExecuteItem] = 254;
+                        }
+                      } else {
+                        const newBrightnessState = Math.min(254, currentBrightness + 13); // 254 is 100% in the 255 scale...
+                        payload['brightness_' + endpointToExecuteItem] = newBrightnessState;
+                      }
+                    }
                   } else if (actionToDo === 'off') {
-                    // const characteristic = service.getCharacteristic(that.platform.Characteristics.hap.On)
-                    // characteristic.setValue(false)
                     const endpointStateName = 'state_' + endpointToExecuteItem;
                     entityToControl.sendState('cachedPublishLight', { [endpointStateName]: 'OFF' }, true);
                   } else { // This is a command to send an endpoint...
@@ -526,57 +524,57 @@ export class SwitchingController {
               };
               repeatZBFunction(0, keyForTimeoutAction);
             }
-          // } else {
-          //   const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
-          //   if (/* this.platform.state.remotes_on && */ actionToDo) {
-          //     // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
-          //     // jsonObject.action = actionToDo
+          } else {
+            // const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
+            // if (/* this.platform.state.remotes_on && */ actionToDo) {
+            //   // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
+            //   // jsonObject.action = actionToDo
 
-          //     const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
-          //     const data = JSON.stringify(jsonObject);
+            //   const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
+            //   const data = JSON.stringify(jsonObject);
 
-          //     const options = {
-          //       hostname: actionToDo.host,
-          //       port: actionToDo.port,
-          //       path: actionToDo.path,
-          //       method: 'POST',
-          //       headers: {
-          //         'Content-Type': 'application/json',
-          //         'Content-Length': data.length,
-          //       },
-          //     };
+            //   const options = {
+            //     hostname: actionToDo.host,
+            //     port: actionToDo.port,
+            //     path: actionToDo.path,
+            //     method: 'POST',
+            //     headers: {
+            //       'Content-Type': 'application/json',
+            //       'Content-Length': data.length,
+            //     },
+            //   };
 
-          //     const repeatFunction = (delay: number, timeoutKey: string) => {
-          //       this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-          //         this.log.info('Long press being on URL!!!');
+            //   const repeatFunction = (delay: number, timeoutKey: string) => {
+            //     this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
+            //       this.log.info('Long press being on URL!!!');
 
-          //         const req = http.request(options, (res) => {
-          //           this.log.info(`statusCode: ${res.statusCode}`);
+            //       const req = http.request(options, (res) => {
+            //         this.log.info(`statusCode: ${res.statusCode}`);
 
-          //           if (res.statusCode === 200) {
-          //             this.log.info('Command sent and received successfully');
-          //           }
+            //         if (res.statusCode === 200) {
+            //           this.log.info('Command sent and received successfully');
+            //         }
 
-          //           res.on('data', d => {
-          //             // process.stdout.write(d)
-          //             this.log.info(d);
-          //           });
-          //         });
+            //         res.on('data', d => {
+            //           // process.stdout.write(d)
+            //           this.log.info(d);
+            //         });
+            //       });
 
-          //         req.on('error', (error) => {
-          //           console.error(error);
-          //         });
+            //       req.on('error', (error) => {
+            //         console.error(error);
+            //       });
 
-          //         req.write(data);
-          //         req.end();
+            //       req.write(data);
+            //       req.end();
 
-          //         // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
-          //         repeatFunction(300, timeoutKey);
-          //       }, delay);
-          //     };
-          //     repeatFunction(0, keyForTimeoutAction);
-          //   }
-          // }
+            //       // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
+            //       repeatFunction(300, timeoutKey);
+            //     }, delay);
+            //   };
+            //   repeatFunction(0, keyForTimeoutAction);
+            // }
+          }
         }
       }
     }
