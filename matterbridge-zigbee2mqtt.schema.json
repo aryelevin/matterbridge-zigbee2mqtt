@@ -978,6 +978,11 @@
             "type": "boolean",
             "default": true
           },
+          "update_state": {
+            "description": "If 'vise versa' is false, then sets whether the source switch is updated its state when any of the linked lights is on",
+            "type": "boolean",
+            "default": false
+          },
           "linkedDevices": {
             "description": "Destination Linked Devices",
             "type": "array",

@@ -13,6 +13,8 @@ import { EndpointNumber } from 'matterbridge/matter';
 
 import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
+// import { nextTick } from 'node:process';
+import { Payload } from './payloadTypes.js';
 
 // import { xyToHsl } from 'matterbridge/utils';
 
@@ -45,7 +47,7 @@ type AqaraS1ScenePanelFanModes = 'low' | 'medium' | 'high' | 'auto';
 interface AqaraS1ScenePanelControlledDeviceConfig {
   enabled: boolean;
   name: string;
-  resources: string[];
+  endpoints: string[];
 }
 
 interface AqaraS1ScenePanelLightConfig extends AqaraS1ScenePanelControlledDeviceConfig {
@@ -109,8 +111,8 @@ const AqaraS1ScenePanelSceneConfigDeviceIndex = 999;
 
 export class AqaraS1ScenePanelController {
   public log: AnsiLogger;
-  panelsToResources: { [key: string]: string[] } = {}; // ieee_address of a panel -> [controlled device ieee_address, ...]
-  resourcesToPanels: { [key: string]: string[] } = {}; // ieee_address of a controlled device -> [panel ieee_address, ...]
+  panelsToEndpoints: { [key: string]: string[] } = {}; // ieee_address of a panel -> [controlled device ieee_address, ...]
+  endpointsToPanels: { [key: string]: string[] } = {}; // ieee_address of a controlled device -> [panel ieee_address, ...]
   allPanels: string[] = []; // array of all panels ieee_addresses
   lastWeatherData = { temperature: -1, humidity: -1, weathercode: -1, uvindex: -1 };
   platform: ZigbeePlatform;
@@ -134,6 +136,27 @@ export class AqaraS1ScenePanelController {
 
   async saveContext() {
     await this.platform.context?.set('aqaraS1ExecutedConfigurationsData', this.aqaraS1ExecutedConfigurationsData);
+  }
+
+  // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
+  // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
+  switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
+    const linkedPanels = this.endpointsToPanels[deviceIeee + '/' + key];
+    if (linkedPanels?.length) {
+      if (key.startsWith('state')) {
+        const lightEntity = this.getDeviceEntity(deviceIeee);
+        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '04010055', '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
+      } else if (key.startsWith('brightness')) {
+        const lightEntity = this.getDeviceEntity(deviceIeee);
+        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e010055', '000000' + value.toString(16).padStart(2, '0'), 'brightness');
+      } else if (key.startsWith('color_temp')) {
+        const lightEntity = this.getDeviceEntity(deviceIeee);
+        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
+      }
+    }
+    if (newPayload) {
+      //
+    }
   }
 
   getDeviceEntity(ieee_address: string) {
@@ -377,28 +400,114 @@ export class AqaraS1ScenePanelController {
     this._writeDataToPanel(deviceIeeeAddress, data);
   }
 
-  sendLightOnOffToPanel(deviceIeeeAddress: string, lightEndpoint: MatterbridgeEndpoint) {
-    let data = '';
-    data += lightEndpoint.uniqueId;
-    this._writeDataToPanel(deviceIeeeAddress, data);
-  }
-
-  sendLightBrightnessToPanel(deviceIeeeAddress: string, lightEndpoint: MatterbridgeEndpoint) {
-    let data = '';
-    data += lightEndpoint.uniqueId;
-    this._writeDataToPanel(deviceIeeeAddress, data);
-  }
-
-  sendLightColorTemperatureToPanel(deviceIeeeAddress: string, lightEndpoint: MatterbridgeEndpoint) {
-    let data = '';
-    data += lightEndpoint.uniqueId;
-    this._writeDataToPanel(deviceIeeeAddress, data);
-  }
-
   sendLightColorToPanel(deviceIeeeAddress: string, lightEndpoint: MatterbridgeEndpoint) {
     let data = '';
     data += lightEndpoint.uniqueId;
     this._writeDataToPanel(deviceIeeeAddress, data);
+  }
+
+  sendLightOnOffStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
+    const onOff = lightEndpoint.getAttribute(OnOff.Cluster.id, 'onOff');
+    this.log.info('On/Off: ' + onOff);
+    this.sendLightDataToPanel(panelIeeeAddress, lightNo, '04010055', '000000' + (onOff ? 1 : 0).toString(16).padStart(2, '0'));
+  }
+
+  sendLightBrightnessStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
+    const brightness = Math.round((lightEndpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+    this.log.info('Brightness: ' + brightness);
+    this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e010055', '000000' + brightness.toString(16).padStart(2, '0'));
+  }
+
+  sendLightColorTemperatureStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
+    const colorTemperature = lightEndpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+    this.log.info('Color Temperature: ' + colorTemperature);
+    this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e020055', '0000' + colorTemperature.toString(16).padStart(4, '0'));
+  }
+
+  // updatePanelColorState (pathComponents) {
+  //   this.log('Color Hue: ' + this.values.hue + ', Color Saturation: ' + this.values.saturation)
+
+  //   const xy = hsvToXy(this.values.hue, this.values.saturation, this.capabilities.gamut)
+  //   this.log('Color X: ' + xy[0] + ', Color Y: ' + xy[1])
+  //   this.sendLightDataToPanel(pathComponents, '0e080055', Math.round(xy[0] * 65535).toString(16).padStart(4, '0') + Math.round(xy[1] * 65535).toString(16).padStart(4, '0'))
+  // }
+
+  sendLightStateToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], parameter: string, content: string, valueToCheck: string, secondValueToCheck?: string) {
+    if (panelsToUpdate?.length) {
+      for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
+        const panelResourceItem = panelsToUpdate[i];
+        const pathComponents = panelResourceItem.split('/');
+        if (pathComponents[4].startsWith('light')) {
+          const lightNo = pathComponents[4].charAt(pathComponents[4].length - 1);
+          const lightsControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem];
+          let shouldUpdatePanelState = true;
+          for (let ii = lightsControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
+            const lightResourcePath = lightsControlledWithPanelDevice[ii].split('/');
+            const accessoryToCheck = this.getDeviceEntity(lightResourcePath[0]); // this.gateway.platform.gatewayMap[lightResourcePath[1]].accessoryByRpath['/' + lightResourcePath[2] + '/' + lightResourcePath[3]].service
+            if (accessoryToCheck) {
+              if (accessoryToCheck !== originalLightEntity && accessoryToCheck.getLastPayloadItem(valueToCheck) !== undefined && ((accessoryToCheck.getLastPayloadItem(valueToCheck) !== originalLightEntity.getLastPayloadItem(valueToCheck)) || (secondValueToCheck !== undefined && accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== undefined && accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== originalLightEntity.getLastPayloadItem(secondValueToCheck)))) { // this.obj.state.on
+                shouldUpdatePanelState = false;
+                break;
+              }
+            }
+          }
+
+          if (shouldUpdatePanelState) {
+            this.sendLightDataToPanel(panelResourceItem, lightNo, parameter, content);
+          }
+        }
+      }
+    }
+  }
+
+  sendLightDataToPanel(deviceIeeeAddress: string, lightNo: string, parameter: string, content: string) {
+    this.sendStateToPanel(deviceIeeeAddress, '6c69676874732f' + parseInt(lightNo).toString(16).padStart(2, '3'), parameter, content);
+  }
+
+  sendLightOnOffToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], newOn: boolean) {
+    this.sendLightStateToPanels(originalLightEntity, panelsToUpdate, '04010055', '000000' + (newOn ? 1 : 0).toString(16).padStart(2, '0'), 'on');
+    // TODO: Needs to move to switchingController...
+    // // Queue it for a later processing to allow any other lights to complete its on/off operation to allow anyOn be correct...
+    // nextTick(() => {
+    //   if (panelsToUpdate?.length) {
+    //     for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
+    //       const panelResourceItem = panelsToUpdate[i];
+    //       const pathComponents = panelResourceItem.split('/');
+
+    //       if (pathComponents[4] === 'switch'/* && that.bridge.platform.bridgeMap[pathComponents[1]].fullState.lights[pathComponents[3]].state.on != that.hk.on */) {
+    //         const lightsControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem]
+    //         let anyOn = false
+    //         if (newOn) {
+    //           anyOn = true
+    //         } else {
+    //           for (let ii = lightsControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
+    //             const lightResourcePath = lightsControlledWithPanelDevice[ii].split('/')
+    //             const accessoryToCheck = this.gateway.platform.gatewayMap[lightResourcePath[1]].accessoryByRpath['/' + lightResourcePath[2] + '/' + lightResourcePath[3]].service
+    //             if (accessoryToCheck) {
+    //               if (accessoryToCheck !== this && accessoryToCheck.values.on) {
+    //                 anyOn = true
+    //                 break
+    //               }
+    //             }
+    //           }
+    //         }
+
+    //         if (anyOn !== this.gateway.platform.gatewayMap[pathComponents[1]].context.fullState.lights[pathComponents[3]].state.on) {
+    //           const panelResourcePath = '/' + pathComponents[2] + '/' + pathComponents[3] + '/state'
+    //           this.log.info('Going to set on: ' + anyOn + ' at panel: ' + panelResourcePath)
+    //           this.gateway.platform.gatewayMap[pathComponents[1]].client.put(panelResourcePath, { on: anyOn }).then((obj) => {
+    //             // To make sure to avoid its socket message with the attribute report...
+    //             // We need to set it here at the callback of the PUT command, since we need to make sure that if more than 3 calls happens concurrently, it will be delayed and could get into on/off racing condition infinite loop. (To do this, i just need to verify that the attribute report of it happens only after the callback is triggered...)
+    //             this.gateway.platform.gatewayMap[pathComponents[1]].context.fullState.lights[pathComponents[3]].state.on = anyOn
+    //             this.log.info('Successfully set on: ' + anyOn + ' at panel: ' + panelResourcePath)
+    //           }).catch((error) => {
+    //             this.log.error('Error setting panel switch state %s: %s', panelResourcePath, error)
+    //           })
+    //         }
+    //       }
+    //     }
+    //   }
+    // });
   }
 
   async setAqaraS1PanelsConfiguration() {
@@ -428,20 +537,20 @@ export class AqaraS1ScenePanelController {
         const panelControls = Object.keys(panelData);
         for (const panelControl of panelControls) {
           const controlData = panelData[panelControl as AqaraS1ScenePanelConfigKey] as AqaraS1ScenePanelControlledDeviceConfig;
-          if (controlData.enabled && controlData.resources?.length) {
-            this.panelsToResources['/' + panel + '/' + panelControl] = controlData.resources;
-            for (let i = controlData.resources.length - 1; i >= 0; i--) {
-              const rid = controlData.resources[i];
-              if (!this.resourcesToPanels[rid]) {
-                this.resourcesToPanels[rid] = [];
+          if (controlData.enabled && controlData.endpoints?.length) {
+            this.panelsToEndpoints['/' + panel + '/' + panelControl] = controlData.endpoints;
+            for (let i = controlData.endpoints.length - 1; i >= 0; i--) {
+              const endpoint = controlData.endpoints[i];
+              if (!this.endpointsToPanels[endpoint]) {
+                this.endpointsToPanels[endpoint] = [];
               }
-              this.resourcesToPanels[rid].push('/' + panel + '/' + panelControl);
+              this.endpointsToPanels[endpoint].push('/' + panel + '/' + panelControl);
             }
           }
         }
       }
-      this.log.debug('panelsToResources: ' + JSON.stringify(this.panelsToResources));
-      this.log.debug('resourcesToPanels: ' + JSON.stringify(this.resourcesToPanels));
+      this.log.debug('panelsToEndpoints: ' + JSON.stringify(this.panelsToEndpoints));
+      this.log.debug('endpointsToPanels: ' + JSON.stringify(this.endpointsToPanels));
 
       // Now, go and set online/offline for all possible devices to know if they're set on the panel, and add/remove them on the reponse.
       // if (!this.aqaraS1ExecutedConfigurationsData) {
@@ -854,7 +963,7 @@ export class AqaraS1ScenePanelController {
               const setTemperature = dataArray[dataStartIndex + 23];
               this.log.info('On/Off: ' + onOff + ', Mode: ' + mode + ', Fan: ' + fan + ', Set Temperature: ' + setTemperature);
 
-              const devicesIeee = this.panelsToResources['/' + deviceIeeeAddress + '/ac'];
+              const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/ac'];
               for (let i = devicesIeee.length - 1; i >= 0; i--) {
                 const deviceIeeeItem = devicesIeee[i];
                 const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
@@ -883,7 +992,7 @@ export class AqaraS1ScenePanelController {
                 const position = this.getFloatFromHex32Bit(dataArray[dataStartIndex + 21].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 22].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'));
                 this.log.info('Position: ' + position);
 
-                const devicesIeee = this.panelsToResources['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
+                const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
                 for (let i = devicesIeee.length - 1; i >= 0; i--) {
                   const deviceIeeeItem = devicesIeee[i];
                   const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
@@ -900,7 +1009,7 @@ export class AqaraS1ScenePanelController {
                 const positionState = dataArray[dataStartIndex + 24];
                 this.log.info('Position State: ' + positionState);
 
-                const devicesIeee = this.panelsToResources['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
+                const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
                 for (let i = devicesIeee.length - 1; i >= 0; i--) {
                   const deviceIeeeItem = devicesIeee[i];
                   const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
@@ -950,7 +1059,7 @@ export class AqaraS1ScenePanelController {
                 colorY = parseInt(dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'), 16);
                 this.log.info('Color X: ' + colorX + ', Color Y: ' + colorY);
               }
-              const devicesIeee = this.panelsToResources['/' + deviceIeeeAddress + '/light_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
+              const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/light_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
               for (let i = devicesIeee.length - 1; i >= 0; i--) {
                 const deviceIeeeItem = devicesIeee[i];
                 const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
@@ -1014,7 +1123,7 @@ export class AqaraS1ScenePanelController {
           } else if (deviceResourceType === 'air_cond') {
             if (stateParam[0] === 0x0e && stateParam[2] === 0x00 && stateParam[3] === 0x55 && (stateParam[1] === 0x20 || stateParam[1] === 0x02)) { // Air conditioner/Heater-Cooler device state
               const panelDevicePath = '/' + deviceIeeeAddress + '/ac';
-              const deviceIeee = this.panelsToResources[panelDevicePath][0];
+              const deviceIeee = this.panelsToEndpoints[panelDevicePath][0];
               const deviceToControl = this.getDeviceEntity(deviceIeee);
 
               if (deviceToControl) {
@@ -1087,7 +1196,7 @@ export class AqaraS1ScenePanelController {
           } else if (deviceResourceType.startsWith('curtain')) {
             if (stateParam[0] === 0x01 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position
               const panelDevicePath = '/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1);
-              const deviceIeee = this.panelsToResources[panelDevicePath][0];
+              const deviceIeee = this.panelsToEndpoints[panelDevicePath][0];
               const deviceToControl = this.getDeviceEntity(deviceIeee);
 
               if (deviceToControl) {
@@ -1101,7 +1210,7 @@ export class AqaraS1ScenePanelController {
               }
             } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position State
               const panelDevicePath = '/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1);
-              const deviceIeee = this.panelsToResources[panelDevicePath][0];
+              const deviceIeee = this.panelsToEndpoints[panelDevicePath][0];
               const deviceToControl = this.getDeviceEntity(deviceIeee);
 
               if (deviceToControl) {
@@ -1115,8 +1224,9 @@ export class AqaraS1ScenePanelController {
               }
             }
           } else if (deviceResourceType.startsWith('lights/')) {
-            const panelDevicePath = '/' + deviceIeeeAddress + '/light_' + deviceResourceType.charAt(deviceResourceType.length - 1);
-            const deviceIeee = this.panelsToResources[panelDevicePath]?.[0];
+            const lightNo = deviceResourceType.charAt(deviceResourceType.length - 1);
+            const panelDevicePath = '/' + deviceIeeeAddress + '/light_' + lightNo;
+            const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0];
             const deviceToControl = this.getDeviceEntity(deviceIeee);
 
             if (deviceToControl /* && accessoryToControl.values.serviceName === 'Light'*/) {
@@ -1124,13 +1234,13 @@ export class AqaraS1ScenePanelController {
               if (endpointToControl?.bridgedDevice) {
                 if (stateParam[0] === 0x04 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light On/Off
                   // accessoryToControl.service.updatePanelOnOffState(panelDevicePath.split('/'));
-                  this.sendLightOnOffToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                  this.sendLightOnOffStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
                 } else if (stateParam[0] === 0x0e && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Brightness
                   // accessoryToControl.service.updatePanelBrightnessState(panelDevicePath.split('/'));
-                  this.sendLightBrightnessToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                  this.sendLightBrightnessStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
                 } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light CT
                   // accessoryToControl.service.updatePanelColorTemperatureState(panelDevicePath.split('/'));
-                  this.sendLightColorTemperatureToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                  this.sendLightColorTemperatureStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
                 } else if (stateParam[0] === 0x0e && stateParam[1] === 0x08 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Color
                   // accessoryToControl.service.updatePanelColorState(panelDevicePath.split('/'));
                   this.sendLightColorToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
@@ -1377,9 +1487,8 @@ export class AqaraS1ScenePanelController {
     if (dataSize <= 0x37) {
       const cmdType = '44'; // Single ZCL Command
       const commandSize = dataSize + 3;
-      // const totalSize = commandSize + 6;
       const integrity = 512 - (parseInt('aa', 16) + parseInt(cmdCatergory, 16) + commandSize + parseInt(cmdType, 16) + parseInt(counter, 16));
-      const dataToSend = /* totalSize.toString(16).padStart(2, '0') + */ 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + data;
+      const dataToSend = 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + data;
       commandsToExecute.push(dataToSend);
     } else {
       const cmdType = '46'; // Multiple ZCL Commands
@@ -1403,13 +1512,12 @@ export class AqaraS1ScenePanelController {
         const partData = partsData[index];
         const partDataSize = partData.length / 2;
         const commandSize = partDataSize + (index === 0 ? 3 : 0); // The first command contains the cmdType, dataType and dataSize.
-        // const partCommandTotalSize = commandSize + 8;
         const integrity = 512 - (parseInt('aa', 16) + parseInt(cmdCatergory, 16) + commandSize + parseInt(cmdType, 16) + parseInt(counter, 16) + parseInt('' + partsData.length, 16) + parseInt('' + (index + 1), 16));
         if (index === 0) {
-          const dataToSend = /* partCommandTotalSize.toString(16).padStart(2, '0') +*/ 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + partData;
+          const dataToSend = 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + partData;
           commandsToExecute.push(dataToSend);
         } else {
-          const dataToSend = /* partCommandTotalSize.toString(16).padStart(2, '0') +*/ 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0') + partData;
+          const dataToSend = 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0') + partData;
           commandsToExecute.push(dataToSend);
         }
       }

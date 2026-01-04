@@ -46,6 +46,7 @@ ZigbeeEntity.prototype.getLastPayloadItem = function (key: string): PayloadValue
 export interface SwitchingControllerSwitchLinkConfig {
   enabled: boolean;
   vice_versa: boolean;
+  update_state: boolean;
   linkedDevices?: string[]; // ["0x54abcd0987654321/l1_brightness", "0x541234567890abcd/l1_brightness"]
 }
 
@@ -173,8 +174,8 @@ export class SwitchingController {
     }
     const deviceEndpointPath = deviceIeee + '/' + key;
 
-    const linkedDevices = this.switchesLinksConfigData[deviceEndpointPath] || [];
-    if (!linkedDevices.length) {
+    const linkedDevices = this.switchesLinksConfigData[deviceEndpointPath];
+    if (!linkedDevices?.length) {
       return;
     }
 
