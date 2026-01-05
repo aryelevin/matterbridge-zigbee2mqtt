@@ -181,7 +181,7 @@ export class SwitchingController {
         const device = this.getDeviceEntity(deviceIeee);
         if (device) {
           this.platform.z2m.on('MESSAGE-' + device.entityName, (payload: Payload) => {
-            if (deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
+            if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
             // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
             for (const key in payload) {
               const value = payload[key];
