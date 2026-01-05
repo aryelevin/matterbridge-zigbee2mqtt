@@ -435,7 +435,7 @@ export class SwitchingController {
               }
             } else {
               continueRepeat = actionsConfig.repeat || false;
-              actionToDo = pathComponents[1];
+              actionToDo = endpointToExecuteItem as string;
             }
 
             const entityToControl = this.getDeviceEntity(pathComponents[0]);
@@ -556,7 +556,7 @@ export class SwitchingController {
                     //   const characteristicData = characteristics[ii]
                     //   service._characteristicDelegates[characteristicData.key]?._characteristic?.setValue(characteristicData.value)
                     // }
-                    entityToControl.sendState('cachedPublishLight', { [actionToDo]: endpointToExecuteItem }, true);
+                    if (pathComponents.length >= 2) entityToControl.sendState('cachedPublishLight', { [pathComponents[1]]: actionToDo }, true);
                   }
 
                   if (continueRepeat) {
