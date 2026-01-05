@@ -374,91 +374,92 @@ export class SwitchingController {
 
   processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload) {
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent' + '_' + newPayload['action_rotation_button_state']];
+    if (actionsConfig.enabled) {
+      for (const linkedDevice in actionsConfig.linkedDevices) {
+        if (!linkedDevice.startsWith('http')) { // TODO: find the correct way on this new system...
+          const actionToDo = actionsConfig.linkedDevices[linkedDevice];
+          const pathComponents = linkedDevice.split('/');
+          const entityIeee = pathComponents[0];
+          const entityEndpoint = pathComponents[1] ? '_' + pathComponents[1] : '';
+          const entityToControl = this.getDeviceEntity(entityIeee);
+          const endpointToControl = entityEndpoint !== '' ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) : entityToControl?.bridgedDevice;
 
-    for (const linkedDevice in actionsConfig.linkedDevices) {
-      if (!linkedDevice.startsWith('http')) { // TODO: find the correct way on this new system...
-        const actionToDo = actionsConfig.linkedDevices[linkedDevice];
-        const pathComponents = linkedDevice.split('/');
-        const entityIeee = pathComponents[0];
-        const entityEndpoint = pathComponents[1] ? '_' + pathComponents[1] : '';
-        const entityToControl = this.getDeviceEntity(entityIeee);
-        const endpointToControl = entityEndpoint !== '' ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) : entityToControl?.bridgedDevice;
-
-        if (entityToControl) {
-          if (actionToDo === 'brightness') {
-            if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-              if (!endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff')) {
-                if (this.lastStates[entityIeee]['brightness' + entityEndpoint] !== 3 || this.lastStates[entityIeee]['state' + entityEndpoint] !== 'ON') {
-                  entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' }, false);
-                }
-              } else {
-                const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
-                const newBrightnessState = Math.round((Math.max(3, Math.min(254, currentBrightness + (rotationPercentage * 2.54))) / 254) * 255); // 3 is 1% and 254 is 100% in the 255 scale...
-                if (this.lastStates[entityIeee]['brightness' + entityEndpoint] !== newBrightnessState) {
-                  entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: newBrightnessState }, false);
+          if (entityToControl) {
+            if (actionToDo === 'brightness') {
+              if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                if (!endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff')) {
+                  if (this.lastStates[entityIeee]['brightness' + entityEndpoint] !== 3 || this.lastStates[entityIeee]['state' + entityEndpoint] !== 'ON') {
+                    entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' }, false);
+                  }
+                } else {
+                  const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                  const newBrightnessState = Math.round((Math.max(3, Math.min(254, currentBrightness + (rotationPercentage * 2.54))) / 254) * 255); // 3 is 1% and 254 is 100% in the 255 scale...
+                  if (this.lastStates[entityIeee]['brightness' + entityEndpoint] !== newBrightnessState) {
+                    entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: newBrightnessState }, false);
+                  }
                 }
               }
-            }
-          } else if (actionToDo === 'color_temp') {
-            if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
-              const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
-              const newColorTemperatureState = Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage)); // TODO: take the min/max from the object itself...
-              if (this.lastStates[entityIeee]['color_temp' + entityEndpoint] !== newColorTemperatureState) {
-                entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpoint]: newColorTemperatureState }, false);
+            } else if (actionToDo === 'color_temp') {
+              if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+                const newColorTemperatureState = Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage)); // TODO: take the min/max from the object itself...
+                if (this.lastStates[entityIeee]['color_temp' + entityEndpoint] !== newColorTemperatureState) {
+                  entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpoint]: newColorTemperatureState }, false);
+                }
               }
             }
           }
+        } else {
+          // const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
+          // if (/* this.platform.state.remotes_on && */ actionToDo) {
+          //   // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
+          //   // jsonObject.action = actionToDo
+
+          //   const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
+          //   const data = JSON.stringify(jsonObject);
+
+          //   const options = {
+          //     hostname: actionToDo.host,
+          //     port: actionToDo.port,
+          //     path: actionToDo.path,
+          //     method: 'POST',
+          //     headers: {
+          //       'Content-Type': 'application/json',
+          //       'Content-Length': data.length,
+          //     },
+          //   };
+
+          //   const repeatFunction = (delay: number, timeoutKey: string) => {
+          //     this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
+          //       this.log.info('Long press being on URL!!!');
+
+          //       const req = http.request(options, (res) => {
+          //         this.log.info(`statusCode: ${res.statusCode}`);
+
+          //         if (res.statusCode === 200) {
+          //           this.log.info('Command sent and received successfully');
+          //         }
+
+          //         res.on('data', d => {
+          //           // process.stdout.write(d)
+          //           this.log.info(d);
+          //         });
+          //       });
+
+          //       req.on('error', (error) => {
+          //         console.error(error);
+          //       });
+
+          //       req.write(data);
+          //       req.end();
+
+          //       // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
+          //       repeatFunction(300, timeoutKey);
+          //     }, delay);
+          //   };
+          //   repeatFunction(0, keyForTimeoutAction);
+          // }
         }
-      } else {
-        // const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
-        // if (/* this.platform.state.remotes_on && */ actionToDo) {
-        //   // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
-        //   // jsonObject.action = actionToDo
-
-        //   const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
-        //   const data = JSON.stringify(jsonObject);
-
-        //   const options = {
-        //     hostname: actionToDo.host,
-        //     port: actionToDo.port,
-        //     path: actionToDo.path,
-        //     method: 'POST',
-        //     headers: {
-        //       'Content-Type': 'application/json',
-        //       'Content-Length': data.length,
-        //     },
-        //   };
-
-        //   const repeatFunction = (delay: number, timeoutKey: string) => {
-        //     this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-        //       this.log.info('Long press being on URL!!!');
-
-        //       const req = http.request(options, (res) => {
-        //         this.log.info(`statusCode: ${res.statusCode}`);
-
-        //         if (res.statusCode === 200) {
-        //           this.log.info('Command sent and received successfully');
-        //         }
-
-        //         res.on('data', d => {
-        //           // process.stdout.write(d)
-        //           this.log.info(d);
-        //         });
-        //       });
-
-        //       req.on('error', (error) => {
-        //         console.error(error);
-        //       });
-
-        //       req.write(data);
-        //       req.end();
-
-        //       // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
-        //       repeatFunction(300, timeoutKey);
-        //     }, delay);
-        //   };
-        //   repeatFunction(0, keyForTimeoutAction);
-        // }
       }
     }
   }
