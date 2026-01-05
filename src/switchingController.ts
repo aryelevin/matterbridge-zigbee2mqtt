@@ -168,8 +168,14 @@ export class SwitchingController {
   }
 
   setSwitchingControllerConfiguration() {
+    const devicesToListenToEvents = [];
     for (const sourceDevice in this.switchesLinksConfigData) {
-      const deviceIeee = sourceDevice.split('/')[0];
+      devicesToListenToEvents.push(sourceDevice.split('/')[0]);
+    }
+    for (const sourceDevice in this.switchesActionsConfig) {
+      devicesToListenToEvents.push(sourceDevice.split('/')[0]);
+    }
+    for (const deviceIeee of devicesToListenToEvents) {
       if (!this.lastStates[deviceIeee]) {
         this.lastStates[deviceIeee] = {};
         const device = this.getDeviceEntity(deviceIeee);
