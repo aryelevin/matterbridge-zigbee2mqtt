@@ -1064,7 +1064,7 @@
             "default": false
           },
           "linkedDevices": {
-            "description": "Destination Linked Devices with </Endpoint [Name]> (Example: <Device IEEE/Endpoint>).\nIf its a switchType-based or Action-To-Do, specify only the endpoint name without the parameter (without state/brightness/color_temp/etc like 'center' or 'l3')",
+            "description": "Destination Linked Devices (with /Endpoint [Name] if applicable [in Multi endpoints entities], for example: <Device IEEE/Endpoint>).\nIf its a switchType-based or Action-To-Do, specify only the endpoint name without the parameter (without state/brightness/color_temp/etc like 'center' or 'l3')",
             "type": "object",
             "selectFrom": "name",
             "uniqueItems": true,
