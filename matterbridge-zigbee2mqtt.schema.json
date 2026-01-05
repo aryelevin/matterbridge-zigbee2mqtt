@@ -1044,6 +1044,10 @@
             "type": "number",
             "oneOf": [
               {
+                "title": "None",
+                "enum": [-1]
+              },
+              {
                 "title": "IKEA TRADFRI 5 Buttons Round",
                 "enum": [0]
               },
@@ -1056,7 +1060,7 @@
                 "enum": [2]
               }
             ],
-            "default": 0
+            "default": -1
           },
           "repeat": {
             "description": "If switchType is not in effect it controls whether to repeat the action until another button is triggered",

@@ -299,7 +299,7 @@ export class SwitchingController {
         } else {
           if (payload && entityToControl) {
             // this.platform.publish(endpoints[0], 'set', payloadStringify(payload));
-            entityToControl.sendState('cachedPublishLight', payload, true);
+            entityToControl.sendState('cachedPublishLight', payload, false);
           }
         }
       }
@@ -374,11 +374,11 @@ export class SwitchingController {
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/' + buttonEvent];
     const combinedLinks = [];
     if (actionsConfigPreConfiguredSwitchType && actionsConfigPreConfiguredSwitchType.enabled && switchTypeInt) {
-      this.log.info('Switch: %s, button event: %s, config: %s', switchIeee, buttonEvent, JSON.stringify(actionsConfigPreConfiguredSwitchType));
+      this.log.info('Switch: ' + switchIeee + ', button event: ' + buttonEvent + ', config: ', JSON.stringify(actionsConfigPreConfiguredSwitchType));
       combinedLinks.push(actionsConfigPreConfiguredSwitchType.linkedDevices);
     }
     if (actionsConfig && actionsConfig.enabled) {
-      this.log.info('Switch: %s, config: %s', switchIeee + '/' + buttonEvent, JSON.stringify(actionsConfig));
+      this.log.info('Switch: ' + switchIeee + '/' + buttonEvent + ', config: ', JSON.stringify(actionsConfig));
       combinedLinks.push(actionsConfig.linkedDevices);
     }
 
@@ -438,21 +438,22 @@ export class SwitchingController {
             const entityIeee = pathComponents[0];
             const entityEndpoint = pathComponents[1] ? '_' + pathComponents[1] : '';
             const entityToControl = this.getDeviceEntity(entityIeee);
+            const endpointToControl = entityEndpoint !== '' ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) : entityToControl?.bridgedDevice;
 
             if (entityToControl) {
               const repeatZBFunction = (delay: number, timeoutKey: string) => {
                 this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
                   if (typeof actionToDo === 'string' && actionToDo.startsWith('on_low_bri')) {
-                    if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      if (!entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff')) {
-                        entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' }, true);
+                    if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      if (!endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff')) {
+                        entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' }, false);
                         if (actionToDo === 'on_low_bri') {
                           continueRepeat = false;
                         }
                       } else if (actionToDo === 'on_low_bri_up') {
-                        const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                        const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                         const newBrightnessState = Math.min(254, currentBrightness + 13); // 254 is 100% in the 255 scale...
-                        entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: newBrightnessState }, true);
+                        entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: newBrightnessState }, false);
                         if (newBrightnessState === 254) {
                           continueRepeat = false;
                         }
@@ -463,10 +464,10 @@ export class SwitchingController {
                       continueRepeat = false;
                     }
                   } else if (actionToDo === 'bri_down') {
-                    if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                    if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       const newBrightnessState = Math.max(3, currentBrightness - 13); // 3 is 1% in the 255 scale...
-                      entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: newBrightnessState }, true);
+                      entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: newBrightnessState }, false);
                       if (newBrightnessState === 3) {
                         continueRepeat = false;
                       }
@@ -474,10 +475,10 @@ export class SwitchingController {
                       continueRepeat = false;
                     }
                   } else if (actionToDo === 'ct_down') {
-                    if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
-                      const currentColorTemperature = entityToControl.bridgedDevice.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+                    if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                      const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
                       const newColorTemperatureState = Math.max(153, currentColorTemperature - 32);
-                      entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpoint]: newColorTemperatureState }, true);
+                      entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpoint]: newColorTemperatureState }, false);
                       if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
                         continueRepeat = false;
                       }
@@ -485,10 +486,10 @@ export class SwitchingController {
                       continueRepeat = false;
                     }
                   } else if (actionToDo === 'ct_up') {
-                    if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
-                      const currentColorTemperature = entityToControl.bridgedDevice.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+                    if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                      const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
                       const newColorTemperatureState = Math.min(500, currentColorTemperature + 32);
-                      entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpoint]: newColorTemperatureState }, true);
+                      entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpoint]: newColorTemperatureState }, false);
                       if (newColorTemperatureState === 500) { // TODO: take the min/max from the object itself...
                         continueRepeat = false;
                       }
@@ -497,41 +498,42 @@ export class SwitchingController {
                     }
                   } else if (actionToDo === 'on_defaults') {
                     const payload: Payload = { ['state' + entityEndpoint]: 'ON' };
-                    if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                    if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                       payload['brightness' + entityEndpoint] = 254;
                     }
-                    if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                    if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
                       // service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
                       payload['color_temp' + entityEndpoint] = 363;
                     }
-                    entityToControl.sendState('cachedPublishLight', payload, true);
+                    entityToControl.sendState('cachedPublishLight', payload, false);
                   } else if (typeof actionToDo === 'string' && actionToDo.startsWith('toggle_on')) {
-                    const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    const currentOnOff = endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff');
                     const newPowerState = !currentOnOff;
                     const payload: Payload = { ['state' + entityEndpoint]: newPowerState ? 'ON' : 'OFF' };
-                    if (actionToDo === 'toggle_on_full_bri' && newPowerState && entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                    if (actionToDo === 'toggle_on_full_bri' && newPowerState && endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       if (currentBrightness !== 254) {
                         payload['brightness' + entityEndpoint] = 254;
                       }
                     }
-                    entityToControl.sendState('cachedPublishLight', payload, true);
+                    entityToControl.sendState('cachedPublishLight', payload, false);
                   } else if (actionToDo === 'on_or_full_bri') {
-                    const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    const currentOnOff = endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff');
                     const payload: Payload = { ['state' + entityEndpoint]: 'ON' };
-                    if (currentOnOff && entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      if (Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255) !== 254) {
+                    if (currentOnOff && endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      if (Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255) !== 254) {
                         payload['brightness' + entityEndpoint] = 254;
                       }
                     }
+                    entityToControl.sendState('cachedPublishLight', payload, false);
                   } else if (actionToDo === 'on_full_bri_or_bri_up') {
                     const payload: Payload = {};
-                    const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    const currentOnOff = endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff');
                     if (!currentOnOff) {
                       payload['state' + entityEndpoint] = 'ON';
                     }
-                    if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                    if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       if (!currentOnOff) {
                         if (currentBrightness !== 254) {
                           payload['brightness' + entityEndpoint] = 254;
@@ -541,8 +543,9 @@ export class SwitchingController {
                         payload['brightness' + entityEndpoint] = newBrightnessState;
                       }
                     }
+                    entityToControl.sendState('cachedPublishLight', payload, false);
                   } else if (actionToDo === 'off') {
-                    entityToControl.sendState('cachedPublishLight', { ['state' + entityEndpoint]: 'OFF' }, true);
+                    entityToControl.sendState('cachedPublishLight', { ['state' + entityEndpoint]: 'OFF' }, false);
                   } else { // This is a command to send an endpoint...
                     // const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
                     // const characteristics = actionsConfig.actionsToDo['' + buttonevent].characteristics
@@ -550,7 +553,7 @@ export class SwitchingController {
                     //   const characteristicData = characteristics[ii]
                     //   service._characteristicDelegates[characteristicData.key]?._characteristic?.setValue(characteristicData.value)
                     // }
-                    entityToControl.sendState('cachedPublishLight', { [entityEndpoint]: actionToDo }, true);
+                    entityToControl.sendState('cachedPublishLight', { [entityEndpoint]: actionToDo }, false);
                   }
 
                   if (continueRepeat) {
