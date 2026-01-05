@@ -14,7 +14,7 @@ import { EndpointNumber } from 'matterbridge/matter';
 import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
 // import { nextTick } from 'node:process';
-import { Payload } from './payloadTypes.js';
+import { Payload, PayloadValue } from './payloadTypes.js';
 
 // import { xyToHsl } from 'matterbridge/utils';
 
@@ -120,6 +120,7 @@ export class AqaraS1ScenePanelController {
   lastCommandTimeout: NodeJS.Timeout | undefined = undefined;
   aqaraS1ActionsConfigData: { [key: string]: AqaraS1ScenePanelConfig };
   aqaraS1ExecutedConfigurationsData?: { [key: string]: { [key: string]: string[] | { [key: number]: string } } };
+  lastCommunications: { [key: string]: PayloadValue } = {};
 
   constructor(platform: ZigbeePlatform, actionConfig: { [key: string]: AqaraS1ScenePanelConfig }) {
     this.platform = platform;
@@ -529,22 +530,33 @@ export class AqaraS1ScenePanelController {
     // this.log(JSON.stringify(this.platform.config))
     if (this.aqaraS1ActionsConfigData) {
       const panels = Object.keys(this.aqaraS1ActionsConfigData);
-      for (const panel of panels) {
-        if (this.allPanels.indexOf(panel) < 0) { // To avoid duplicates in of re-running the configuration
-          this.allPanels.push(panel);
+      for (const panelIeee of panels) {
+        if (this.allPanels.indexOf(panelIeee) < 0) { // To avoid duplicates in of re-running the configuration
+          this.allPanels.push(panelIeee);
+          if (!this.lastCommunications[panelIeee]) {
+            this.lastCommunications[panelIeee] = '';
+            const device = this.getDeviceEntity(panelIeee);
+            if (device && device.device?.model_id === 'lumi.switch.n4acn4') {
+              this.platform.z2m.on('MESSAGE-' + device.entityName, (payload: Payload) => {
+                if (payload.communication && payload.communication === this.lastCommunications[panelIeee]) return;
+                this.panelReceivedData(panelIeee, payload.communication as string);
+                this.lastCommunications[panelIeee] = payload.communication;
+              });
+            }
+          }
         }
-        const panelData = this.aqaraS1ActionsConfigData[panel];
+        const panelData = this.aqaraS1ActionsConfigData[panelIeee];
         const panelControls = Object.keys(panelData);
         for (const panelControl of panelControls) {
           const controlData = panelData[panelControl as AqaraS1ScenePanelConfigKey] as AqaraS1ScenePanelControlledDeviceConfig;
           if (controlData.enabled && controlData.endpoints?.length) {
-            this.panelsToEndpoints['/' + panel + '/' + panelControl] = controlData.endpoints;
+            this.panelsToEndpoints['/' + panelIeee + '/' + panelControl] = controlData.endpoints;
             for (let i = controlData.endpoints.length - 1; i >= 0; i--) {
               const endpoint = controlData.endpoints[i];
               if (!this.endpointsToPanels[endpoint]) {
                 this.endpointsToPanels[endpoint] = [];
               }
-              this.endpointsToPanels[endpoint].push('/' + panel + '/' + panelControl);
+              this.endpointsToPanels[endpoint].push('/' + panelIeee + '/' + panelControl);
             }
           }
         }

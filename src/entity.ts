@@ -217,27 +217,6 @@ export class ZigbeeEntity extends EventEmitter {
       }
       this.lastSeen = Date.now();
 
-      // Added by me: Arye Levin
-      // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
-      for (const key in payload) {
-        const value = payload[key];
-        if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && (key === 'action' || value !== this.lastPayload[key])) {
-          this.log.info('Value ' + key + ' changed from ' + this.lastPayload[key] + ' to ' + value + '.');
-          this.platform.switchingController?.switchStateChanged(this.device?.ieee_address || '', key, value, payload);
-          this.platform.aqaraS1ScenePanelConroller?.switchStateChanged(this.device?.ieee_address || '', key, value, payload);
-        }
-      }
-      // this.log.info('Finished evaluating old payload vs new payload');
-      // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
-      // for (const key in payload) {
-      //   const value = payload[key];
-      //   if (value !== null && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')/* && value !== this.lastPayload[key]*/) {
-      //     this.log.info('Value ' + key + ' changed to ' + value + '.');
-      //     this.platform.switchingController?.switchStateChanged(this.entityName + '/' + key, value, payload);
-      //   }
-      // }
-      // End of Added by me: Arye Levin
-
       // Check and deep copy the payload
       if (deepEqual(this.lastPayload, payload, this.ignoreFeatures)) return;
       this.lastPayload = deepCopy(payload);
@@ -419,11 +398,6 @@ export class ZigbeeEntity extends EventEmitter {
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round(hsl.s / 100 * 254));
           }
         }
-        // Added by me: Arye Levin
-        if (key === 'communication' && this.device?.model_id === 'lumi.switch.n4acn4') {
-          this.platform.aqaraS1ScenePanelConroller?.panelReceivedData(this.device.ieee_address, value as string);
-        }
-        // End of Added by me: Arye Levin
       });
     });
 

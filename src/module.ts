@@ -570,6 +570,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     // Added by me: Arye Levin
     this.aqaraS1ScenePanelConroller?.setAqaraS1PanelsConfiguration();
     this.aqaraS1ScenePanelConroller?.updateWeather();
+    this.switchingController.setSwitchingControllerConfiguration();
     // End of Added by me: Arye Levin
     this.log.info(`Started zigbee2mqtt dynamic platform v${this.version}: ` + reason);
   }

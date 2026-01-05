@@ -15,6 +15,7 @@ import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
 // import { OnOff } from 'matterbridge/matter/clusters';
 import { Payload, PayloadValue } from './payloadTypes.js';
+import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 declare module './entity.js' {
   interface ZigbeeEntity {
@@ -79,6 +80,7 @@ export class SwitchingController {
   switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {'0x541234567890abcd': {'enabled': true, switchType: 2, 'linkedDevices': {'0x54abcd0987654321': 'l1', '0x54abcd0987654322': 'center'}}, '0x541234567890abcd/single': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/state_l1': 'ON', '0x54abcd0987654322/toggle_on': 'l3'}}, '0x541234567890abcd/hold': {'enabled': true, 'repeat': true, 'linkedDevices': {'0x54abcd0987654321/brightness_l1': 254, '0x54abcd0987654322/bri_up': 'center'}}, '0x541234567890abcd/double': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/characteristic': {state_left: ON}, '0x54abcd0987654322/bri_up': 'l2'}}}
   // switchesActionsConfigData: { [key: string]: { [key: string]: PayloadValue } } = {};
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
+  lastStates: { [key: string]: Payload } = {};
 
   constructor(platform: ZigbeePlatform, switchesLinksConfig: { [key: string]: SwitchingControllerSwitchLinkConfig }, switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }) {
     this.platform = platform;
@@ -165,6 +167,39 @@ export class SwitchingController {
     return entity;
   }
 
+  setSwitchingControllerConfiguration() {
+    for (const sourceDevice in this.switchesLinksConfigData) {
+      const deviceIeee = sourceDevice.split('/')[0];
+      if (!this.lastStates[deviceIeee]) {
+        this.lastStates[deviceIeee] = {};
+        const device = this.getDeviceEntity(deviceIeee);
+        if (device) {
+          this.platform.z2m.on('MESSAGE-' + device.entityName, (payload: Payload) => {
+            if (deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
+            // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
+            for (const key in payload) {
+              const value = payload[key];
+              if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && (key === 'action' || value !== this.lastStates[deviceIeee][key])) {
+                this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
+                this.switchStateChanged(deviceIeee || '', key, value, payload);
+                // this.platform.aqaraS1ScenePanelConroller?.switchStateChanged(deviceIeee || '', key, value, payload);
+              }
+            }
+            // // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
+            // for (const key in payload) {
+            //   const value = payload[key];
+            //   if (value !== null && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')/* && value !== this.lastPayload[key]*/) {
+            //     this.log.info('Value ' + key + ' changed to ' + value + '.');
+            //     this.switchStateChanged(this.entityName + '/' + key, value, payload);
+            //   }
+            // }
+            this.lastStates[deviceIeee] = deepCopy(payload);
+          });
+        }
+      }
+    }
+  }
+
   // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
   // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
   switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
@@ -214,7 +249,7 @@ export class SwitchingController {
 
         if (entityToControl) {
           const paramToControl = linkedDevicePathComponents[1];
-          if ((linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) || (linkedDeviceIeee !== deviceIeee && entityToControl.getLastPayloadItem(paramToControl) !== value)) { // Don't update whats not needed to be updated...
+          if ((linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) || (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee][paramToControl] !== value)) { // Don't update whats not needed to be updated...
             // const entityToControlEndpoints = entityToControl.device?.endpoints;
             // if (typeof entityToControlEndpoints === 'object' && Object.keys(entityToControlEndpoints).length === 1 && entityToControlEndpoints['1'].clusters.input.includes('manuSpecificTuya') && !entityToControlEndpoints['1'].clusters.input.includes('genOnOff')) {
             //   // This is tuya, needs special queue logic
@@ -257,6 +292,7 @@ export class SwitchingController {
           entityToControl?.sendState('cachedPublishLight', { [paramToControl]: value }, false);
         } else {
           if (payload && entityToControl) {
+            // this.platform.publish(endpoints[0], 'set', payloadStringify(payload));
             entityToControl.sendState('cachedPublishLight', payload, true);
           }
         }
