@@ -185,7 +185,7 @@ export class SwitchingController {
             // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
             for (const key in payload) {
               const value = payload[key];
-              if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && (key === 'action' || (key === 'action_rotation_percent' && (payload.action === 'rotation' || payload.action === 'start_rotating')) || value !== this.lastStates[deviceIeee][key])) {
+              if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && (key === 'action' || (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) || value !== this.lastStates[deviceIeee][key])) {
                 this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
                 this.switchStateChanged(deviceIeee || '', key, value, payload);
                 // this.platform.aqaraS1ScenePanelConroller?.switchStateChanged(deviceIeee || '', key, value, payload);
@@ -213,7 +213,7 @@ export class SwitchingController {
       this.processIncomingButtonEvent(deviceIeee, value as string);
       return;
     }
-    if (key === 'action_rotation_percent') {
+    if (key === 'action_rotation_percent_speed') {
       this.processIncomingRotationPercentageEvent(deviceIeee, value as number, newPayload);
       return;
     }
@@ -373,7 +373,7 @@ export class SwitchingController {
   }
 
   processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload) {
-    const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent' + '_' + newPayload['action_rotation_button_state']];
+    const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed' + '_' + newPayload['action_rotation_button_state']];
     if (actionsConfig.enabled) {
       for (const linkedDevice in actionsConfig.linkedDevices) {
         if (!linkedDevice.startsWith('http')) { // TODO: find the correct way on this new system...
