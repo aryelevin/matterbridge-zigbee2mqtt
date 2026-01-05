@@ -77,7 +77,7 @@ export class SwitchingController {
   switchesLinksConfig: { [key: string]: SwitchingControllerSwitchLinkConfig }; // {"0x541234567890abcd/l2_brightness": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
   switchesLinksConfigData: { [key: string]: string[] };
   entitiesExecutionQueues: { [key: string]: { [key: string]: PayloadValue } } = {}; // {"0x541234567890abcd": {'brightness_l3_ON': 'brightness_l2', 'data': 200}} // PayloadValue is because the data field...
-  switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {'0x541234567890abcd': {'enabled': true, switchType: 2, 'linkedDevices': {'0x54abcd0987654321': 'l1', '0x54abcd0987654322': 'center'}}, '0x541234567890abcd/single': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/state_l1': 'ON', '0x54abcd0987654322/toggle_on': 'l3'}}, '0x541234567890abcd/hold': {'enabled': true, 'repeat': true, 'linkedDevices': {'0x54abcd0987654321/brightness_l1': 254, '0x54abcd0987654322/bri_up': 'center'}}, '0x541234567890abcd/double': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/characteristic': {state_left: ON}, '0x54abcd0987654322/bri_up': 'l2'}}}
+  switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {'0x541234567890abcd': {'enabled': true, switchType: 2, 'linkedDevices': {'0x54abcd0987654321/l1': '', '0x54abcd0987654322/center': ''}}, '0x541234567890abcd/single': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/state_l1': 'ON', '0x54abcd0987654322/l3': 'toggle_on'}}, '0x541234567890abcd/hold': {'enabled': true, 'repeat': true, 'linkedDevices': {'0x54abcd0987654321/brightness_l1': 254, '0x54abcd0987654322/center': 'bri_up'}}, '0x541234567890abcd/double': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/characteristic': {state_left: ON}, '0x54abcd0987654322/l2': 'bri_up'}}}
   // switchesActionsConfigData: { [key: string]: { [key: string]: PayloadValue } } = {};
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
   lastStates: { [key: string]: Payload } = {};
@@ -370,10 +370,10 @@ export class SwitchingController {
 
   processIncomingButtonEvent(switchIeee: string, buttonEvent: string) {
     const actionsConfigPreConfiguredSwitchType = this.switchesActionsConfig[switchIeee];
-    const sensorTypeInt = actionsConfigPreConfiguredSwitchType?.switchType; // 0 = Old IKEA round 5 button remote, 1 = Hue Switch Remote, 2 = New IKEA rect 4 buttons (Supports the 2 buttons one [No CT control])
+    const switchTypeInt = actionsConfigPreConfiguredSwitchType?.switchType; // 0 = Old IKEA round 5 button remote, 1 = Hue Switch Remote, 2 = New IKEA rect 4 buttons (Supports the 2 buttons one [No CT control])
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/' + buttonEvent];
     const combinedLinks = [];
-    if (actionsConfigPreConfiguredSwitchType && actionsConfigPreConfiguredSwitchType.enabled && sensorTypeInt) {
+    if (actionsConfigPreConfiguredSwitchType && actionsConfigPreConfiguredSwitchType.enabled && switchTypeInt) {
       this.log.info('Switch: %s, button event: %s, config: %s', switchIeee, buttonEvent, JSON.stringify(actionsConfigPreConfiguredSwitchType));
       combinedLinks.push(actionsConfigPreConfiguredSwitchType.linkedDevices);
     }
@@ -391,70 +391,68 @@ export class SwitchingController {
           const keyForTimeoutAction = switchIeee + endpointToExecute;
           clearTimeout(this.longPressTimeoutIDs[keyForTimeoutAction]);
 
-          const endpointToExecuteItem = endpointsToExecute[endpointToExecute]; // The value: like 'ON' in case of state...
-
           if (!endpointToExecute.startsWith('http')) { // TODO: find the correct way on this new system...
-            const pathComponents = endpointToExecute.split('/');
-            let actionToDo = '';
             let continueRepeat = true;
+            let actionToDo = endpointsToExecute[endpointToExecute] || ''; // The value: like 'ON' in case of state...
 
-            if (pathComponents.length <= 1) {
-              if (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons) {
+            if (actionToDo === '') { // Its a switchType based action...
+              if (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons) {
                 continueRepeat = false;
               }
-              if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'brightness_move_up') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_up_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_hold')) { // Start Increasing the Brightness and turn on at lowest brighness if Off...
+              if ((switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'brightness_move_up') || (switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_up_hold') || (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_hold')) { // Start Increasing the Brightness and turn on at lowest brighness if Off...
                 actionToDo = 'on_low_bri_up';
-              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'brightness_move_down') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_down_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'down_hold')) {
+              } else if ((switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'brightness_move_down') || (switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_down_hold') || (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'down_hold')) {
                 actionToDo = 'bri_down';
-              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_right_hold') {
+              } else if ((switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_right_hold') {
                 actionToDo = 'ct_down';
-              } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_left_hold') {
+              } else if ((switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_left_hold') {
                 actionToDo = 'ct_up';
               } else {
                 continueRepeat = false;
 
-                if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle_hold') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_hold')) { // Turn On with default settings (including CT)...
+                if ((switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle_hold') || (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_hold')) { // Turn On with default settings (including CT)...
                   actionToDo = 'on_defaults';
-                } else if (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle') { // Toggle power and if  it turns on, set to full brightness...
+                } else if (switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle') { // Toggle power and if  it turns on, set to full brightness...
                   actionToDo = 'toggle_on_full_bri';
-                } else if (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_press') { // Turn On and if On already, set to full brightness...
+                } else if (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_press') { // Turn On and if On already, set to full brightness...
                   actionToDo = 'on_or_full_bri';
-                } else if (sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'on') { // Turn On at full brightness and if On already just increase the brightness...
+                } else if (switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'on') { // Turn On at full brightness and if On already just increase the brightness...
                   actionToDo = 'on_full_bri_or_bri_up';
-                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_press') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_up_click')) { // Turn On with lowest brightness or increase the brightness if On already
+                } else if ((switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_press') || (switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_up_click')) { // Turn On with lowest brightness or increase the brightness if On already
                   actionToDo = 'on_low_bri_up';
-                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'down_press') || (sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_down_click')) { // Decrease the brightness
+                } else if ((switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'down_press') || (switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'brightness_down_click')) { // Decrease the brightness
                   actionToDo = 'bri_down';
-                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_right_click') { // Increase the CT
+                } else if ((switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_right_click') { // Increase the CT
                   actionToDo = 'ct_down';
-                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || sensorTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_left_click') { // Decrease the CT
+                } else if ((switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar || switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound) && buttonEvent === 'arrow_left_click') { // Decrease the CT
                   actionToDo = 'ct_up';
-                } else if ((sensorTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'off') || (sensorTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'off_press')) {
+                } else if ((switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'off') || (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'off_press')) {
                   actionToDo = 'off';
                 }
               }
             } else {
               continueRepeat = actionsConfig.repeat || false;
-              actionToDo = endpointToExecuteItem as string;
             }
 
-            const entityToControl = this.getDeviceEntity(pathComponents[0]);
+            const pathComponents = endpointToExecute.split('/');
+            const entityIeee = pathComponents[0];
+            const entityEndpoint = pathComponents[1];
+            const entityToControl = this.getDeviceEntity(entityIeee);
 
             if (entityToControl) {
               const repeatZBFunction = (delay: number, timeoutKey: string) => {
                 this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-                  if (actionToDo.startsWith('on_low_bri')) {
+                  if (typeof actionToDo === 'string' && actionToDo.startsWith('on_low_bri')) {
                     if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                       if (!entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff')) {
-                        entityToControl.sendState('cachedPublishLight', { ['brightness_' + endpointToExecuteItem]: 3, ['state_' + endpointToExecuteItem]: 'ON' }, true);
+                        entityToControl.sendState('cachedPublishLight', { ['brightness_' + entityEndpoint]: 3, ['state_' + entityEndpoint]: 'ON' }, true);
                         if (actionToDo === 'on_low_bri') {
                           continueRepeat = false;
                         }
                       } else if (actionToDo === 'on_low_bri_up') {
                         const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                         const newBrightnessState = Math.min(254, currentBrightness + 13); // 254 is 100% in the 255 scale...
-                        const endpointStateName = 'brightness_' + endpointToExecuteItem;
-                        entityToControl.sendState('cachedPublishLight', { [endpointStateName]: newBrightnessState }, true);
+                        entityToControl.sendState('cachedPublishLight', { ['brightness_' + entityEndpoint]: newBrightnessState }, true);
                         if (newBrightnessState === 254) {
                           continueRepeat = false;
                         }
@@ -468,8 +466,7 @@ export class SwitchingController {
                     if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                       const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       const newBrightnessState = Math.max(3, currentBrightness - 13); // 3 is 1% in the 255 scale...
-                      const endpointStateName = 'brightness_' + endpointToExecuteItem;
-                      entityToControl.sendState('cachedPublishLight', { [endpointStateName]: newBrightnessState }, true);
+                      entityToControl.sendState('cachedPublishLight', { ['brightness_' + entityEndpoint]: newBrightnessState }, true);
                       if (newBrightnessState === 3) {
                         continueRepeat = false;
                       }
@@ -480,8 +477,7 @@ export class SwitchingController {
                     if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
                       const currentColorTemperature = entityToControl.bridgedDevice.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
                       const newColorTemperatureState = Math.max(153, currentColorTemperature - 32);
-                      const endpointStateName = 'color_temp_' + endpointToExecuteItem;
-                      entityToControl.sendState('cachedPublishLight', { [endpointStateName]: newColorTemperatureState }, true);
+                      entityToControl.sendState('cachedPublishLight', { ['color_temp_' + entityEndpoint]: newColorTemperatureState }, true);
                       if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
                         continueRepeat = false;
                       }
@@ -492,8 +488,7 @@ export class SwitchingController {
                     if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
                       const currentColorTemperature = entityToControl.bridgedDevice.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
                       const newColorTemperatureState = Math.min(500, currentColorTemperature + 32);
-                      const endpointStateName = 'color_temp_' + endpointToExecuteItem;
-                      entityToControl.sendState('cachedPublishLight', { [endpointStateName]: newColorTemperatureState }, true);
+                      entityToControl.sendState('cachedPublishLight', { ['color_temp_' + entityEndpoint]: newColorTemperatureState }, true);
                       if (newColorTemperatureState === 500) { // TODO: take the min/max from the object itself...
                         continueRepeat = false;
                       }
@@ -501,54 +496,53 @@ export class SwitchingController {
                       continueRepeat = false;
                     }
                   } else if (actionToDo === 'on_defaults') {
-                    const payload: Payload = { ['state_' + endpointToExecuteItem]: 'ON' };
+                    const payload: Payload = { ['state_' + entityEndpoint]: 'ON' };
                     if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      payload['brightness_' + endpointToExecuteItem] = 254;
+                      payload['brightness_' + entityEndpoint] = 254;
                     }
                     if (entityToControl.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id) && entityToControl.bridgedDevice?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
                       // service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
-                      payload['color_temp_' + endpointToExecuteItem] = 363;
+                      payload['color_temp_' + entityEndpoint] = 363;
                     }
                     entityToControl.sendState('cachedPublishLight', payload, true);
-                  } else if (actionToDo.startsWith('toggle_on')) {
+                  } else if (typeof actionToDo === 'string' && actionToDo.startsWith('toggle_on')) {
                     const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
                     const newPowerState = !currentOnOff;
-                    const payload: Payload = { ['state_' + endpointToExecuteItem]: newPowerState ? 'ON' : 'OFF' };
+                    const payload: Payload = { ['state_' + entityEndpoint]: newPowerState ? 'ON' : 'OFF' };
                     if (actionToDo === 'toggle_on_full_bri' && newPowerState && entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                       const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       if (currentBrightness !== 254) {
-                        payload['brightness_' + endpointToExecuteItem] = 254;
+                        payload['brightness_' + entityEndpoint] = 254;
                       }
                     }
                     entityToControl.sendState('cachedPublishLight', payload, true);
                   } else if (actionToDo === 'on_or_full_bri') {
                     const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
-                    const payload: Payload = { ['state_' + endpointToExecuteItem]: 'ON' };
+                    const payload: Payload = { ['state_' + entityEndpoint]: 'ON' };
                     if (currentOnOff && entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                       if (Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255) !== 254) {
-                        payload['brightness_' + endpointToExecuteItem] = 254;
+                        payload['brightness_' + entityEndpoint] = 254;
                       }
                     }
                   } else if (actionToDo === 'on_full_bri_or_bri_up') {
                     const payload: Payload = {};
                     const currentOnOff = entityToControl.bridgedDevice?.getAttribute(OnOff.Cluster.id, 'onOff');
                     if (!currentOnOff) {
-                      payload['state_' + endpointToExecuteItem] = 'ON';
+                      payload['state_' + entityEndpoint] = 'ON';
                     }
                     if (entityToControl.bridgedDevice?.hasClusterServer(LevelControl.Cluster.id) && entityToControl.bridgedDevice.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                       const currentBrightness = Math.round((entityToControl.bridgedDevice?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       if (!currentOnOff) {
                         if (currentBrightness !== 254) {
-                          payload['brightness_' + endpointToExecuteItem] = 254;
+                          payload['brightness_' + entityEndpoint] = 254;
                         }
                       } else {
                         const newBrightnessState = Math.min(254, currentBrightness + 13); // 254 is 100% in the 255 scale...
-                        payload['brightness_' + endpointToExecuteItem] = newBrightnessState;
+                        payload['brightness_' + entityEndpoint] = newBrightnessState;
                       }
                     }
                   } else if (actionToDo === 'off') {
-                    const endpointStateName = 'state_' + endpointToExecuteItem;
-                    entityToControl.sendState('cachedPublishLight', { [endpointStateName]: 'OFF' }, true);
+                    entityToControl.sendState('cachedPublishLight', { ['state_' + entityEndpoint]: 'OFF' }, true);
                   } else { // This is a command to send an endpoint...
                     // const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
                     // const characteristics = actionsConfig.actionsToDo['' + buttonevent].characteristics
@@ -556,7 +550,7 @@ export class SwitchingController {
                     //   const characteristicData = characteristics[ii]
                     //   service._characteristicDelegates[characteristicData.key]?._characteristic?.setValue(characteristicData.value)
                     // }
-                    if (pathComponents.length >= 2) entityToControl.sendState('cachedPublishLight', { [pathComponents[1]]: actionToDo }, true);
+                    entityToControl.sendState('cachedPublishLight', { [entityEndpoint]: actionToDo }, true);
                   }
 
                   if (continueRepeat) {
