@@ -388,8 +388,10 @@ export class SwitchingController {
             if (actionToDo === 'brightness') {
               if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                 if (!endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff')) {
-                  if (this.lastStates[entityIeee]['brightness' + entityEndpoint] !== 3 || this.lastStates[entityIeee]['state' + entityEndpoint] !== 'ON') {
-                    entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' }, false);
+                  if (rotationPercentage > 0) {
+                    if (this.lastStates[entityIeee]['brightness' + entityEndpoint] !== 3 || this.lastStates[entityIeee]['state' + entityEndpoint] !== 'ON') {
+                      entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' }, false);
+                    }
                   }
                 } else {
                   const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
