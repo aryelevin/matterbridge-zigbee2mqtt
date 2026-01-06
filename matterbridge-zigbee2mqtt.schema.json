@@ -319,7 +319,7 @@
     "aqaraS1ActionsConfigData": {
       "description": "Configures an Aqara S1 Scene Panels controls",
       "type": "object",
-      "selectFrom": "name",
+      "selectFrom": "serial",
       "uniqueItems": true,
       "additionalProperties": {
         "description": "Configures an Aqara S1 Scene Panel controls.",
@@ -339,14 +339,14 @@
                 "type": "string",
                 "default": "AC"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -383,14 +383,14 @@
                 ],
                 "default": "color"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -427,14 +427,14 @@
                 ],
                 "default": "color"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -467,14 +467,14 @@
                 ],
                 "default": "ct"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -507,14 +507,14 @@
                 ],
                 "default": "ct"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -547,14 +547,14 @@
                 ],
                 "default": "ct"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -587,14 +587,14 @@
                 ],
                 "default": "curtain"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -627,14 +627,14 @@
                 ],
                 "default": "curtain"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -667,14 +667,14 @@
                 ],
                 "default": "curtain"
               },
-              "resources": {
-                "description": "Resources",
+              "endpoints": {
+                "description": "Endpoints",
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "uniqueItems": true,
-                "selectFrom": "name"
+                "selectFrom": "serial"
               }
             }
           },
@@ -711,9 +711,9 @@
                 "description": "Execute",
                 "type": "object",
                 "uniqueItems": true,
-                "selectFrom": "name",
+                "selectFrom": "serial",
                 "additionalProperties": {
-                  "description": "Resource",
+                  "description": "Device",
                   "type": "object",
                   "additionalProperties": {
                     "description": "Attribute",
@@ -757,9 +757,9 @@
                 "description": "Execute",
                 "type": "object",
                 "uniqueItems": true,
-                "selectFrom": "name",
+                "selectFrom": "serial",
                 "additionalProperties": {
-                  "description": "Resource",
+                  "description": "Device",
                   "type": "object",
                   "additionalProperties": {
                     "description": "Attribute",
@@ -803,9 +803,9 @@
                 "description": "Execute",
                 "type": "object",
                 "uniqueItems": true,
-                "selectFrom": "name",
+                "selectFrom": "serial",
                 "additionalProperties": {
-                  "description": "Resource",
+                  "description": "Device",
                   "type": "object",
                   "additionalProperties": {
                     "description": "Attribute",
@@ -849,9 +849,9 @@
                 "description": "Execute",
                 "type": "object",
                 "uniqueItems": true,
-                "selectFrom": "name",
+                "selectFrom": "serial",
                 "additionalProperties": {
-                  "description": "Resource",
+                  "description": "Device",
                   "type": "object",
                   "additionalProperties": {
                     "description": "Attribute",
@@ -895,9 +895,9 @@
                 "description": "Execute",
                 "type": "object",
                 "uniqueItems": true,
-                "selectFrom": "name",
+                "selectFrom": "serial",
                 "additionalProperties": {
-                  "description": "Resource",
+                  "description": "Device",
                   "type": "object",
                   "additionalProperties": {
                     "description": "Attribute",
@@ -941,9 +941,9 @@
                 "description": "Execute",
                 "type": "object",
                 "uniqueItems": true,
-                "selectFrom": "name",
+                "selectFrom": "serial",
                 "additionalProperties": {
-                  "description": "Resource",
+                  "description": "Device",
                   "type": "object",
                   "additionalProperties": {
                     "description": "Attribute",
@@ -962,7 +962,7 @@
     "switchesLinks": {
       "description": "Configures links between switches (alternates, lights etc)",
       "type": "object",
-      "selectFrom": "name",
+      "selectFrom": "serial",
       "uniqueItems": true,
       "additionalProperties": {
         "description": "Source Device",
@@ -990,7 +990,7 @@
               "type": "string"
             },
             "uniqueItems": true,
-            "selectFrom": "name"
+            "selectFrom": "serial"
           }
         }
       }
@@ -998,7 +998,7 @@
     "switchesOnStateCommands": {
       "description": "Configures actions when enabling switches logic",
       "type": "object",
-      "selectFrom": "name",
+      "selectFrom": "serial",
       "uniqueItems": true,
       "additionalProperties": {
           "description": "Attribute Name",
@@ -1013,7 +1013,7 @@
     "switchesOffStateCommands": {
       "description": "Configures actions when enabling switches logic",
       "type": "object",
-      "selectFrom": "name",
+      "selectFrom": "serial",
       "uniqueItems": true,
       "additionalProperties": {
           "description": "Attribute Name",
@@ -1028,7 +1028,7 @@
     "switchesActions": {
       "description": "Configures actions when enabling switches logic",
       "type": "object",
-      "selectFrom": "name",
+      "selectFrom": "serial",
       "uniqueItems": true,
       "additionalProperties": {
         "description": "Source Switch Device (/switch_button_action_name to control specific input action. Ignores switchType and expects repeat setting)",
@@ -1070,7 +1070,7 @@
           "linkedDevices": {
             "description": "Destination Linked Devices (with /Endpoint [Name] if applicable [in Multi endpoints entities], for example: <Device IEEE/Endpoint>).\nIf its a switchType-based or Action-To-Do, specify only the endpoint name without the parameter (without state/brightness/color_temp/etc like 'center' or 'l3')",
             "type": "object",
-            "selectFrom": "name",
+            "selectFrom": "serial",
             "uniqueItems": true,
             "additionalProperties": {
               "description": "Empty for switchType-based, otherwise Action-To-Do or value",

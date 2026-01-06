@@ -531,7 +531,7 @@ export class AqaraS1ScenePanelController {
     if (this.aqaraS1ActionsConfigData) {
       const panels = Object.keys(this.aqaraS1ActionsConfigData);
       for (const panelIeee of panels) {
-        if (this.allPanels.indexOf(panelIeee) < 0) { // To avoid duplicates in of re-running the configuration
+        if (this.allPanels.indexOf(panelIeee) < 0) { // To avoid duplicates in case of re-running the configuration
           this.allPanels.push(panelIeee);
           if (!this.lastCommunications[panelIeee]) {
             this.lastCommunications[panelIeee] = '';
@@ -539,7 +539,7 @@ export class AqaraS1ScenePanelController {
             if (device && device.device?.model_id === 'lumi.switch.n4acn4') {
               this.platform.z2m.on('MESSAGE-' + device.entityName, (payload: Payload) => {
                 if (payload.communication && payload.communication === this.lastCommunications[panelIeee]) return;
-                this.panelReceivedData(panelIeee, payload.communication as string);
+                this.panelSentData(panelIeee, payload.communication as string);
                 this.lastCommunications[panelIeee] = payload.communication;
               });
             }
@@ -934,7 +934,7 @@ export class AqaraS1ScenePanelController {
   }
 
   // TODO: Handle weather data asked from panel (after panel reboot for example)...
-  panelReceivedData(deviceIeeeAddress: string, data: string) {
+  panelSentData(deviceIeeeAddress: string, data: string) {
     const dataStartIndex = 0;
 
     const dataArray = this.fromHexStringToBytes(data);
@@ -1072,41 +1072,34 @@ export class AqaraS1ScenePanelController {
                 this.log.info('Color X: ' + colorX + ', Color Y: ' + colorY);
               }
               const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/light_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
-              for (let i = devicesIeee.length - 1; i >= 0; i--) {
-                const deviceIeeeItem = devicesIeee[i];
-                const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
+              for (let i = devicesIeee?.length - 1; i >= 0; i--) {
+                const endpointToExecute = devicesIeee[i]; // 0x5465654664646464(/l1)
+                const pathComponents = endpointToExecute.split('/'); // [0x5465654664646464(, l1)]
+                const entityIeee = pathComponents[0]; // 0x5465654664646464
+                const entityEndpointName = pathComponents[1]; // (l1)
+                const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+                const entityToControl = this.getDeviceEntity(entityIeee); // The main device
+                // const endpointToControl = entityEndpointName ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                if (deviceToControl) {
-                  const endpointToControl = deviceToControl;
-                  if (endpointToControl) {
-                    if (onOff !== undefined) {
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
-                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.On).setValue(onOff);
-                      // serviceToControl.values.on = onOff
-                    }
-                    if (brightness !== undefined) {
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToLevel', { request: { level: brightness } });
-                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Brightness).setValue(brightness);
-                    }
-                    if (colorTemperature !== undefined) {
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColorTemperature', { request: { colorTemperatureMireds: colorTemperature } });
-                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.ColorTemperature).setValue(colorTemperature);
-                    }
-                    if (colorX !== undefined && colorY !== undefined) {
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColor', { request: { colorX, colorY } });
-
-                      // const { h, s } = xyToHsl(colorX / 65535.0, colorY / 65535.0);
-
-                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Hue).setValue(h);
-                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Saturation).setValue(s);
-                    }
+                if (entityToControl) {
+                  if (onOff !== undefined) {
+                    entityToControl.sendState('cachedPublishLight', { ['state' + entityEndpointSuffix]: onOff ? 'ON' : 'OFF' }, false);
+                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
+                  }
+                  if (brightness !== undefined) {
+                    entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpointSuffix]: Math.round((Math.max(3, Math.min(254, (brightness * 2.54))) / 254) * 255) }, false);
+                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
+                  }
+                  if (colorTemperature !== undefined) {
+                    entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpointSuffix]: colorTemperature }, false);
+                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
+                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
+                  }
+                  if (colorX !== undefined && colorY !== undefined) {
+                    entityToControl.sendState('cachedPublishLight', { ['color' + entityEndpointSuffix]: { x: Math.round(colorX / 65536 * 10000) / 10000, y: Math.round(colorY / 65536 * 10000) / 10000 } }, false);
+                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
+                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
+                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
                   }
                 }
               }
