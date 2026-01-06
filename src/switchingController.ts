@@ -188,7 +188,6 @@ export class SwitchingController {
               if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && (key === 'action' || (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) || value !== this.lastStates[deviceIeee][key])) {
                 this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
                 this.switchStateChanged(deviceIeee || '', key, value, payload);
-                // this.platform.aqaraS1ScenePanelConroller?.switchStateChanged(deviceIeee || '', key, value, payload);
               }
             }
             // // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
@@ -404,7 +403,7 @@ export class SwitchingController {
             } else if (actionToDo === 'color_temp') {
               if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
                 const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
-                const newColorTemperatureState = Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage)); // TODO: take the min/max from the object itself...
+                const newColorTemperatureState = Math.round(Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage))); // TODO: take the min/max from the object itself...
                 if (this.lastStates[entityIeee]['color_temp' + entityEndpoint] !== newColorTemperatureState) {
                   entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpoint]: newColorTemperatureState }, false);
                 }

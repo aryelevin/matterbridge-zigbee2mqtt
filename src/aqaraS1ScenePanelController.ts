@@ -15,6 +15,7 @@ import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
 // import { nextTick } from 'node:process';
 import { Payload, PayloadValue } from './payloadTypes.js';
+import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 // import { xyToHsl } from 'matterbridge/utils';
 
@@ -121,6 +122,7 @@ export class AqaraS1ScenePanelController {
   aqaraS1ActionsConfigData: { [key: string]: AqaraS1ScenePanelConfig };
   aqaraS1ExecutedConfigurationsData?: { [key: string]: { [key: string]: string[] | { [key: number]: string } } };
   lastCommunications: { [key: string]: PayloadValue } = {};
+  lastStates: { [key: string]: Payload } = {};
 
   constructor(platform: ZigbeePlatform, actionConfig: { [key: string]: AqaraS1ScenePanelConfig }) {
     this.platform = platform;
@@ -142,7 +144,12 @@ export class AqaraS1ScenePanelController {
   // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
   // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
   switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
-    const linkedPanels = this.endpointsToPanels[deviceIeee + '/' + key];
+    let endpointName = '';
+    const keyComponents = key.split('_');
+    if (keyComponents.length > 1 && key !== 'color_temp') {
+      endpointName = '/' + keyComponents[keyComponents.length - 1];
+    }
+    const linkedPanels = this.endpointsToPanels[deviceIeee + endpointName];
     if (linkedPanels?.length) {
       if (key.startsWith('state')) {
         const lightEntity = this.getDeviceEntity(deviceIeee);
@@ -153,6 +160,9 @@ export class AqaraS1ScenePanelController {
       } else if (key.startsWith('color_temp')) {
         const lightEntity = this.getDeviceEntity(deviceIeee);
         if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
+      } else if (key.startsWith('color')) {
+        // const lightEntity = this.getDeviceEntity(deviceIeee);
+        // if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
       }
     }
     if (newPayload) {
@@ -438,8 +448,8 @@ export class AqaraS1ScenePanelController {
       for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
         const panelResourceItem = panelsToUpdate[i];
         const pathComponents = panelResourceItem.split('/');
-        if (pathComponents[4].startsWith('light')) {
-          const lightNo = pathComponents[4].charAt(pathComponents[4].length - 1);
+        if (pathComponents[2].startsWith('light')) {
+          const lightNo = pathComponents[2].charAt(pathComponents[2].length - 1);
           const lightsControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem];
           let shouldUpdatePanelState = true;
           for (let ii = lightsControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
@@ -454,7 +464,7 @@ export class AqaraS1ScenePanelController {
           }
 
           if (shouldUpdatePanelState) {
-            this.sendLightDataToPanel(panelResourceItem, lightNo, parameter, content);
+            this.sendLightDataToPanel(pathComponents[1], lightNo, parameter, content);
           }
         }
       }
@@ -558,6 +568,37 @@ export class AqaraS1ScenePanelController {
               }
               this.endpointsToPanels[endpoint].push('/' + panelIeee + '/' + panelControl);
             }
+          }
+        }
+      }
+
+      // Now subscribe to events related to panels to be able to update panel state in case of controlled device have changed not from a panel...
+      for (const endpoint in this.endpointsToPanels) {
+        const deviceIeee = endpoint.split('/')[0];
+        if (!this.lastStates[deviceIeee]) {
+          this.lastStates[deviceIeee] = {};
+          const device = this.getDeviceEntity(deviceIeee);
+          if (device) {
+            this.platform.z2m.on('MESSAGE-' + device.entityName, (payload: Payload) => {
+              if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
+              // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
+              for (const key in payload) {
+                const value = payload[key];
+                if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastStates[deviceIeee][key]) {
+                  this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
+                  this.switchStateChanged(deviceIeee || '', key, value, payload);
+                }
+              }
+              // // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
+              // for (const key in payload) {
+              //   const value = payload[key];
+              //   if (value !== null && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')/* && value !== this.lastPayload[key]*/) {
+              //     this.log.info('Value ' + key + ' changed to ' + value + '.');
+              //     this.switchStateChanged(this.entityName + '/' + key, value, payload);
+              //   }
+              // }
+              this.lastStates[deviceIeee] = deepCopy(payload);
+            });
           }
         }
       }
