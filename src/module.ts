@@ -79,8 +79,8 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   aqaraS1ExecutedConfigurationsData?: { [key: string]: { [key: string]: string[] | { [key: number]: string } } };
   switchesLinks?: { [key: string]: SwitchingControllerSwitchLinkConfig };
   switchesActions?: { [key: string]: SwitchingControllerSwitchConfig };
-  switchesOnCommands?: { [key: string]: { [key: string]: string } };
-  switchesOffCommands?: { [key: string]: { [key: string]: string } };
+  switchesOnStateCommands?: { [key: string]: { [key: string]: string } };
+  switchesOffStateCommands?: { [key: string]: { [key: string]: string } };
   // End of Added by me: Arye Levin
 }
 

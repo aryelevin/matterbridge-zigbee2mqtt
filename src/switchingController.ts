@@ -465,6 +465,7 @@ export class SwitchingController {
       }
     }
   }
+
   processIncomingButtonEvent(switchIeee: string, buttonEvent: string) {
     const actionsConfigPreConfiguredSwitchType = this.switchesActionsConfig[switchIeee];
     const switchTypeInt = actionsConfigPreConfiguredSwitchType?.switchType; // 0 = Old IKEA round 5 button remote, 1 = Hue Switch Remote, 2 = New IKEA rect 4 buttons (Supports the 2 buttons one [No CT control])

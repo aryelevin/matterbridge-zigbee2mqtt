@@ -24,8 +24,8 @@ export class PlatformControls {
 
   constructor(platform: ZigbeePlatform) {
     this.platform = platform;
-    this.switchesOnCommandsConfig = this.platform.config.switchesOnCommands;
-    this.switchesOffCommandsConfig = this.platform.config.switchesOffCommands;
+    this.switchesOnCommandsConfig = this.platform.config.switchesOnStateCommands;
+    this.switchesOffCommandsConfig = this.platform.config.switchesOffStateCommands;
 
     this.device = new MatterbridgeEndpoint([bridgedNode, powerSource], { id: 'Platform Controls' }, this.platform.config.debug);
     this.device.createDefaultIdentifyClusterServer().createDefaultPowerSourceWiredClusterServer();
@@ -72,7 +72,18 @@ export class PlatformControls {
     if (commandsToExecute) {
       for (const cmdPath in commandsToExecute) {
         const cmdObject = commandsToExecute[cmdPath] as Payload;
-        this.platform.publish(cmdPath, 'set', payloadStringify(cmdObject));
+        // Convert primitives from string...
+        for (const key in cmdObject) {
+          const value = cmdObject[key];
+          if (value === 'true') {
+            cmdObject[key] = true;
+          } else if (value === 'false') {
+            cmdObject[key] = false;
+          } else if (String(Number(value)) === value) {
+            cmdObject[key] = Number(value);
+          }
+          this.platform.publish(cmdPath, 'set', payloadStringify({ [key]: cmdObject[key] }));
+        }
       }
     } else {
       this.swicthesOnEndpoint.log.debug('No commands to execute');
