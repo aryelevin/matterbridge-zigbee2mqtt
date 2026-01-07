@@ -156,17 +156,17 @@ export class AqaraS1ScenePanelController {
         if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '04010055', '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
       } else if (key.startsWith('brightness')) {
         const lightEntity = this.getDeviceEntity(deviceIeee);
-        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e010055', '000000' + value.toString(16).padStart(2, '0'), 'brightness');
+        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e010055', '000000' + (Math.round((value as number) / 2.54)).toString(16).padStart(2, '0'), 'brightness');
       } else if (key.startsWith('color_temp')) {
         const lightEntity = this.getDeviceEntity(deviceIeee);
         if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
       } else if (key.startsWith('color')) {
-        // const lightEntity = this.getDeviceEntity(deviceIeee);
-        // if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
+        const color = newPayload.color as { [key: string]: number };
+        const colorX = color?.x;
+        const colorY = color?.y;
+        const lightEntity = this.getDeviceEntity(deviceIeee);
+        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e080055', Math.round(colorX * 65535).toString(16).padStart(4, '0') + Math.round(colorY * 65535).toString(16).padStart(4, '0'), 'color');
       }
-    }
-    if (newPayload) {
-      //
     }
   }
 
@@ -411,12 +411,6 @@ export class AqaraS1ScenePanelController {
     this._writeDataToPanel(deviceIeeeAddress, data);
   }
 
-  sendLightColorToPanel(deviceIeeeAddress: string, lightEndpoint: MatterbridgeEndpoint) {
-    let data = '';
-    data += lightEndpoint.uniqueId;
-    this._writeDataToPanel(deviceIeeeAddress, data);
-  }
-
   sendLightOnOffStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
     const onOff = lightEndpoint.getAttribute(OnOff.Cluster.id, 'onOff');
     this.log.info('On/Off: ' + onOff);
@@ -435,13 +429,16 @@ export class AqaraS1ScenePanelController {
     this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e020055', '0000' + colorTemperature.toString(16).padStart(4, '0'));
   }
 
-  // updatePanelColorState (pathComponents) {
-  //   this.log('Color Hue: ' + this.values.hue + ', Color Saturation: ' + this.values.saturation)
+  sendLightColorStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
+    const colorX = lightEndpoint.getAttribute(ColorControl.Cluster.id, 'currentX');
+    const colorY = lightEndpoint.getAttribute(ColorControl.Cluster.id, 'currentY');
+    this.log.info('Color X: ' + colorX + ', Color Y: ' + colorY);
+    // this.log.info('Color Hue: ' + this.values.hue + ', Color Saturation: ' + this.values.saturation);
 
-  //   const xy = hsvToXy(this.values.hue, this.values.saturation, this.capabilities.gamut)
-  //   this.log('Color X: ' + xy[0] + ', Color Y: ' + xy[1])
-  //   this.sendLightDataToPanel(pathComponents, '0e080055', Math.round(xy[0] * 65535).toString(16).padStart(4, '0') + Math.round(xy[1] * 65535).toString(16).padStart(4, '0'))
-  // }
+    // const xy = hsvToXy(this.values.hue, this.values.saturation, this.capabilities.gamut)
+    // this.log('Color X: ' + xy[0] + ', Color Y: ' + xy[1])
+    this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e080055', Math.round(colorX * 65535).toString(16).padStart(4, '0') + Math.round(colorY * 65535).toString(16).padStart(4, '0'));
+  }
 
   sendLightStateToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], parameter: string, content: string, valueToCheck: string, secondValueToCheck?: string) {
     if (panelsToUpdate?.length) {
@@ -1274,6 +1271,7 @@ export class AqaraS1ScenePanelController {
             const panelDevicePath = '/' + deviceIeeeAddress + '/light_' + lightNo;
             const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0];
             const deviceToControl = this.getDeviceEntity(deviceIeee);
+            // TODO: Child endpoints!!!
 
             if (deviceToControl /* && accessoryToControl.values.serviceName === 'Light'*/) {
               const endpointToControl = deviceToControl;
@@ -1289,7 +1287,7 @@ export class AqaraS1ScenePanelController {
                   this.sendLightColorTemperatureStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
                 } else if (stateParam[0] === 0x0e && stateParam[1] === 0x08 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Color
                   // accessoryToControl.service.updatePanelColorState(panelDevicePath.split('/'));
-                  this.sendLightColorToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
+                  this.sendLightColorStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
                 }
               }
             }
