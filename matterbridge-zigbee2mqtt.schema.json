@@ -339,6 +339,150 @@
                 "type": "string",
                 "default": "AC"
               },
+              "modes": {
+                "description": "Modes",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "oneOf": [
+                    {
+                      "title": "Heat",
+                      "enum": ["heat"]
+                    },
+                    {
+                      "title": "Cool",
+                      "enum": ["cool"]
+                    },
+                    {
+                      "title": "Auto",
+                      "enum": ["auto"]
+                    },
+                    {
+                      "title": "Dry",
+                      "enum": ["dry"]
+                    },
+                    {
+                      "title": "Fan",
+                      "enum": ["fan"]
+                    }
+                  ],
+                  "default": "heat"
+                },
+                "uniqueItems": true
+              },
+              "fan_modes": {
+                "description": "Fan Modes",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "oneOf": [
+                    {
+                      "title": "Low",
+                      "enum": ["low"]
+                    },
+                    {
+                      "title": "Medium",
+                      "enum": ["medium"]
+                    },
+                    {
+                      "title": "High",
+                      "enum": ["high"]
+                    },
+                    {
+                      "title": "Auto",
+                      "enum": ["auto"]
+                    }
+                  ],
+                  "default": "high"
+                },
+                "uniqueItems": true
+              },
+              "temperature_ranges": {
+                "description": "Temperature Ranges",
+                "type": "object",
+                "properties": {
+                  "heat": {
+                    "description": "Heat Mode Temperature Ranges",
+                    "type": "object",
+                    "properties": {
+                      "lowest": {
+                        "description": "The Lowest Temperature Allowed In Heat Mode",
+                        "type": "number",
+                        "default": 16
+                      },
+                      "highest": {
+                        "description": "The Highest Temperature Allowed In Heat Mode",
+                        "type": "number",
+                        "default": 30
+                      }
+                    }
+                  },
+                  "cool": {
+                    "description": "Cool Mode Temperature Ranges",
+                    "type": "object",
+                    "properties": {
+                      "lowest": {
+                        "description": "The Lowest Temperature Allowed In Cool Mode",
+                        "type": "number",
+                        "default": 16
+                      },
+                      "highest": {
+                        "description": "The Highest Temperature Allowed In Cool Mode",
+                        "type": "number",
+                        "default": 30
+                      }
+                    }
+                  },
+                  "auto": {
+                    "description": "Auto Mode Temperature Ranges",
+                    "type": "object",
+                    "properties": {
+                      "lowest": {
+                        "description": "The Lowest Temperature Allowed In Auto Mode",
+                        "type": "number",
+                        "default": 16
+                      },
+                      "highest": {
+                        "description": "The Highest Temperature Allowed In Auto Mode",
+                        "type": "number",
+                        "default": 30
+                      }
+                    }
+                  },
+                  "dry": {
+                    "description": "Dry Mode Temperature Ranges",
+                    "type": "object",
+                    "properties": {
+                      "lowest": {
+                        "description": "The Lowest Temperature Allowed In Dry Mode",
+                        "type": "number",
+                        "default": 16
+                      },
+                      "highest": {
+                        "description": "The Highest Temperature Allowed In Dry Mode",
+                        "type": "number",
+                        "default": 30
+                      }
+                    }
+                  },
+                  "fan": {
+                    "description": "Fan Mode Temperature Ranges",
+                    "type": "object",
+                    "properties": {
+                      "lowest": {
+                        "description": "The Lowest Temperature Allowed In Fan Mode",
+                        "type": "number",
+                        "default": 16
+                      },
+                      "highest": {
+                        "description": "The Highest Temperature Allowed In Fan Mode",
+                        "type": "number",
+                        "default": 30
+                      }
+                    }
+                  }
+                }
+              },
               "endpoints": {
                 "description": "Endpoints",
                 "type": "array",
