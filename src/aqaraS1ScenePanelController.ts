@@ -19,27 +19,6 @@ import { Payload, PayloadValue } from './payloadTypes.js';
 
 // import { xyToHsl } from 'matterbridge/utils';
 
-declare module './entity.js' {
-  interface ZigbeeEntity {
-    sendAqaraS1CommunicationData(data: string, cache: boolean): void;
-  }
-}
-
-// declare interface ZigbeeEntity {
-//   sendAqaraS1CommunicationData(data: string): string;
-// }
-
-ZigbeeEntity.prototype.sendAqaraS1CommunicationData = function (data: string, cache: boolean): void {
-  // this.saveCommands('off', dataToSend);
-  // this.log.debug(`Aqara S1 Scene Panel Command send called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${dataToSend.endpoint?.maybeId}:${dataToSend.endpoint?.maybeNumber}`);
-  // const isChildEndpoint = dataToSend.endpoint.deviceName !== this.entityName;
-  if (cache) {
-    this.cachePublish('communication', { communication: data });
-  } else {
-    this.publishCommand('communication', this.device?.friendly_name as string, { communication: data });
-  }
-};
-
 type AqaraS1ScenePanelLightType = 'ct' | 'color' | 'dimmable' | 'onoff';
 type AqaraS1ScenePanelCurtainType = 'curtain' | 'roller';
 type AqaraS1ScenePanelACModes = 'cool' | 'heat' | 'dry' | 'fan' | 'auto';
@@ -374,7 +353,7 @@ export class AqaraS1ScenePanelController {
 
   sendFeelPageDataToPanel(deviceIeeeAddress: string, device: string, parameter: string, content: string) {
     const dataToSend = this.generateAqaraS1ScenePanelCommands('08', device + parameter + content)[0];
-    this._writeDataToPanel(deviceIeeeAddress, dataToSend, false);
+    this._writeDataToPanel(deviceIeeeAddress, dataToSend);
   }
 
   sendStateToPanel(deviceIeeeAddress: string, device: string, parameter: string, content: string) {
@@ -382,19 +361,9 @@ export class AqaraS1ScenePanelController {
     this._writeDataToPanel(deviceIeeeAddress, dataToSend);
   }
 
-  _writeDataToPanel(deviceIeeeAddress: string, dataToSend: string, cache: boolean = true) {
+  _writeDataToPanel(deviceIeeeAddress: string, dataToSend: string) {
     this.log.debug('Going to set "' + dataToSend + '" at panel: ' + deviceIeeeAddress);
-    const device = this.getDeviceEntity(deviceIeeeAddress);
-    device?.sendAqaraS1CommunicationData(dataToSend, cache);
-    // this.client
-    //   .put(panelResourcePath, { preset: dataToSend })
-    //   .then((obj) => {
-    //     // that.context.fullState[pathComponents[2]][pathComponents[3]].config.preset = dataToSend
-    //     this.log.info('Successfully set "' + dataToSend + '" at panel: ' + panelResourcePath);
-    //   })
-    //   .catch((error) => {
-    //     this.log.error('Error setting panel switch state %s: %s', panelResourcePath, error);
-    // })
+    this.publishCommand(deviceIeeeAddress, { communication: dataToSend });
   }
 
   sendACStateToPanel(deviceIeeeAddress: string, acEndpoint: MatterbridgeEndpoint) {
@@ -784,20 +753,15 @@ export class AqaraS1ScenePanelController {
                     const deviceIndex = i;
                     const executeCommand = (index: number) => {
                       this.log.info('Going to send: ' + dataToSend);
-                      this.getDeviceEntity(panelIeeeAddresss)?.sendAqaraS1CommunicationData(dataToSend, false);
-                      // this.client.put(panel + '/config', { preset: dataToSend }).then((obj) => {
-                          parsedData.names[deviceIndex] = name;
-                          this.saveContext();
-                          if (index < commandsFunctionsToExecute.length) {
-                            setTimeout(() => {
-                              commandsFunctionsToExecute[index](index + 1);
-                            }, 1000);
-                          }
-                      //   })
-                      //   .catch((error) => {
-                      //     // TODO: Retry??? Continue to the next command???
-                      //     this.log.error(error);
-                      //   });
+                      this.publishCommand(panelIeeeAddresss, { communication: dataToSend });
+                      // TODO: Maybe wait for the MQTT to send it back before executing further (use it as ACK..)
+                      parsedData.names[deviceIndex] = name;
+                      this.saveContext();
+                      if (index < commandsFunctionsToExecute.length) {
+                        setTimeout(() => {
+                          commandsFunctionsToExecute[index](index + 1);
+                        }, 1000);
+                      }
                     };
                     commandsFunctionsToExecute.push(executeCommand);
                   }
@@ -946,7 +910,7 @@ export class AqaraS1ScenePanelController {
       // send the commands on the queue...
       const dataToSend = currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index];
       this.log.debug('Going to send: ' + dataToSend + ' to panel IEEE: ' + currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss);
-      device.sendAqaraS1CommunicationData(dataToSend, false);
+      this.publishCommand(currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss, { communication: dataToSend });
       // this.client.put(currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss + '/config', { preset: dataToSend }).then((obj) => {
       //   this.log.info('Sent: ' + dataToSend + ' to panel IEEE: ' + currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss + ', which is a command of device index: ' + currentConfiguredDeviceCommandsArray.meta.deviceIndex + ', command no. ' + (currentConfiguredDeviceCommandsArray.meta.index + 1) + ' of ' + currentConfiguredDeviceCommandsArray.commandsToExecute.length + ' commands');
       //   })
@@ -1456,11 +1420,11 @@ export class AqaraS1ScenePanelController {
           // const deviceSerialStr = this.toHexStringFromBytes(deviceSerial)
 
           if (dataArray[dataStartIndex + 9] === 0x01) { // A device is missing... (We sent a state to unconfigured device. For example, we sent a light on/off state for light_1 while it isn't configured on the panel, so, we should (re)configure it...
-
+            //
           } else if (dataArray[dataStartIndex + 9] === 0x00) {
             this.log.info('State update ACK, Param: 0x' + dataArray[dataStartIndex + 18] + '.');
             if (!this.aqaraS1ActionsConfigData[deviceIeeeAddress] || (deviceResourceType.startsWith('lights/') && !this.aqaraS1ActionsConfigData[deviceIeeeAddress][('light_' + deviceResourceType.charAt(deviceResourceType.length - 1) as AqaraS1ScenePanelConfigKey)]) || (deviceResourceType.startsWith('curtain') && !this.aqaraS1ActionsConfigData[deviceIeeeAddress][('curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)) as AqaraS1ScenePanelConfigKey]) || (deviceResourceType === 'air_cond' && !this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac)) { // A device is configured on the panel, but shouldn't be there (removed from config...), so, we should remove its configuration...
-
+              //
             }
           }
         } else if (commandCategory === 0x71 && commandAction === 0x08) { // ACKs for feel page updates commmands...
