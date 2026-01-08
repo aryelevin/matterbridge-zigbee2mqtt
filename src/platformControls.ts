@@ -9,10 +9,10 @@ import { bridgedNode, MatterbridgeEndpoint, powerSource, onOffSwitch } from 'mat
 import { LocationTag } from 'matterbridge/matter';
 import { OnOff } from 'matterbridge/matter/clusters';
 // import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
+import { payloadStringify } from 'node-ansi-logger';
 
 import { ZigbeePlatform } from './module.js';
 import { Payload } from './payloadTypes.js';
-import { payloadStringify } from 'node-ansi-logger';
 
 export class PlatformControls {
   platform: ZigbeePlatform;

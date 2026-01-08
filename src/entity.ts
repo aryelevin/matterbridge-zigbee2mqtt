@@ -1584,7 +1584,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.hasEndpoints = true;
         // Mapping actions
         // Added by me: Arye Levin
-        const supportedActionsDescriptions: { [key: string]: string } = { single: 'Single Press', press: 'Single Press', click: 'Single Press', double: 'Double Press', triple: 'Triple Press', hold: 'Long Press  ' };
+        const supportedActionsDescriptions: { [key: string]: string } = {
+          single: 'Single Press',
+          press: 'Single Press',
+          click: 'Single Press',
+          double: 'Double Press',
+          triple: 'Triple Press',
+          hold: 'Long Press  ',
+        };
         const supportedActions: { [key: string]: string } = { single: 'Single', press: 'Single', click: 'Single', double: 'Double', triple: 'Triple', hold: 'Long' };
         const switchesActions: { [key: string]: { switchNo: number; switchActions: { actionName: string; actionItem: string }[] } } = {};
         let supportedSwitchesCount = 1;

@@ -10,12 +10,12 @@ import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
 import { MatterbridgeEndpoint } from 'matterbridge';
 import { BridgedDeviceBasicInformation, ColorControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { EndpointNumber } from 'matterbridge/matter';
+import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
 // import { nextTick } from 'node:process';
 import { Payload, PayloadValue } from './payloadTypes.js';
-import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 // import { xyToHsl } from 'matterbridge/utils';
 
@@ -171,8 +171,12 @@ export class AqaraS1ScenePanelController {
   }
 
   getDeviceEntity(ieee_address: string) {
-    const entity = this.platform.zigbeeEntities?.find((entity) => entity.device?.ieee_address === ieee_address);
+    const entity = ieee_address.startsWith('group-') ? this.platform.zigbeeEntities?.find((entity) => entity.group?.id === Number(ieee_address.split('-')[1])) : this.platform.zigbeeEntities?.find((entity) => entity.device?.ieee_address === ieee_address);
     return entity;
+  }
+
+  publishCommand(device_ieee_address: string, payload: Payload) {
+    this.platform.publish(device_ieee_address, 'set', JSON.stringify(payload));
   }
 
   updateWeather() {
@@ -1121,20 +1125,24 @@ export class AqaraS1ScenePanelController {
 
                 if (entityToControl) {
                   if (onOff !== undefined) {
-                    entityToControl.sendState('cachedPublishLight', { ['state' + entityEndpointSuffix]: onOff ? 'ON' : 'OFF' }, false);
+                    this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: onOff ? 'ON' : 'OFF' });
+                    // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
                   }
                   if (brightness !== undefined) {
-                    entityToControl.sendState('cachedPublishLight', { ['brightness' + entityEndpointSuffix]: Math.round((Math.max(3, Math.min(254, (brightness * 2.54))) / 254) * 255) }, false);
+                    this.publishCommand(entityIeee, { ['brightness' + entityEndpointSuffix]: Math.round((Math.max(3, Math.min(254, (brightness * 2.54))) / 254) * 255) });
+                    // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
                   }
                   if (colorTemperature !== undefined) {
-                    entityToControl.sendState('cachedPublishLight', { ['color_temp' + entityEndpointSuffix]: colorTemperature }, false);
+                    this.publishCommand(entityIeee, { ['color_temp' + entityEndpointSuffix]: colorTemperature });
+                    // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
                   }
                   if (colorX !== undefined && colorY !== undefined) {
-                    entityToControl.sendState('cachedPublishLight', { ['color' + entityEndpointSuffix]: { x: Math.round(colorX / 65536 * 10000) / 10000, y: Math.round(colorY / 65536 * 10000) / 10000 } }, false);
+                    this.publishCommand(entityIeee, { ['color' + entityEndpointSuffix]: { x: Math.round(colorX / 65536 * 10000) / 10000, y: Math.round(colorY / 65536 * 10000) / 10000 } });
+                    // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
