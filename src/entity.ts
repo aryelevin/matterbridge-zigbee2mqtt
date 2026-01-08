@@ -204,7 +204,10 @@ export class ZigbeeEntity extends EventEmitter {
     });
     this.log.debug(`Created MatterEntity: ${this.entityName}`);
 
-    this.platform.z2m.on('MESSAGE-' + this.entityName, (payload: Payload) => {
+    this.platform.z2m.on('MESSAGE-' + this.entityName, (incomingPayload: Payload) => { // Changed by me: Arye Levin (from payload to incomingPayload)
+      // Added by me: Arye Levin
+      const payload = deepCopy(incomingPayload);
+      // End of Added by me: Arye Levin
       // Check if the message is a duplicate that can be ingored cause only linkquality and last_seen have changed (action is always passed)
       const now = Date.now();
       if (
