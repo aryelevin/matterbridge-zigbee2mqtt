@@ -81,7 +81,6 @@ export class SwitchingController {
   switchesLinksConfig: { [key: string]: SwitchingControllerSwitchLinkConfig }; // {"0x541234567890abcd/l2_brightness": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
   switchesLinksConfigData: { [key: string]: string[] };
   switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {'0x541234567890abcd': {'enabled': true, switchType: 2, 'linkedDevices': {'0x54abcd0987654321/l1': '', '0x54abcd0987654322/center': ''}}, '0x541234567890abcd/single': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/state_l1': 'ON', '0x54abcd0987654322/l3': 'toggle_on'}}, '0x541234567890abcd/hold': {'enabled': true, 'repeat': true, 'linkedDevices': {'0x54abcd0987654321/brightness_l1': 254, '0x54abcd0987654322/center': 'bri_up'}}, '0x541234567890abcd/double': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/characteristic': {state_left: ON}, '0x54abcd0987654322/l2': 'bri_up'}}}
-  // switchesActionsConfigData: { [key: string]: { [key: string]: PayloadValue } } = {};
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
   lastStates: { [key: string]: Payload } = {};
   entitiesExecutionValues: { [key: string]: PayloadValue } = {};
@@ -95,7 +94,6 @@ export class SwitchingController {
     this.switchesLinksConfig = switchesLinksConfig;
     this.switchesLinksConfigData = {};
     this.switchesActionsConfig = switchesActionsConfig;
-    // this.switchesActionsConfigData = {};
 
     for (const sourceDevice in this.switchesLinksConfig) {
       const linkConfig = this.switchesLinksConfig[sourceDevice];

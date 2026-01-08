@@ -508,6 +508,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         } else {
           this.log.info('Shabbat Mode off called');
         }
+        this.platformControls?.setOnOff(onOff);
+        this.platformControls?.onOffDidSet(onOff);
       });
 
       // this.shabbatModeDummySwitch.device.commandHandler.removeHandler('on', () => {}); // will not work as we don't have reference to the function...
