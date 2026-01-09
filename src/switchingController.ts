@@ -214,6 +214,10 @@ export class SwitchingController {
               if (endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState) { // Allow change from the platform itself...
                 newPayload[key] = lastPayloadValue;
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
+              } else if (this.lastStates[deviceIeee]) {
+                // Update linked switches...
+                this.switchStateChanged(deviceIeee, key, value, newPayload);
+                this.lastStates[deviceIeee][key] = value;
               }
             } else if (key.startsWith('brightness')) {
               // TODO:
@@ -253,7 +257,7 @@ export class SwitchingController {
       return;
     }
 
-    if (this.platform.platformControls?.switchesOn !== false) {
+    // if (this.platform.platformControls?.switchesOn !== false) {
       const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
       for (let i = linkedDevices.length - 1; i >= 0; i--) {
         const linkedDeviceItem = linkedDevices[i];
@@ -290,7 +294,7 @@ export class SwitchingController {
           delete this.entitiesExecutionValues[entity];
         }, 2000);
       }
-    }
+    // }
 
     // const panelDevice = this.getDeviceEntity(deviceEndpointPath);
     // const sceneNo = parseInt(data[data.length - 1]);
