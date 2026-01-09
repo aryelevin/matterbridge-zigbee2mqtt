@@ -257,47 +257,51 @@ export class SwitchingController {
       return;
     }
 
-    // if (this.platform.platformControls?.switchesOn !== false) {
-      const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
-      for (let i = linkedDevices.length - 1; i >= 0; i--) {
-        const linkedDeviceItem = linkedDevices[i];
-        const linkedDevicePathComponents = linkedDeviceItem.split('/');
-        const linkedDeviceIeee = linkedDevicePathComponents[0];
-        const paramToControl = linkedDevicePathComponents[1];
+    const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
+    for (let i = linkedDevices.length - 1; i >= 0; i--) {
+      const linkedDeviceItem = linkedDevices[i];
+      const linkedDevicePathComponents = linkedDeviceItem.split('/');
+      const linkedDeviceIeee = linkedDevicePathComponents[0];
+      const paramToControl = linkedDevicePathComponents[1];
 
-        if (
-          (linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) ||
-          (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.[paramToControl] !== value)
-        ) {
-          // Don't update whats not needed to be updated...
-          if (!payloads[linkedDeviceIeee]) {
-            payloads[linkedDeviceIeee] = {};
-          }
-          payloads[linkedDeviceIeee][paramToControl] = value;
+      if (
+        (linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) ||
+        (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.[paramToControl] !== value)
+      ) {
+        // Don't update whats not needed to be updated...
+        if (!payloads[linkedDeviceIeee]) {
+          payloads[linkedDeviceIeee] = {};
+        }
+        payloads[linkedDeviceIeee][paramToControl] = value;
+      }
+    }
+
+    for (const entity in payloads) {
+      const payload = payloads[entity];
+      for (const endpoint in payload) {
+        const value = payload[endpoint];
+        this.publishCommand(entity, { [endpoint]: value });
+        if (this.lastStates[entity]) {
+          this.lastStates[entity][endpoint] = value;
+          this.switchStateChanged(entity, endpoint, value, this.lastStates[entity]);
+          // // Check if there's linkes from this controlled entity to another (chained events), but make sure it isn't already in this payloads which will make it happen twice and will screw up the logic
+          // const linkedDevices = this.switchesLinksConfigData[entity + '/' + endpoint];
+          // if (linkedDevices.length) {
+
+          // }
         }
       }
-
-      for (const entity in payloads) {
-        const payload = payloads[entity];
-        for (const endpoint in payload) {
-          const value = payload[endpoint];
-          this.publishCommand(entity, { [endpoint]: value });
-          if (this.lastStates[entity]) {
-            this.lastStates[entity][endpoint] = value;
-          }
-        }
-        // If the linked light is same device/entity as the source, then make no update to be false to allow the state of the linked lights to be up to date...
-        if (deviceIeee === entity) {
-          const device = this.getDeviceEntity(deviceIeee);
-          device?.setNoUpdate(false);
-        }
-        this.entitiesExecutionValues[entity] = value;
-        setTimeout(() => {
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          delete this.entitiesExecutionValues[entity];
-        }, 2000);
+      // If the linked light is same device/entity as the source, then make no update to be false to allow the state of the linked lights to be up to date...
+      if (deviceIeee === entity) {
+        const device = this.getDeviceEntity(deviceIeee);
+        device?.setNoUpdate(false);
       }
-    // }
+      this.entitiesExecutionValues[entity] = value;
+      setTimeout(() => {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete this.entitiesExecutionValues[entity];
+      }, 2000);
+    }
 
     // const panelDevice = this.getDeviceEntity(deviceEndpointPath);
     // const sceneNo = parseInt(data[data.length - 1]);
