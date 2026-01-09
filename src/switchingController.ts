@@ -206,7 +206,7 @@ export class SwitchingController {
         for (const key in newPayload) {
           const keyComponents = key.split('_');
           const value = newPayload[key];
-          const lastPayloadValue = device?.getLastPayloadItem(key);
+          const lastPayloadValue = this.lastStates[entityIeee] ? this.lastStates[entityIeee][key] : device.getLastPayloadItem(key);
           if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue) {
             this.log.info(device.entityName + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
             if (key.startsWith('state')) {
