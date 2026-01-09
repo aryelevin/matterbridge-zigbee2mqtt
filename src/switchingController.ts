@@ -282,6 +282,9 @@ export class SwitchingController {
         for (const endpoint in payload) {
           const value = payload[endpoint];
           this.publishCommand(entity, { [endpoint]: value });
+          if (this.lastStates[entity]) {
+            this.lastStates[entity][endpoint] = value;
+          }
         }
         // If the linked light is same device/entity as the source, then make no update to be false to allow the state of the linked lights to be up to date...
         if (deviceIeee === entity) {
