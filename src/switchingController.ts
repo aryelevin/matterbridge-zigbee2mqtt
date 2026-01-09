@@ -201,23 +201,24 @@ export class SwitchingController {
   checkSwitchShabbatMode(deviceIeee: string, newPayload: Payload) {
     if (this.platform.platformControls?.switchesOn === false) {
       const device = this.getDeviceEntity(deviceIeee);
+      const entityIeee = device?.device ? device.device.ieee_address : device?.group ? device.group.friendly_name : deviceIeee;
       if (device) {
         for (const key in newPayload) {
           const keyComponents = key.split('_');
           const value = newPayload[key];
           const lastPayloadValue = device?.getLastPayloadItem(key);
           if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue) {
-            this.log.info((device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
+            this.log.info(device.entityName + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
             if (key.startsWith('state')) {
               const newOnOffState = value === 'ON';
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
               if (endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState) { // Allow change from the platform itself...
                 newPayload[key] = lastPayloadValue;
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
-              } else if (this.lastStates[deviceIeee]) {
+              } else if (this.lastStates[entityIeee]) {
                 // Update linked switches...
-                this.switchStateChanged(deviceIeee, key, value, newPayload);
-                this.lastStates[deviceIeee][key] = value;
+                this.switchStateChanged(entityIeee, key, value, newPayload);
+                this.lastStates[entityIeee][key] = value;
               }
             } else if (key.startsWith('brightness')) {
               // TODO:
