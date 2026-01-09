@@ -203,13 +203,24 @@ export class SwitchingController {
       const device = this.getDeviceEntity(deviceIeee);
       if (device) {
         for (const key in newPayload) {
+          const keyComponents = key.split('_');
           const value = newPayload[key];
           const lastPayloadValue = device?.getLastPayloadItem(key);
           if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue) {
             this.log.info((device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
-            if (key.startsWith('state') || key.startsWith('brightness') || key.startsWith('color_temp') || (key.startsWith('color') && !key.startsWith('color_mode'))) {
-              newPayload[key] = lastPayloadValue;
-              this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
+            if (key.startsWith('state')) {
+              const newOnOffState = value === 'ON';
+              const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
+              if (endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState) { // Allow change from the platform itself...
+                newPayload[key] = lastPayloadValue;
+                this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
+              }
+            } else if (key.startsWith('brightness')) {
+              // TODO:
+            } else if (key.startsWith('color_temp')) {
+              // TODO:
+            } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
+              // TODO:
             }
           }
         }
