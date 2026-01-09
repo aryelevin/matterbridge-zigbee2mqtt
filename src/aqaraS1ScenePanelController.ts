@@ -125,7 +125,7 @@ export class AqaraS1ScenePanelController {
   switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
     let endpointName = '';
     const keyComponents = key.split('_');
-    if (keyComponents.length > 1 && key !== 'color_temp') {
+    if (keyComponents.length > 1 && key !== 'color_temp' && key !== 'color_mode') {
       endpointName = '/' + keyComponents[keyComponents.length - 1];
     }
     const linkedPanels = this.endpointsToPanels[deviceIeee + endpointName];

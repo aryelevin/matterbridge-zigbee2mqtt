@@ -219,6 +219,9 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
       this.lastSeen = Date.now();
+      // Added by me: Arye Levin
+      this.platform.switchingController?.checkSwitchShabbatMode(this.device ? this.device.ieee_address : this.group ? 'group-' + this.group.id : this.entityName, payload);
+      // End of Added by me: Arye Levin
 
       // Check and deep copy the payload
       if (deepEqual(this.lastPayload, payload, this.ignoreFeatures)) return;

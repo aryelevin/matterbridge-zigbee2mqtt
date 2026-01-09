@@ -149,42 +149,70 @@ export class SwitchingController {
   }
 
   setSwitchingControllerConfiguration() {
-    const devicesToListenToEvents = [];
+    const devicesToListenToEvents: { [key: string]: boolean } = {};
+    // for (const allEntitiesItem of this.platform.zigbeeEntities) {
+    //   const sourceDevice = allEntitiesItem.device ? allEntitiesItem.device.ieee_address : allEntitiesItem.group ? 'group-' + allEntitiesItem.group.id : allEntitiesItem.entityName;
+    //   devicesToListenToEvents[sourceDevice.split('/')[0]] = false;
+    // }
     for (const sourceDevice in this.switchesLinksConfigData) {
-      devicesToListenToEvents.push(sourceDevice.split('/')[0]);
+      devicesToListenToEvents[sourceDevice.split('/')[0]] = true;
     }
     for (const sourceDevice in this.switchesActionsConfig) {
-      devicesToListenToEvents.push(sourceDevice.split('/')[0]);
+      devicesToListenToEvents[sourceDevice.split('/')[0]] = true;
     }
-    for (const deviceIeee of devicesToListenToEvents) {
+    for (const deviceIeee in devicesToListenToEvents) {
       if (!this.lastStates[deviceIeee]) {
         this.lastStates[deviceIeee] = {};
         const device = this.getDeviceEntity(deviceIeee);
         this.platform.z2m.on('MESSAGE-' + (device !== undefined ? device.entityName : deviceIeee), (payload: Payload) => {
-          if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
-          // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
-          for (const key in payload) {
-            const value = payload[key];
-            if (
-              (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
-              (key === 'action' ||
-                (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) ||
-                value !== this.lastStates[deviceIeee][key])
-            ) {
-              this.log.info((device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
-              this.switchStateChanged(deviceIeee || '', key, value, payload);
+          if (this.platform.platformControls?.switchesOn !== false) {
+            if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
+            // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
+            for (const key in payload) {
+              const value = payload[key];
+              if (
+                (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
+                (key === 'action' ||
+                  (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) ||
+                  value !== this.lastStates[deviceIeee][key])
+              ) {
+                // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
+                // if (devicesToListenToEvents[deviceIeee] === true) {
+                this.log.info((device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
+                this.switchStateChanged(deviceIeee || '', key, value, payload);
+                // }
+              }
+            }
+            // // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
+            // for (const key in payload) {
+            //   const value = payload[key];
+            //   if (value !== null && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')/* && value !== this.lastPayload[key]*/) {
+            //     this.log.info('Value ' + key + ' changed to ' + value + '.');
+            //     this.switchStateChanged(this.entityName + '/' + key, value, payload);
+            //   }
+            // }
+            this.lastStates[deviceIeee] = deepCopy(payload);
+          }
+        });
+      }
+    }
+  }
+
+  checkSwitchShabbatMode(deviceIeee: string, newPayload: Payload) {
+    if (this.platform.platformControls?.switchesOn === false) {
+      const device = this.getDeviceEntity(deviceIeee);
+      if (device) {
+        for (const key in newPayload) {
+          const value = newPayload[key];
+          const lastPayloadValue = device?.getLastPayloadItem(key);
+          if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue) {
+            this.log.info((device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
+            if (key.startsWith('state') || key.startsWith('brightness') || key.startsWith('color_temp') || (key.startsWith('color') && !key.startsWith('color_mode'))) {
+              newPayload[key] = lastPayloadValue;
+              this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
             }
           }
-          // // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
-          // for (const key in payload) {
-          //   const value = payload[key];
-          //   if (value !== null && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')/* && value !== this.lastPayload[key]*/) {
-          //     this.log.info('Value ' + key + ' changed to ' + value + '.');
-          //     this.switchStateChanged(this.entityName + '/' + key, value, payload);
-          //   }
-          // }
-          this.lastStates[deviceIeee] = deepCopy(payload);
-        });
+        }
       }
     }
   }
@@ -214,7 +242,7 @@ export class SwitchingController {
       return;
     }
 
-    if (this.platform.platformControls?.switchesOn) {
+    if (this.platform.platformControls?.switchesOn !== false) {
       const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
       for (let i = linkedDevices.length - 1; i >= 0; i--) {
         const linkedDeviceItem = linkedDevices[i];
