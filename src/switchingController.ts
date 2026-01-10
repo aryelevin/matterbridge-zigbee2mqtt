@@ -234,7 +234,7 @@ export class SwitchingController {
             if (key.startsWith('state')) {
               const newOnOffState = value === 'ON';
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
-              if (endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState) { // Allow change from the platform itself...
+              if (endpointToControl && endpointToControl.hasClusterServer(OnOff.Cluster.id) && endpointToControl.hasAttributeServer(OnOff.Cluster.id, 'onOff') && endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState) { // Allow change from the platform itself...
                 newPayload[key] = lastPayloadValue;
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
               } else if (this.lastStates[entityIeee]) {
