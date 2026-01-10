@@ -23,6 +23,7 @@ declare module './entity.js' {
     updateLastPayloadItem(key: string, value: string | number | boolean): void;
     getLastPayloadItem(key: string): PayloadValue;
     setNoUpdate(noUpdate: boolean): void;
+    checkPropertyMapItem(key: string): boolean;
   }
 }
 
@@ -46,6 +47,9 @@ ZigbeeEntity.prototype.getLastPayloadItem = function (key: string): PayloadValue
 };
 ZigbeeEntity.prototype.setNoUpdate = function (noUpdate: boolean): void {
   this.noUpdate = noUpdate;
+};
+ZigbeeEntity.prototype.checkPropertyMapItem = function (key: string): boolean {
+  return this.propertyMap.get(key) !== undefined;
 };
 
 export interface SwitchingControllerSwitchLinkConfig {
@@ -171,6 +175,7 @@ export class SwitchingController {
             for (const key in payload) {
               const value = payload[key];
               if (
+                device?.checkPropertyMapItem(key) &&
                 (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
                 (key === 'action' ||
                   (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) ||
@@ -207,7 +212,7 @@ export class SwitchingController {
           const keyComponents = key.split('_');
           const value = newPayload[key];
           const lastPayloadValue = this.lastStates[entityIeee] ? this.lastStates[entityIeee][key] : device.getLastPayloadItem(key);
-          if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue) {
+          if (device.checkPropertyMapItem(key) && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue) {
             this.log.info(device.entityName + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
             if (key.startsWith('state')) {
               const newOnOffState = value === 'ON';
