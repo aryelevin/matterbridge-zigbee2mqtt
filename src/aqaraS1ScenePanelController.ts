@@ -557,7 +557,7 @@ export class AqaraS1ScenePanelController {
               for (const key in payload) {
                 const value = payload[key];
                 if (
-                  device.checkPropertyMapItem(key) &&
+                  device.checkIfPropertyItemShouldBeExposed(key) &&
                   (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
                   value !== this.lastStates[deviceIeee][key]
                 ) {
