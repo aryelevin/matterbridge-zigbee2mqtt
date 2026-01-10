@@ -195,8 +195,7 @@ export class SwitchingController {
                 (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
                 (key === 'action' ||
                   (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) ||
-                  value !== this.lastStates[deviceIeee][key]) &&
-                device?.checkIfPropertyItemShouldBeExposed(key)
+                  value !== this.lastStates[deviceIeee][key])
               ) {
                 // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
                 // if (devicesToListenToEvents[deviceIeee] === true) {
@@ -229,12 +228,22 @@ export class SwitchingController {
           const keyComponents = key.split('_');
           const value = newPayload[key];
           const lastPayloadValue = this.lastStates[entityIeee] ? this.lastStates[entityIeee][key] : device.getLastPayloadItem(key);
-          if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue && device.checkIfPropertyItemShouldBeExposed(key)) {
+          if (
+            (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
+            value !== lastPayloadValue &&
+            device.checkIfPropertyItemShouldBeExposed(key)
+          ) {
             this.log.info(device.entityName + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
             if (key.startsWith('state')) {
               const newOnOffState = value === 'ON';
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
-              if (endpointToControl && endpointToControl.hasClusterServer(OnOff.Cluster.id) && endpointToControl.hasAttributeServer(OnOff.Cluster.id, 'onOff') && endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState) { // Allow change from the platform itself...
+              if (
+                endpointToControl &&
+                endpointToControl.hasClusterServer(OnOff.Cluster.id) &&
+                endpointToControl.hasAttributeServer(OnOff.Cluster.id, 'onOff') &&
+                endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState
+              ) {
+                // Allow change from the platform itself...
                 newPayload[key] = lastPayloadValue;
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
               } else if (this.lastStates[entityIeee]) {
