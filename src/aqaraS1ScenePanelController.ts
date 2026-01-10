@@ -557,9 +557,9 @@ export class AqaraS1ScenePanelController {
               for (const key in payload) {
                 const value = payload[key];
                 if (
-                  device.checkIfPropertyItemShouldBeExposed(key) &&
                   (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
-                  value !== this.lastStates[deviceIeee][key]
+                  value !== this.lastStates[deviceIeee][key] &&
+                  device.checkIfPropertyItemShouldBeExposed(key)
                 ) {
                   this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
                   this.switchStateChanged(deviceIeee || '', key, value, payload);

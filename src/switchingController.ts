@@ -52,7 +52,13 @@ ZigbeeEntity.prototype.checkIfPropertyItemShouldBeExposed = function (key: strin
   if (this.device?.definition?.exposes?.length) {
     const exposes = this.device.definition.exposes;
     for (const expose of exposes) {
-      if (key === expose.name + (expose.endpoint && expose.endpoint.length > 0 ? '_' + expose.endpoint : '')) {
+      if (expose.features) {
+        for (const feature of expose.features) {
+          if (feature.property === key) {
+            return true;
+          }
+        }
+      } else if (key === expose.property) {
         return true;
       }
     }
@@ -183,11 +189,11 @@ export class SwitchingController {
             for (const key in payload) {
               const value = payload[key];
               if (
-                device?.checkIfPropertyItemShouldBeExposed(key) &&
                 (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
                 (key === 'action' ||
                   (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) ||
-                  value !== this.lastStates[deviceIeee][key])
+                  value !== this.lastStates[deviceIeee][key]) &&
+                device?.checkIfPropertyItemShouldBeExposed(key)
               ) {
                 // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
                 // if (devicesToListenToEvents[deviceIeee] === true) {
@@ -220,7 +226,7 @@ export class SwitchingController {
           const keyComponents = key.split('_');
           const value = newPayload[key];
           const lastPayloadValue = this.lastStates[entityIeee] ? this.lastStates[entityIeee][key] : device.getLastPayloadItem(key);
-          if (device.checkIfPropertyItemShouldBeExposed(key) && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue) {
+          if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== lastPayloadValue && device.checkIfPropertyItemShouldBeExposed(key)) {
             this.log.info(device.entityName + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
             if (key.startsWith('state')) {
               const newOnOffState = value === 'ON';
