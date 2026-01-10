@@ -49,6 +49,9 @@ ZigbeeEntity.prototype.setNoUpdate = function (noUpdate: boolean): void {
   this.noUpdate = noUpdate;
 };
 ZigbeeEntity.prototype.checkIfPropertyItemShouldBeExposed = function (key: string): boolean {
+  if (this.group) {
+    return true;
+  }
   if (this.device?.definition?.exposes?.length) {
     const exposes = this.device.definition.exposes;
     for (const expose of exposes) {
