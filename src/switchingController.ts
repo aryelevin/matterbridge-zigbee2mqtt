@@ -235,8 +235,8 @@ export class SwitchingController {
           ) {
             this.log.info(device.entityName + ' value ' + key + ' changed from ' + lastPayloadValue + ' to ' + value + '.');
             if (key.startsWith('state')) {
-              const newOnOffState = value === 'ON';
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
+              const newOnOffState = value === 'ON';
               if (
                 endpointToControl &&
                 endpointToControl.hasClusterServer(OnOff.Cluster.id) &&
@@ -252,11 +252,42 @@ export class SwitchingController {
                 this.lastStates[entityIeee][key] = value;
               }
             } else if (key.startsWith('brightness')) {
-              // TODO:
+              const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
+              const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') || 0 / 254) * 255);
+              if (
+                endpointToControl &&
+                endpointToControl.hasClusterServer(LevelControl.Cluster.id) &&
+                endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel') &&
+                currentBrightness !== value
+              ) {
+                // Allow change from the platform itself...
+                newPayload[key] = lastPayloadValue;
+                this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
+              } else if (this.lastStates[entityIeee]) {
+                // Update linked switches...
+                this.switchStateChanged(entityIeee, key, value, newPayload);
+                this.lastStates[entityIeee][key] = value;
+              }
             } else if (key.startsWith('color_temp')) {
-              // TODO:
+              const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
+              if (
+                endpointToControl &&
+                endpointToControl.hasClusterServer(ColorControl.Cluster.id) &&
+                endpointToControl.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds') &&
+                endpointToControl.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') !== value
+              ) {
+                // Allow change from the platform itself...
+                newPayload[key] = lastPayloadValue;
+                this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
+              } else if (this.lastStates[entityIeee]) {
+                // Update linked switches...
+                this.switchStateChanged(entityIeee, key, value, newPayload);
+                this.lastStates[entityIeee][key] = value;
+              }
             } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
               // TODO:
+            } else if (this.lastStates[entityIeee]) {
+              this.lastStates[entityIeee][key] = value;
             }
           }
         }
@@ -432,6 +463,7 @@ export class SwitchingController {
             } else if (actionToDo === 'color_temp') {
               if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
                 const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+                // const endpointCTParams = entityToControl.device?.definition.exposes
                 const newColorTemperatureState = Math.round(Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage))); // TODO: take the min/max from the object itself...
                 if (this.lastStates[entityIeee]['color_temp' + entityEndpoint] !== newColorTemperatureState) {
                   this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
@@ -731,12 +763,6 @@ export class SwitchingController {
                     this.publishCommand(entityIeee, { ['state' + entityEndpoint]: 'OFF' });
                     // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
                   } else {
-                    // const service = accessoryToControl.serviceByRpath['/' + pathComponents[2] + '/' + pathComponents[3]]
-                    // const characteristics = actionsConfig.actionsToDo['' + buttonevent].characteristics
-                    // for (let ii = 0; ii < characteristics.length; ii++) {
-                    //   const characteristicData = characteristics[ii]
-                    //   service._characteristicDelegates[characteristicData.key]?._characteristic?.setValue(characteristicData.value)
-                    // }
                     // This is a command to send an endpoint...
                     this.publishCommand(entityIeee, { [entityEndpoint]: actionToDo });
                     // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
