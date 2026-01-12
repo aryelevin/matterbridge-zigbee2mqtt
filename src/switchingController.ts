@@ -192,6 +192,7 @@ export class SwitchingController {
             for (const key in payload) {
               const value = payload[key];
               if (
+                value !== null &&
                 (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
                 (key === 'action' ||
                   (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) ||
@@ -201,6 +202,7 @@ export class SwitchingController {
                 // if (devicesToListenToEvents[deviceIeee] === true) {
                 this.log.info((device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
                 this.switchStateChanged(deviceIeee || '', key, value, payload);
+                this.lastStates[deviceIeee][key] = value;
                 // }
               }
             }
@@ -212,7 +214,7 @@ export class SwitchingController {
             //     this.switchStateChanged(this.entityName + '/' + key, value, payload);
             //   }
             // }
-            this.lastStates[deviceIeee] = deepCopy(payload);
+            // this.lastStates[deviceIeee] = deepCopy(payload);
           }
         });
       }
