@@ -151,8 +151,8 @@ export class AqaraS1ScenePanelController {
 
   getDeviceEntity(ieee_address: string) {
     const entity = ieee_address.startsWith('group-')
-      ? this.platform.zigbeeEntities?.find((entity) => entity.group?.id === Number(ieee_address.split('-')[1]))
-      : this.platform.zigbeeEntities?.find((entity) => entity.device?.ieee_address === ieee_address);
+      ? this.platform.zigbeeEntities?.find((entity) => entity.isGroup && entity.group?.id === Number(ieee_address.split('-')[1]))
+      : this.platform.zigbeeEntities?.find((entity) => entity.isDevice && entity.device?.ieee_address === ieee_address);
     return entity;
   }
 

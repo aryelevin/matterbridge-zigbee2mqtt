@@ -173,6 +173,10 @@ export class ZigbeeEntity extends EventEmitter {
 
   protected readonly thermostatSystemModeLookup = ['off', 'auto', '', 'cool', 'heat', '', '', 'fan_only'];
 
+  // Added by me: Arye Levin
+  private lastCoverActionIsMoveState = false;
+  // End of Added by me: Arye Levin
+
   /**
    * Creates an instance of ZigbeeEntity.
    *
@@ -334,9 +338,16 @@ export class ZigbeeEntity extends EventEmitter {
         // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
         // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
         if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', value * 100);
+          // Added by me: Arye Levin
+          // this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', value * 100);
+          const previousLastCoverActionIsMoveState = this.lastCoverActionIsMoveState === true;
+          this.lastCoverActionIsMoveState = !(payload.running === false || payload.motor_state === 'stopped' || payload.moving === 'STOP');
+          if (this.lastCoverActionIsMoveState || previousLastCoverActionIsMoveState) { // Is moving or just stopeed...
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', 10000 - (value * 100));
+          }
+          // End of Added by me: Arye Levin
         }
-        if (key === 'moving' && this.isDevice) {
+        if ((key === 'moving' || key === 'motor_state') && this.isDevice) {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
           /*
           const reversed = this.isCoverReversed();
@@ -344,18 +355,18 @@ export class ZigbeeEntity extends EventEmitter {
             value = reversed ? (value === 'UP' ? 'DOWN' : 'UP') : value;
           }
           */
-          if (value === 'UP') {
+          if (value === 'UP' || value === 'opening') {
             const status = WindowCovering.MovementStatus.Opening;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
-          } else if (value === 'DOWN') {
+          } else if (value === 'DOWN' || value === 'closing') {
             const status = WindowCovering.MovementStatus.Closing;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
-          } else if (value === 'STOP') {
+          } else if (value === 'STOP' || value === 'stopped') {
             const status = WindowCovering.MovementStatus.Stopped;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
-            const position = this.bridgedDevice.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', this.log);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
+            const position = 10000 - ((payload.position as number) * 100); // this.bridgedDevice.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', this.log);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position);
+            // this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
           }
         }
 
@@ -1278,8 +1289,9 @@ const z2ms: ZigbeeToMatter[] = [
   { type: 'light', name: 'color_hs', property: 'color_hs', deviceType: extendedColorLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'light', name: 'color_xy', property: 'color_xy', deviceType: extendedColorLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'light', name: 'color_temp', property: 'color_temp', deviceType: colorTemperatureLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
-  { type: 'cover', name: 'state', property: 'state', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'targetPositionLiftPercent100ths' },
+  { type: 'cover', name: 'state', property: 'state', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'targetPositionLiftPercent100ths' /* , converter: (value) => {return value === 'OPEN' ? 0 : value === 'CLOSE' ? 10000 : 5000}*/ },
   { type: 'cover', name: 'moving', property: 'moving', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'operationalStatus' },
+  { type: 'cover', name: 'motor_state', property: 'motor_state', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'operationalStatus' },
   { type: 'cover', name: 'position', property: 'position', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'currentPositionLiftPercent100ths' },
   { type: 'lock', name: 'state', property: 'state', deviceType: doorLockDevice, cluster: DoorLock.Cluster.id, attribute: 'lockState', converter: (value) => { return value === 'LOCK' ? DoorLock.LockState.Locked : DoorLock.LockState.Unlocked } },
   { type: 'climate', name: 'local_temperature', property: 'local_temperature', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'localTemperature', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
@@ -1942,6 +1954,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       // WindowCovering
       // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
       // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
+      // Notice!!: To have proper reporting working, set the cover device setting debounce = 1 (On the frontend, open the cover device page and got to settings tab)
 
       zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', async () => {
         zigbeeDevice.log.debug(`Command upOrOpen called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);

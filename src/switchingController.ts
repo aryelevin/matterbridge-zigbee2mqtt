@@ -10,7 +10,7 @@ import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
 // import { MatterbridgeEndpoint } from 'matterbridge';
 import { ColorControl, LevelControl, OnOff /* , Thermostat, WindowCovering */ } from 'matterbridge/matter/clusters';
 // import { EndpointNumber } from 'matterbridge/matter';
-import { deepCopy, deepEqual } from 'matterbridge/utils';
+import { /* deepCopy,*/ deepEqual } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
@@ -49,7 +49,7 @@ ZigbeeEntity.prototype.setNoUpdate = function (noUpdate: boolean): void {
   this.noUpdate = noUpdate;
 };
 ZigbeeEntity.prototype.checkIfPropertyItemShouldBeExposed = function (key: string): boolean {
-  if (this.group) {
+  if (this.isGroup) {
     return true;
   }
   if (this.device?.definition?.exposes?.length) {
@@ -160,8 +160,8 @@ export class SwitchingController {
 
   getDeviceEntity(ieee_address: string) {
     const entity = ieee_address.startsWith('group-')
-      ? this.platform.zigbeeEntities?.find((entity) => entity.group?.id === Number(ieee_address.split('-')[1]))
-      : this.platform.zigbeeEntities?.find((entity) => entity.device?.ieee_address === ieee_address);
+      ? this.platform.zigbeeEntities?.find((entity) => entity.isGroup && entity.group?.id === Number(ieee_address.split('-')[1]))
+      : this.platform.zigbeeEntities?.find((entity) => entity.isDevice && entity.device?.ieee_address === ieee_address);
     return entity;
   }
 
@@ -172,7 +172,7 @@ export class SwitchingController {
   setSwitchingControllerConfiguration() {
     const devicesToListenToEvents: { [key: string]: boolean } = {};
     // for (const allEntitiesItem of this.platform.zigbeeEntities) {
-    //   const sourceDevice = allEntitiesItem.device ? allEntitiesItem.device.ieee_address : allEntitiesItem.group ? 'group-' + allEntitiesItem.group.id : allEntitiesItem.entityName;
+    //   const sourceDevice = allEntitiesItem.device ? allEntitiesItem.device.ieee_address : allEntitiesItem.isGroup ? 'group-' + allEntitiesItem.group.id : allEntitiesItem.entityName;
     //   devicesToListenToEvents[sourceDevice.split('/')[0]] = false;
     // }
     for (const sourceDevice in this.switchesLinksConfigData) {
@@ -224,13 +224,14 @@ export class SwitchingController {
   checkSwitchShabbatMode(deviceIeee: string, newPayload: Payload) {
     if (this.platform.platformControls?.switchesOn === false) {
       const device = this.getDeviceEntity(deviceIeee);
-      const entityIeee = device?.device ? device.device.ieee_address : device?.group ? device.group.friendly_name : deviceIeee;
+      const entityIeee = device?.device ? device.device.ieee_address : device?.isGroup && device.group ? device.group.friendly_name : deviceIeee;
       if (device) {
         for (const key in newPayload) {
           const keyComponents = key.split('_');
           const value = newPayload[key];
           const lastPayloadValue = this.lastStates[entityIeee] ? this.lastStates[entityIeee][key] : device.getLastPayloadItem(key);
           if (
+            value !== null &&
             (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
             value !== lastPayloadValue &&
             device.checkIfPropertyItemShouldBeExposed(key)
