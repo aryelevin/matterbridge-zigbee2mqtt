@@ -256,7 +256,7 @@ export class SwitchingController {
               }
             } else if (key.startsWith('brightness')) {
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
-              const currentBrightness = Math.round(((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') || 0) / 254) * 255);
+              const currentBrightness = Math.round(((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') || 0) / 254) * 254);
               this.log.info('Current brightness: ' + currentBrightness + ', new brightness: ' + value);
               if (
                 endpointToControl &&
