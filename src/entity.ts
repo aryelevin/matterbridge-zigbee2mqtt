@@ -1584,6 +1584,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (theOneOnlyEndpoint === '') {
       // There's no endpoints (most probably only one main endpoint)...
       hasOneOnlyEndpoint = false;
+    } else if (!platform.separateDeviceEndpoints[device.ieee_address].includes(theOneOnlyEndpoint)) {
+      // The single endpoint is not in the separate endpoints list, so don't consider it as separated endpoint, continue as usual instead...
+      hasOneOnlyEndpoint = false;
     }
 
     for (const [index, name] of names.entries()) {
