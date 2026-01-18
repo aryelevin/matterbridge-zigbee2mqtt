@@ -1225,6 +1225,21 @@
         }
       }
     },
+    "separateDeviceEndpoints": {
+      "description": "Devices with multiple endpoints which will create separate Matter devices.",
+      "type": "object",
+      "uniqueItems": true,
+      "selectFrom": "serial",
+      "additionalProperties": {
+        "description": "List of features to be exposed as separate device. Enter the feature (i.e. device_temperature).",
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "uniqueItems": true,
+        "selectDeviceEntityFrom": "name"
+      }
+    },
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",
       "type": "boolean",

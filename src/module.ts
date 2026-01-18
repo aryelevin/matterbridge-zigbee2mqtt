@@ -38,6 +38,7 @@ import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.j
 import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js';
 import { PlatformControls } from './platformControls.js';
 import { SwitchingController, SwitchingControllerSwitchLinkConfig, SwitchingControllerSwitchConfig } from './switchingController.js';
+import { deepCopy } from 'matterbridge/matter';
 
 export interface ALHomeLocationCoordinates {
   longitude: number;
@@ -81,6 +82,7 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   switchesActions?: { [key: string]: SwitchingControllerSwitchConfig };
   switchesOnStateCommands?: { [key: string]: { [key: string]: string } };
   switchesOffStateCommands?: { [key: string]: { [key: string]: string } };
+  separateDeviceEndpoints?: DeviceFeatureBlackList;
   // End of Added by me: Arye Levin
 }
 
@@ -113,6 +115,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public shabbatModeDummySwitch: DummySwitch | undefined;
   public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController | undefined;
   public switchingController: SwitchingController | undefined;
+  public separateDeviceEndpoints: DeviceFeatureBlackList = {};
   // End of Added by me: Arye Levin
 
   // debug
@@ -471,6 +474,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await this.ready;
 
     // Added by me: Arye Levin
+    this.separateDeviceEndpoints = this.config.separateDeviceEndpoints || {};
+
     this.platformControls = new PlatformControls(this);
     await this.registerDevice(this.platformControls.device);
     // const jewishCalendarSensors = new JewishCalendarSensors(this, {
@@ -718,7 +723,61 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
   }
 
-  private async registerZigbeeDevice(device: BridgeDevice): Promise<ZigbeeDevice | undefined> {
+  private async registerZigbeeDevice(deviceOrig: BridgeDevice): Promise<ZigbeeDevice | undefined> {
+    const device = deepCopy(deviceOrig);
+    if (this.separateDeviceEndpoints[device.ieee_address]) {
+      const endpoints = this.separateDeviceEndpoints[device.ieee_address];
+      const exposesToRemoveMain: number[] = [];
+      for (const endpoint of endpoints) {
+        const deviceCopy = deepCopy(device);
+        const exposesToRemoveSpecific: number[] = [];
+        for (const [index, expose] of deviceCopy.definition.exposes.entries()) {
+          if (expose.endpoint === endpoint) {
+            exposesToRemoveMain.push(index);
+          } else if (expose.endpoint?.length) {
+            exposesToRemoveSpecific.push(index);
+          }
+        }
+        for (let index = exposesToRemoveSpecific.length - 1; index >= 0; index--) {
+          const indexToRemove = exposesToRemoveSpecific[index];
+          deviceCopy.definition.exposes.splice(indexToRemove, 1);
+        }
+
+        this.setSelectDevice(device.ieee_address, device.friendly_name + '_' + endpoint, undefined, 'wifi'); // This will register the endpoint in the devices list of the configuration...
+        if (!this.validateDevice([device.friendly_name + '_' + endpoint, device.ieee_address + '_' + endpoint], true)) {
+          continue;
+        }
+        this.log.debug(`Registering endpoint ${endpoint} device ${dn}${deviceCopy.friendly_name}${db} ID: ${zb}${deviceCopy.ieee_address}${db}`);
+        let matterDevice: ZigbeeDevice | undefined;
+        try {
+          matterDevice = await ZigbeeDevice.create(this, deviceCopy);
+          if (matterDevice.bridgedDevice) {
+            matterDevice.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/device/${this.z2mBridgeInfo?.config.frontend?.package === 'zigbee2mqtt-frontend' ? '' : '0/'}${deviceCopy.ieee_address}/info`;
+            await this.registerDevice(matterDevice.bridgedDevice);
+            this.bridgedDevices.push(matterDevice.bridgedDevice);
+            this.zigbeeEntities.push(matterDevice);
+            this.log.debug(`Registered device ${dn}${deviceCopy.friendly_name}${db} ID: ${zb}${deviceCopy.ieee_address}${db}`);
+          } else this.log.warn(`Device ${dn}${deviceCopy.friendly_name}${wr} ID: ${deviceCopy.ieee_address} not registered`);
+        } catch (error) {
+          this.log.error(`Error registering device ${dn}${deviceCopy.friendly_name}${er} ID: ${deviceCopy.ieee_address}: ${error}`);
+        }
+      }
+      for (let index = exposesToRemoveMain.length - 1; index >= 0; index--) {
+        const indexToRemove = exposesToRemoveMain[index];
+        device.definition.exposes.splice(indexToRemove, 1);
+      }
+      // Now check if to construct the device if it have any endpoints left...
+      let deviceHasLeftEndpoints = false;
+      for (const expose of device.definition.exposes) {
+        if (expose.endpoint?.length) {
+          deviceHasLeftEndpoints = true;
+          break;
+        }
+      }
+      if (!deviceHasLeftEndpoints) {
+        return undefined; // TODO: what should be returned??? (The registered separated endpoints??)
+      }
+    }
     this.setSelectDevice(device.ieee_address, device.friendly_name, undefined, 'wifi');
     if (!this.validateDevice([device.friendly_name, device.ieee_address], true)) {
       return undefined;
