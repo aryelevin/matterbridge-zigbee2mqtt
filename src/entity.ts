@@ -1527,7 +1527,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
     }
 
-    if (names.includes('occupied_cooling_setpoint') && names.includes('state')) {
+    // Now check for AC climate type devices and set it to AC type...
+    if (names.includes('occupied_cooling_setpoint') && (names.includes('state') || names.includes('ac_louver_position'))) {
       names.forEach((name, index) => {
         if (
           name === 'state' ||
@@ -1535,7 +1536,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
           name === 'local_temperature' ||
           name === 'fan_mode' ||
           name === 'occupied_heating_setpoint' ||
-          name === 'occupied_cooling_setpoint'
+          name === 'occupied_cooling_setpoint' ||
+          name === 'ac_louver_position'
         ) {
           types[index] = 'ac';
         }
