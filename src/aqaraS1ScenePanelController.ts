@@ -1374,7 +1374,7 @@ export class AqaraS1ScenePanelController {
             }
 
             // const buttonService = panelSensor.buttonServices[sceneNo];
-            panelDevice?.bridgedDevice?.getChildEndpoint(EndpointNumber(sceneNo))?.triggerSwitchEvent('Single'); // issue a single press event...
+            panelDevice?.bridgedDevice?.getChildEndpointById('switch_' + sceneNo)?.triggerSwitchEvent('Single'); // issue a single press event...
             this.log.info('Scene Activated... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
           }
         } else {
