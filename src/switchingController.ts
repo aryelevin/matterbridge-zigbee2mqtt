@@ -369,68 +369,6 @@ export class SwitchingController {
         delete this.entitiesExecutionValues[entity];
       }, 2000);
     }
-
-    // const panelDevice = this.getDeviceEntity(deviceEndpointPath);
-    // const sceneNo = parseInt(data[data.length - 1]);
-    // const sceneConfigName = ('scene_' + sceneNo) as AqaraS1ScenePanelConfigKey;
-
-    // const sceneConfig = this.aqaraS1ActionsConfigData?.[deviceEndpointPath]?.[sceneConfigName] as AqaraS1ScenePanelSceneConfig | undefined;
-    // const sceneExecutionData = sceneConfig?.execute;
-    // if (sceneExecutionData) {
-    //   const devicesIeee = Object.keys(sceneExecutionData);
-    //   for (let i = devicesIeee.length - 1; i >= 0; i--) {
-    //     const deviceIeeeItem = devicesIeee[i];
-    //     const sceneExecutionActions = sceneExecutionData[deviceIeeeItem];
-    //     const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
-
-    //     if (deviceToControl) {
-    //       const endpointToControl = deviceToControl;
-    //       if (endpointToControl) {
-    //         if (sceneExecutionActions.on !== undefined) {
-    //           const onOff = Boolean(sceneExecutionActions.on);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
-    //           endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
-    //         }
-    //         if (sceneExecutionActions.brightness !== undefined) {
-    //           const brightness = Number(sceneExecutionActions.brightness);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
-    //           endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToLevel', { request: { level: brightness } });
-    //         }
-    //         if (sceneExecutionActions.colorTemperature !== undefined) {
-    //           const colorTemperature = Number(sceneExecutionActions.colorTemperature);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
-    //           endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColorTemperature', { request: { colorTemperatureMireds: colorTemperature } });
-    //         }
-    //         if (sceneExecutionActions.colorX !== undefined && sceneExecutionActions.colorY !== undefined) {
-    //           const colorX = Number(sceneExecutionActions.colorX);
-    //           const colorY = Number(sceneExecutionActions.colorY);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
-    //           endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColor', { request: { colorX, colorY } });
-    //         }
-    //         if (sceneExecutionActions.hue !== undefined && sceneExecutionActions.saturation !== undefined) {
-    //           const hue = Number(sceneExecutionActions.hue);
-    //           const saturation = Number(sceneExecutionActions.saturation);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentHue', hue, endpointToControl.bridgedDevice.log);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentSaturation', saturation, endpointToControl.bridgedDevice.log);
-    //           /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, endpointToControl.bridgedDevice.log);
-    //           endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToHueAndSaturation', { request: { hue, saturation } });
-    //         }
-    //         // Allow also triggering buttons actions, so in HomeKit it will execute the button automation.
-    //         if (sceneExecutionActions?.buttonAction === 'Single' || sceneExecutionActions?.buttonAction === 'Double' || sceneExecutionActions?.buttonAction === 'Long' || sceneExecutionActions?.buttonAction === 'Press' || sceneExecutionActions?.buttonAction === 'Release') {
-    //           // TODO: Test if it functions properly.
-    //           endpointToControl.bridgedDevice?.triggerSwitchEvent(sceneExecutionActions.buttonAction);
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
-
-    // // const buttonService = panelSensor.buttonServices[sceneNo];
-    // panelDevice?.bridgedDevice?.getChildEndpoint(EndpointNumber(sceneNo))?.triggerSwitchEvent('Single'); // issue a single press event...
-    // this.log.info('Scene Activated... from: ' + deviceEndpointPath + ', Hex data: ' + data);
   }
 
   processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload) {

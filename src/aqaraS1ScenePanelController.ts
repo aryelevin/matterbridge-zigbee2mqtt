@@ -41,7 +41,7 @@ interface AqaraS1ScenePanelACConfig extends AqaraS1ScenePanelControlledDeviceCon
   internal_thermostat: boolean;
   modes: AqaraS1ScenePanelACModes[];
   fan_modes: AqaraS1ScenePanelFanModes[];
-  temperature_ranges: { [key in AqaraS1ScenePanelACModes]: { lowest: number, highest: number } };
+  temperature_ranges: { [key in AqaraS1ScenePanelACModes]: { lowest: number; highest: number } };
 }
 
 // interface AqaraS1ScenePanelTemperatureSensorConfig extends AqaraS1ScenePanelControlledDeviceConfig {
