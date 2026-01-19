@@ -9,7 +9,6 @@ import * as https from 'node:https';
 import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
 import { MatterbridgeEndpoint } from 'matterbridge';
 import { BridgedDeviceBasicInformation, ColorControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import { EndpointNumber } from 'matterbridge/matter';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
