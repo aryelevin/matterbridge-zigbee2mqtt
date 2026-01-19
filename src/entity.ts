@@ -1762,6 +1762,22 @@ export class ZigbeeDevice extends ZigbeeEntity {
       }
     }
 
+    // Added by me: Arye Levin
+    if (device.model_id === 'lumi.switch.n4acn4') {
+      for (let sceneNo = 1; sceneNo <= 6; sceneNo++) {
+        const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+        tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + sceneNo });
+        zigbeeDevice.mutableDevice.set('switch_' + sceneNo, {
+          tagList,
+          deviceTypes: [genericSwitch],
+          clusterServersIds: [...genericSwitch.requiredServerClusters],
+          clusterServersOptions: [],
+          clusterClientsIds: [],
+          clusterClientsOptions: [],
+        });
+      }
+    }
+
     // Add battery properties
     if (device.power_source === 'Battery') {
       zigbeeDevice.propertyMap.set('battery', { name: 'battery', type: '', endpoint: '' });
