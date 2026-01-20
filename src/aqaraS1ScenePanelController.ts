@@ -8,7 +8,7 @@ import * as https from 'node:https';
 
 import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
 import { MatterbridgeEndpoint } from 'matterbridge';
-import { BridgedDeviceBasicInformation, ColorControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { BridgedDeviceBasicInformation, ColorControl, LevelControl, OnOff } from 'matterbridge/matter/clusters';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
@@ -983,24 +983,47 @@ export class AqaraS1ScenePanelController {
               this.log.info('On/Off: ' + onOff + ', Mode: ' + mode + ', Fan: ' + fan + ', Set Temperature: ' + setTemperature);
 
               const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/ac'];
-              for (let i = devicesIeee.length - 1; i >= 0; i--) {
-                const deviceIeeeItem = devicesIeee[i];
-                const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
+              for (let i = devicesIeee?.length - 1; i >= 0; i--) {
+                const endpointToExecute = devicesIeee[i]; // 0x5465654664646464(/l1)
+                const pathComponents = endpointToExecute.split('/'); // [0x5465654664646464(, l1)]
+                const entityIeee = pathComponents[0]; // 0x5465654664646464
+                const entityEndpointName = pathComponents[1]; // (l1)
+                const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+                const entityToControl = this.getDeviceEntity(entityIeee); // The main device
+                // const endpointToControl = entityEndpointName ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                if (deviceToControl) {
-                  const endpointToControl = deviceToControl;
-                  if (endpointToControl) {
-                    /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
-                    endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
-                    if (onOff) {
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'systemMode', mode === 0 ? Thermostat.SystemMode.Heat : mode === 1 ? Thermostat.SystemMode.Cool : Thermostat.SystemMode.Auto, endpointToControl.bridgedDevice.log);
-                      // endpointToControl.bridgedDevice?.commandHandler.executeHandler('changeToMode', { newMode: mode });
-
-                      // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(fan === 0 ? 25 : fan === 1 ? 50 : fan === 2 ? 75 : 100)
-                      // if (mode === 0 || mode === 1) {
-                      //   serviceToControl._service.getCharacteristic(mode === 0 ? this.platform.Characteristics.hap.HeatingThresholdTemperature : this.platform.Characteristics.hap.CoolingThresholdTemperature).setValue(setTemperature)
-                      // }
+                if (entityToControl) {
+                  const payload: Payload = {};
+                  if (this.lastStates?.[entityIeee]?.['state' + entityEndpointSuffix] !== onOff) {
+                    payload['state' + entityEndpointSuffix] = onOff;
+                  }
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
+                  // endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
+                  if (onOff) {
+                    const modeStr = mode === 0 ? 'heat' : mode === 1 ? 'cool' : 'auto'; // TODO: support all other modes supported by the panel...
+                    if (this.lastStates?.[entityIeee]?.['system_mode' + entityEndpointSuffix] !== modeStr) {
+                      payload['system_mode' + entityEndpointSuffix] = modeStr;
                     }
+                    const fanModeStr = fan === 0 ? 'low' : fan === 1 ? 'medium' : fan === 2 ? 'high' : 'auto'; // TODO: check the correct modes values on the panel...
+                    if (this.lastStates?.[entityIeee]?.['fan_mode' + entityEndpointSuffix] !== fanModeStr) {
+                      payload['fan_mode' + entityEndpointSuffix] = fanModeStr;
+                    }
+                    if (
+                      (mode === 0 || mode === 1) &&
+                      this.lastStates?.[entityIeee]?.[(mode === 0 ? 'occupied_heating_setpoint' : 'occupied_cooling_setpoint') + entityEndpointSuffix] !== setTemperature
+                    ) {
+                      payload[(mode === 0 ? 'occupied_heating_setpoint' : 'occupied_cooling_setpoint') + entityEndpointSuffix] = setTemperature;
+                    }
+                    if (Object.keys(payload).length) {
+                      this.publishCommand(entityIeee, payload);
+                    }
+                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'systemMode', mode === 0 ? Thermostat.SystemMode.Heat : mode === 1 ? Thermostat.SystemMode.Cool : Thermostat.SystemMode.Auto, endpointToControl.bridgedDevice.log);
+                    // endpointToControl.bridgedDevice?.commandHandler.executeHandler('changeToMode', { newMode: mode });
+
+                    // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(fan === 0 ? 25 : fan === 1 ? 50 : fan === 2 ? 75 : 100)
+                    // if (mode === 0 || mode === 1) {
+                    //   serviceToControl._service.getCharacteristic(mode === 0 ? this.platform.Characteristics.hap.HeatingThresholdTemperature : this.platform.Characteristics.hap.CoolingThresholdTemperature).setValue(setTemperature)
+                    // }
                   }
                 }
               }
@@ -1012,16 +1035,19 @@ export class AqaraS1ScenePanelController {
                 this.log.info('Position: ' + position);
 
                 const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
-                for (let i = devicesIeee.length - 1; i >= 0; i--) {
-                  const deviceIeeeItem = devicesIeee[i];
-                  const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
+                for (let i = devicesIeee?.length - 1; i >= 0; i--) {
+                  const endpointToExecute = devicesIeee[i]; // 0x5465654664646464(/l1)
+                  const pathComponents = endpointToExecute.split('/'); // [0x5465654664646464(, l1)]
+                  const entityIeee = pathComponents[0]; // 0x5465654664646464
+                  const entityEndpointName = pathComponents[1]; // (l1)
+                  const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+                  const entityToControl = this.getDeviceEntity(entityIeee); // The main device
+                  // const endpointToControl = entityEndpointName ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                  if (deviceToControl) {
-                    const endpointToControl = deviceToControl;
-                    if (endpointToControl) {
-                      /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position * 100, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('goToLiftPercentage', { request: { liftPercent100thsValue: position * 100 } });
-                    }
+                  if (entityToControl) {
+                    this.publishCommand(entityIeee, { ['position' + entityEndpointSuffix]: position });
+                    // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position * 100, endpointToControl.bridgedDevice.log);
+                    // endpointToControl.bridgedDevice?.commandHandler.executeHandler('goToLiftPercentage', { request: { liftPercent100thsValue: position * 100 } });
                   }
                 }
               } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position State
@@ -1029,30 +1055,34 @@ export class AqaraS1ScenePanelController {
                 this.log.info('Position State: ' + positionState);
 
                 const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
-                for (let i = devicesIeee.length - 1; i >= 0; i--) {
-                  const deviceIeeeItem = devicesIeee[i];
-                  const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
+                for (let i = devicesIeee?.length - 1; i >= 0; i--) {
+                  const endpointToExecute = devicesIeee[i]; // 0x5465654664646464(/l1)
+                  const pathComponents = endpointToExecute.split('/'); // [0x5465654664646464(, l1)]
+                  const entityIeee = pathComponents[0]; // 0x5465654664646464
+                  const entityEndpointName = pathComponents[1]; // (l1)
+                  const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+                  const entityToControl = this.getDeviceEntity(entityIeee); // The main device
+                  // const endpointToControl = entityEndpointName ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                  if (deviceToControl) {
-                    const endpointToControl = deviceToControl;
-                    if (endpointToControl) {
-                      if (positionState < 0x02) { // Open or Close
-                        // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', (positionState === 0x01 ? 100 : 0) * 100, endpointToControl.bridgedDevice.log);
-                        endpointToControl.bridgedDevice?.commandHandler.executeHandler(positionState === 0x01 ? 'downOrClose' : 'upOrOpen');
-                        const operationState = positionState === 0x01 ? WindowCovering.MovementStatus.Closing : positionState === 0x00 ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Stopped;
-                        /* await */ endpointToControl?.bridgedDevice?.setAttribute(
-                          WindowCovering.Cluster.id,
-                          'operationalStatus',
-                          { global: operationState, lift: operationState, tilt: operationState },
-                          endpointToControl.bridgedDevice.log,
-                        );
-                      } else { // Stop
-                        // const position = endpointToControl?.bridgedDevice?.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', endpointToControl.bridgedDevice.log);
-                        // // if (isValidNumber(position, 0, 10000)) {
-                        // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position, endpointToControl.bridgedDevice.log);
-                        // // }
-                        endpointToControl.bridgedDevice?.commandHandler.executeHandler('stopMotion');
-                      }
+                  if (entityToControl) {
+                    if (positionState < 0x02) { // Open or Close
+                      this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: positionState === 0x01 ? 'CLOSE' : 'OPEN' });
+                      // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', (positionState === 0x01 ? 100 : 0) * 100, endpointToControl.bridgedDevice.log);
+                      // endpointToControl.bridgedDevice?.commandHandler.executeHandler(positionState === 0x01 ? 'downOrClose' : 'upOrOpen');
+                      // const operationState = positionState === 0x01 ? WindowCovering.MovementStatus.Closing : positionState === 0x00 ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Stopped;
+                      // /* await */ endpointToControl?.bridgedDevice?.setAttribute(
+                      //   WindowCovering.Cluster.id,
+                      //   'operationalStatus',
+                      //   { global: operationState, lift: operationState, tilt: operationState },
+                      //   endpointToControl.bridgedDevice.log,
+                      // );
+                    } else { // Stop
+                      // const position = endpointToControl?.bridgedDevice?.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', endpointToControl.bridgedDevice.log);
+                      // // if (isValidNumber(position, 0, 10000)) {
+                      // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position, endpointToControl.bridgedDevice.log);
+                      // // }
+                      // endpointToControl.bridgedDevice?.commandHandler.executeHandler('stopMotion');
+                      this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: 'STOP' });
                     }
                   }
                 }
@@ -1106,7 +1136,9 @@ export class AqaraS1ScenePanelController {
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
                   }
                   if (colorX !== undefined && colorY !== undefined) {
-                    this.publishCommand(entityIeee, { ['color' + entityEndpointSuffix]: { x: Math.round(colorX / 65536 * 10000) / 10000, y: Math.round(colorY / 65536 * 10000) / 10000 } });
+                    this.publishCommand(entityIeee, {
+                      ['color' + entityEndpointSuffix]: { x: Math.round((colorX / 65536) * 10000) / 10000, y: Math.round((colorY / 65536) * 10000) / 10000 },
+                    });
                     // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
                     // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
