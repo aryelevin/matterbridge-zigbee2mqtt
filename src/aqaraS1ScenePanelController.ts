@@ -123,15 +123,20 @@ export class AqaraS1ScenePanelController {
   // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
   entityPropertyChanged(deviceIeee: string, separatedEndpoint: string | undefined = undefined, key: string, value: string | number | boolean, newPayload: Payload) {
     const device = this.getDeviceEntity(deviceIeee, separatedEndpoint);
+    const keyPropertyEndpoint = device?.getEndpointOfProperty(key);
+    // If its a separated endpoint device, ignore any other endpoint properties (either they're undefined or not equal to the separated endpoint device [this] on the propertyMap which is used within getEndpointOfProperty() method).
+    if (separatedEndpoint && separatedEndpoint !== keyPropertyEndpoint) {
+      return;
+    }
 
     let endpointId = separatedEndpoint;
     if (!separatedEndpoint) {
-      endpointId = device?.getEndpointOfProperty(key);
+      endpointId = keyPropertyEndpoint;
     }
 
     let endpointName = '';
     let endpointSuffix = '';
-    if (endpointId) {
+    if (endpointId?.length) {
       endpointName = '/' + endpointId;
       endpointSuffix = '_' + endpointId;
     }
@@ -148,8 +153,10 @@ export class AqaraS1ScenePanelController {
           key.startsWith('occupied_heating_setpoint') ||
           key.startsWith('occupied_cooling_setpoint')
         ) {
-          const onOff = newPayload['state' + endpointSuffix] === 'ON';
-          const systemMode = newPayload['system_mode' + endpointSuffix];
+          const onOff = newPayload['state' + endpointSuffix] ? newPayload['state' + endpointSuffix] === 'ON' : newPayload['system_mode' + endpointSuffix] !== 'off';
+          const systemMode = newPayload['state' + endpointSuffix]
+            ? newPayload['system_mode' + endpointSuffix]
+            : ['', 'auto', '', 'cool', 'heat', '', '', 'fan_only'][device?.bridgedDevice?.getAttribute(Thermostat.Cluster.id, 'systemMode')];
           const fanMode = newPayload['fan_mode' + endpointSuffix];
           const targetTemperature = newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] || 255;
           const currentTemperature = newPayload['local_temperature' + endpointSuffix];
@@ -414,10 +421,10 @@ export class AqaraS1ScenePanelController {
     this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '01010055', this.getHexFromFloat32Bit(position / 100));
   }
 
-  sendCoverMovementModeToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
+  sendCoverMovementStateToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
     const movementMatterState = coverEndpoint.getAttribute(WindowCovering.Cluster.id, 'operationalStatus').global;
     const movementState = '000000' + (movementMatterState === WindowCovering.MovementStatus.Opening ? 1 : movementMatterState === WindowCovering.MovementStatus.Closing ? 0 : 2).toString(16).padStart(2, '0'); // TODO: Check the correct parameters...
-    this.log.info('Movement Mode: ' + movementState);
+    this.log.info('Movement State: ' + movementState);
     this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '0e020055', movementState);
   }
 
@@ -508,12 +515,12 @@ export class AqaraS1ScenePanelController {
             this.sendCoverDataToPanel(pathComponents[1], coverNo, parameter, content);
           }
         } else if (pathComponents[2] === 'ac') {
-          const coversControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem];
+          const acsControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem];
           let shouldUpdatePanelState = true;
-          for (let ii = coversControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
-            const coverResourcePath = coversControlledWithPanelDevice[ii].split('/');
+          for (let ii = acsControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
+            const acResourcePath = acsControlledWithPanelDevice[ii].split('/');
             // TODO: Refactor (Endpoints)...
-            const accessoryToCheck = this.getDeviceEntity(coverResourcePath[0]);
+            const accessoryToCheck = this.getDeviceEntity(acResourcePath[0]);
             if (accessoryToCheck) {
               if (
                 accessoryToCheck !== originalEntity &&
@@ -1100,8 +1107,7 @@ export class AqaraS1ScenePanelController {
                 if (this.lastStates?.[entityIeee]?.['state' + entityEndpointSuffix] !== onOffStr) {
                   payload['state' + entityEndpointSuffix] = onOffStr;
                 }
-                // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
-                // endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
+
                 if (onOff) {
                   const modeStr = mode === 0 ? 'heat' : mode === 1 ? 'cool' : mode === 2 ? 'auto' : mode === 3 ? 'fan_only' : mode === 4 ? 'dry' : 'auto';
                   if (this.lastStates?.[entityIeee]?.['system_mode' + entityEndpointSuffix] !== modeStr) {
@@ -1117,13 +1123,10 @@ export class AqaraS1ScenePanelController {
                   ) {
                     payload[(mode === 0 ? 'occupied_heating_setpoint' : 'occupied_cooling_setpoint') + entityEndpointSuffix] = setTemperature;
                   }
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'systemMode', mode === 0 ? Thermostat.SystemMode.Heat : mode === 1 ? Thermostat.SystemMode.Cool : Thermostat.SystemMode.Auto, endpointToControl.bridgedDevice.log);
-                  // endpointToControl.bridgedDevice?.commandHandler.executeHandler('changeToMode', { newMode: mode });
-
-                  // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(fan === 0 ? 25 : fan === 1 ? 50 : fan === 2 ? 75 : 100)
-                  // if (mode === 0 || mode === 1) {
-                  //   serviceToControl._service.getCharacteristic(mode === 0 ? this.platform.Characteristics.hap.HeatingThresholdTemperature : this.platform.Characteristics.hap.CoolingThresholdTemperature).setValue(setTemperature)
-                  // }
+                } else {
+                  if (this.lastStates?.[entityIeee]?.['system_mode' + entityEndpointSuffix] !== 'off') { // To allow support for ACs that doesn't have 'state' property, so use the system mode, in 'state' property supported systems it will be ignored since 'off' system state is not available.
+                    payload['system_mode' + entityEndpointSuffix] = 'off';
+                  }
                 }
 
                 if (Object.keys(payload).length) {
@@ -1150,8 +1153,6 @@ export class AqaraS1ScenePanelController {
 
                   // if (entityToControl) {
                   this.publishCommand(entityIeee, { ['position' + entityEndpointSuffix]: position });
-                  // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position * 100, endpointToControl.bridgedDevice.log);
-                  // endpointToControl.bridgedDevice?.commandHandler.executeHandler('goToLiftPercentage', { request: { liftPercent100thsValue: position * 100 } });
                   // }
                 }
               } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position State
@@ -1171,21 +1172,7 @@ export class AqaraS1ScenePanelController {
                   // if (entityToControl) {
                   if (positionState < 0x02) { // Open or Close
                     this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: positionState === 0x01 ? 'OPEN' : 'CLOSE' });
-                    // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', (positionState === 0x01 ? 100 : 0) * 100, endpointToControl.bridgedDevice.log);
-                    // endpointToControl.bridgedDevice?.commandHandler.executeHandler(positionState === 0x01 ? 'downOrClose' : 'upOrOpen');
-                    // const operationState = positionState === 0x01 ? WindowCovering.MovementStatus.Closing : positionState === 0x00 ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Stopped;
-                    // /* await */ endpointToControl?.bridgedDevice?.setAttribute(
-                    //   WindowCovering.Cluster.id,
-                    //   'operationalStatus',
-                    //   { global: operationState, lift: operationState, tilt: operationState },
-                    //   endpointToControl.bridgedDevice.log,
-                    // );
                   } else { // Stop
-                    // const position = endpointToControl?.bridgedDevice?.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', endpointToControl.bridgedDevice.log);
-                    // // if (isValidNumber(position, 0, 10000)) {
-                    // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position, endpointToControl.bridgedDevice.log);
-                    // // }
-                    // endpointToControl.bridgedDevice?.commandHandler.executeHandler('stopMotion');
                     this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: 'STOP' });
                   }
                   // }
@@ -1226,27 +1213,20 @@ export class AqaraS1ScenePanelController {
                 if (onOff !== undefined) {
                   this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: onOff ? 'ON' : 'OFF' });
                   // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
                 }
                 if (brightness !== undefined) {
                   this.publishCommand(entityIeee, { ['brightness' + entityEndpointSuffix]: Math.round((Math.max(3, Math.min(254, brightness * 2.54)) / 254) * 255) });
                   // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
                 }
                 if (colorTemperature !== undefined) {
                   this.publishCommand(entityIeee, { ['color_temp' + entityEndpointSuffix]: colorTemperature });
                   // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
                 }
                 if (colorX !== undefined && colorY !== undefined) {
                   this.publishCommand(entityIeee, {
                     ['color' + entityEndpointSuffix]: { x: Math.round((colorX / 65536) * 10000) / 10000, y: Math.round((colorY / 65536) * 10000) / 10000 },
                   });
                   // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
                 }
                 // }
               }
@@ -1286,7 +1266,6 @@ export class AqaraS1ScenePanelController {
                 entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
               if (endpointToControl) {
-                // accessoryToControl.service.updatePanel(panelDevicePath.split('/'));
                 this.sendACStateToPanel(deviceIeeeAddress, endpointToControl);
               }
             } else if (stateParam[0] === 0x08 && stateParam[1] === 0x00 && stateParam[2] === 0x1f && stateParam[3] === 0xa7) { // Modes
@@ -1364,15 +1343,13 @@ export class AqaraS1ScenePanelController {
 
             if (stateParam[0] === 0x01 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position
               if (endpointToControl) {
-                // accessoryToControl.service.updatePanelPositionState(panelDevicePath.split('/'));
                 this.sendCoverPositionToPanel(deviceIeeeAddress, coverNo, endpointToControl);
               } else {
                 this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '01010055', this.getHexFromFloat32Bit(0));
               }
             } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position State
               if (endpointToControl) {
-                // accessoryToControl.service.updatePanelMovementState(panelDevicePath.split('/'));
-                this.sendCoverMovementModeToPanel(deviceIeeeAddress, coverNo, endpointToControl);
+                this.sendCoverMovementStateToPanel(deviceIeeeAddress, coverNo, endpointToControl);
               } else {
                 this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '0e020055', '00000002');
               }
@@ -1390,18 +1367,14 @@ export class AqaraS1ScenePanelController {
             const endpointToControl =
               entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-            if (endpointToControl /* && accessoryToControl.values.serviceName === 'Light'*/) {
+            if (endpointToControl) {
               if (stateParam[0] === 0x04 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light On/Off
-                // accessoryToControl.service.updatePanelOnOffState(panelDevicePath.split('/'));
                 this.sendLightOnOffStateToPanel(deviceIeeeAddress, lightNo, endpointToControl);
               } else if (stateParam[0] === 0x0e && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Brightness
-                // accessoryToControl.service.updatePanelBrightnessState(panelDevicePath.split('/'));
                 this.sendLightBrightnessStateToPanel(deviceIeeeAddress, lightNo, endpointToControl);
               } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light CT
-                // accessoryToControl.service.updatePanelColorTemperatureState(panelDevicePath.split('/'));
                 this.sendLightColorTemperatureStateToPanel(deviceIeeeAddress, lightNo, endpointToControl);
               } else if (stateParam[0] === 0x0e && stateParam[1] === 0x08 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Color
-                // accessoryToControl.service.updatePanelColorState(panelDevicePath.split('/'));
                 this.sendLightColorStateToPanel(deviceIeeeAddress, lightNo, endpointToControl);
               }
             }

@@ -285,6 +285,10 @@ export class ZigbeeEntity extends EventEmitter {
           }
         }
 
+        if (key === 'system_mode' && this.propertyMap.get('system_mode')?.type === 'ac' && !('state' in payload)) {
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, OnOff.Cluster.id, 'onOff', value !== 'off');
+        }
+
         // Lookup the property in the propertyMap and ZigbeeToMatter table
         const propertyMap = this.propertyMap.get(key);
         if (propertyMap) {
@@ -590,6 +594,21 @@ export class ZigbeeEntity extends EventEmitter {
     this.log.debug(`Command on called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const endpoint = isChildEndpoint ? ('_' + (data.endpoint.id.split('_')[1] || data.endpoint.id)) : ''; // For a separate endpoint of a device
+
+    if (this.isDevice && this.device && !this.propertyMap.get('state' + (isChildEndpoint ? endpoint : '')) && this.propertyMap.get('system_mode' + (isChildEndpoint ? endpoint : ''))?.type === 'ac') {
+      const value = data.endpoint.getAttribute(ThermostatCluster.id, 'systemMode');
+      if (isValidNumber(value, Thermostat.SystemMode.Off, Thermostat.SystemMode.FanOnly) && this.thermostatSystemModeLookup[value] !== '') {
+        const system_mode = this.thermostatSystemModeLookup[value];
+        this.log.debug(`Command on called for ${this.ien}${this.device.friendly_name}${rs}${db} so setting systemMode with ${value} => ${system_mode}`);
+        this.publishCommand('SystemMode', this.device.friendly_name, { ['system_mode' + (isChildEndpoint ? endpoint : '')]: system_mode });
+        // this.noUpdate = true;
+        // this.thermostatTimeout = setTimeout(() => {
+        //   this.noUpdate = false;
+        // }, this.thermostatTimeoutTime);
+      }
+      return;
+    }
+
     this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? endpoint : undefined);
     this.cachePublish('on', { ['state' + (isChildEndpoint ? endpoint : '')]: 'ON' });
   }
@@ -604,6 +623,13 @@ export class ZigbeeEntity extends EventEmitter {
     this.log.debug(`Command off called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const endpoint = isChildEndpoint ? ('_' + (data.endpoint.id.split('_')[1] || data.endpoint.id)) : ''; // For a separate endpoint of a device
+
+    if (this.isDevice && this.device && !this.propertyMap.get('state' + (isChildEndpoint ? endpoint : '')) && this.propertyMap.get('system_mode' + (isChildEndpoint ? endpoint : ''))?.type === 'ac') {
+      this.log.debug(`Command off called for ${this.ien}${this.device.friendly_name}${rs}${db} so setting systemMode with 'off'`);
+      this.publishCommand('SystemMode', this.device.friendly_name, { ['system_mode' + (isChildEndpoint ? endpoint : '')]: 'off' });
+      return;
+    }
+    
     this.cachePublish('off', { ['state' + (isChildEndpoint ? endpoint : '')]: 'OFF' });
   }
 
@@ -614,9 +640,29 @@ export class ZigbeeEntity extends EventEmitter {
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const endpoint = isChildEndpoint ? ('_' + (data.endpoint.id.split('_')[1] || data.endpoint.id)) : ''; // For a separate endpoint of a device
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
+      if (this.isDevice && this.device && !this.propertyMap.get('state' + (isChildEndpoint ? endpoint : '')) && this.propertyMap.get('system_mode' + (isChildEndpoint ? endpoint : ''))?.type === 'ac') {
+        const value = data.endpoint.getAttribute(ThermostatCluster.id, 'systemMode');
+        if (isValidNumber(value, Thermostat.SystemMode.Off, Thermostat.SystemMode.FanOnly) && this.thermostatSystemModeLookup[value] !== '') {
+          const system_mode = this.thermostatSystemModeLookup[value];
+          this.log.debug(`Command on called for ${this.ien}${this.device.friendly_name}${rs}${db} so setting systemMode with ${value} => ${system_mode}`);
+          this.publishCommand('SystemMode', this.device.friendly_name, { ['system_mode' + (isChildEndpoint ? endpoint : '')]: system_mode });
+          // this.noUpdate = true;
+          // this.thermostatTimeout = setTimeout(() => {
+          //   this.noUpdate = false;
+          // }, this.thermostatTimeoutTime);
+        }
+        return;
+      }
+
       this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? endpoint : undefined);
       this.cachePublish('toggle', { ['state' + (isChildEndpoint ? endpoint : '')]: 'ON' });
     } else {
+      if (this.isDevice && this.device && !this.propertyMap.get('state' + (isChildEndpoint ? endpoint : '')) && this.propertyMap.get('system_mode' + (isChildEndpoint ? endpoint : ''))?.type === 'ac') {
+        this.log.debug(`Command off called for ${this.ien}${this.device.friendly_name}${rs}${db} so setting systemMode with 'off'`);
+        this.publishCommand('SystemMode', this.device.friendly_name, { ['system_mode' + (isChildEndpoint ? endpoint : '')]: 'off' });
+        return;
+      }
+
       this.cachePublish('toggle', { ['state' + (isChildEndpoint ? endpoint : '')]: 'OFF' });
     }
   }
@@ -1319,7 +1365,7 @@ const z2ms: ZigbeeToMatter[] = [
   { type: 'ac', name: 'local_temperature', property: 'local_temperature', deviceType: airConditioner, cluster: Thermostat.Cluster.id, attribute: 'localTemperature', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
   { type: 'ac', name: 'occupied_heating_setpoint', property: 'occupied_heating_setpoint', deviceType: airConditioner, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
   { type: 'ac', name: 'occupied_cooling_setpoint', property: 'occupied_cooling_setpoint', deviceType: airConditioner, cluster: Thermostat.Cluster.id, attribute: 'occupiedCoolingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: 'ac', name: 'system_mode', property: 'system_mode', deviceType: airConditioner, cluster: Thermostat.Cluster.id, attribute: 'systemMode', valueLookup: ['off', 'auto', '', 'cool', 'heat', '', '', 'fan_only'] },
+  { type: 'ac', name: 'system_mode', property: 'system_mode', deviceType: airConditioner, cluster: Thermostat.Cluster.id, attribute: 'systemMode', valueLookup: ['', 'auto', '', 'cool', 'heat', '', '', 'fan_only'] },
   { type: 'ac', name: 'fan_mode', property: 'fan_mode', deviceType: airConditioner, cluster: FanControl.Cluster.id, attribute: 'fanMode', valueLookup: ['off', 'low', 'medium', 'high', 'on', 'auto', 'smart'] },
   { type: 'fan', name: 'mode', property: 'fan_mode', deviceType: fanDevice, cluster: FanControl.Cluster.id, attribute: 'fanMode', valueLookup: ['off', 'low', 'medium', 'high', 'on', 'auto', 'smart'] },
   { type: '', name: 'min_temperature_limit', property: 'min_temperature_limit', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'minHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
