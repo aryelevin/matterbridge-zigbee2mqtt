@@ -1076,7 +1076,7 @@ export class AqaraS1ScenePanelController {
 
         if (commandCategory === 0x72 && commandAction === 0x01) { // State of device is reported and should set the controlled device to this state (Turn on or change position for example).
           if (this.platform.platformControls?.switchesOn) {
-            if (deviceResourceType === 'air_cond' && stateParam[0] === 0x0e && stateParam[2] === 0x00 && stateParam[3] === 0x55 && (stateParam[1] === 0x20 || stateParam[1] === 0x02)) { // Updated Air conditioner/Heater-Cooler device state
+            if (deviceResourceType === 'air_cond' && stateParam[0] === 0x0e && stateParam[2] === 0x00 && stateParam[3] === 0x55 && (stateParam[1] === 0x20 || stateParam[1] === 0x02)) { // Updated Air conditioner device state
               const onOff = dataArray[dataStartIndex + 21] >= 0x10;
               const mode = dataArray[dataStartIndex + 21] - (onOff ? 0x10 : 0x0);
               const fan = parseInt(dataArray[dataStartIndex + 22].toString(16).padStart(2, '0').slice(0, 1), 16);
@@ -1117,9 +1117,6 @@ export class AqaraS1ScenePanelController {
                   ) {
                     payload[(mode === 0 ? 'occupied_heating_setpoint' : 'occupied_cooling_setpoint') + entityEndpointSuffix] = setTemperature;
                   }
-                  if (Object.keys(payload).length) {
-                    this.publishCommand(entityIeee, payload);
-                  }
                   // /* await */ endpointToControl.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'systemMode', mode === 0 ? Thermostat.SystemMode.Heat : mode === 1 ? Thermostat.SystemMode.Cool : Thermostat.SystemMode.Auto, endpointToControl.bridgedDevice.log);
                   // endpointToControl.bridgedDevice?.commandHandler.executeHandler('changeToMode', { newMode: mode });
 
@@ -1127,6 +1124,10 @@ export class AqaraS1ScenePanelController {
                   // if (mode === 0 || mode === 1) {
                   //   serviceToControl._service.getCharacteristic(mode === 0 ? this.platform.Characteristics.hap.HeatingThresholdTemperature : this.platform.Characteristics.hap.CoolingThresholdTemperature).setValue(setTemperature)
                   // }
+                }
+
+                if (Object.keys(payload).length) {
+                  this.publishCommand(entityIeee, payload);
                 }
                 // }
               }
@@ -1503,8 +1504,14 @@ export class AqaraS1ScenePanelController {
                     //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.TargetPosition).setValue(sceneExecutionActions.targetPosition)
                     // }
 
-                    // Allow also triggering buttons actions, so in HomeKit it will execute the button automation.
-                    if (sceneExecutionActions?.buttonAction === 'Single' || sceneExecutionActions?.buttonAction === 'Double' || sceneExecutionActions?.buttonAction === 'Long' || sceneExecutionActions?.buttonAction === 'Press' || sceneExecutionActions?.buttonAction === 'Release') {
+                    // Allow also triggering buttons actions, so in matter it will execute the button automation.
+                    if (
+                      sceneExecutionActions?.buttonAction === 'Single' ||
+                      sceneExecutionActions?.buttonAction === 'Double' ||
+                      sceneExecutionActions?.buttonAction === 'Long' ||
+                      sceneExecutionActions?.buttonAction === 'Press' ||
+                      sceneExecutionActions?.buttonAction === 'Release'
+                    ) {
                       // TODO: Test if it functions properly.
                       endpointToControl.bridgedDevice?.triggerSwitchEvent(sceneExecutionActions.buttonAction);
                     }
