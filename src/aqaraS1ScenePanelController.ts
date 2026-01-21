@@ -1392,103 +1392,32 @@ export class AqaraS1ScenePanelController {
             const sceneConfig = this.aqaraS1ActionsConfigData?.[deviceIeeeAddress]?.[sceneConfigName] as AqaraS1ScenePanelSceneConfig | undefined;
             const sceneExecutionData = sceneConfig?.execute;
             if (sceneExecutionData) {
-              const devicesIeee = Object.keys(sceneExecutionData);
-              for (let i = devicesIeee.length - 1; i >= 0; i--) {
-                const deviceIeeeItem = devicesIeee[i];
-                const sceneExecutionActions = sceneExecutionData[deviceIeeeItem];
-                const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
+              for (const deviceIeee in sceneExecutionData) {
+                const sceneExecutionActions = sceneExecutionData[deviceIeee];
 
-                // TODO: Change to publish!!!
-                if (deviceToControl) {
-                  const endpointToControl = deviceToControl;
-                  if (endpointToControl) {
-                    if (sceneExecutionActions.on !== undefined) {
-                      const onOff = Boolean(sceneExecutionActions.on);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
-                    }
-                    if (sceneExecutionActions.brightness !== undefined) {
-                      const brightness = Number(sceneExecutionActions.brightness);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToLevel', { request: { level: brightness } });
-                    }
-                    if (sceneExecutionActions.colorTemperature !== undefined) {
-                      const colorTemperature = Number(sceneExecutionActions.colorTemperature);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColorTemperature', { request: { colorTemperatureMireds: colorTemperature } });
-                    }
-                    if (sceneExecutionActions.colorX !== undefined && sceneExecutionActions.colorY !== undefined) {
-                      const colorX = Number(sceneExecutionActions.colorX);
-                      const colorY = Number(sceneExecutionActions.colorY);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToColor', { request: { colorX, colorY } });
-                    }
-                    if (sceneExecutionActions.hue !== undefined && sceneExecutionActions.saturation !== undefined) {
-                      const hue = Number(sceneExecutionActions.hue);
-                      const saturation = Number(sceneExecutionActions.saturation);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentHue', hue, endpointToControl.bridgedDevice.log);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentSaturation', saturation, endpointToControl.bridgedDevice.log);
-                      /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, endpointToControl.bridgedDevice.log);
-                      endpointToControl.bridgedDevice?.commandHandler.executeHandler('moveToHueAndSaturation', { request: { hue, saturation } });
-                    }
-                    // if (sceneExecutionActions.active !== undefined) { // For ACs for example
-                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.Active).setValue(sceneExecutionActions.active)
-                    // }
-                    // if (sceneExecutionActions.targetTemperature !== undefined) { // For ACs and thermostats
-                    //   const characteristic = undefined;
-                    //   if (typeof accessoryToControl === 'HeaterCooler') {
-                    //     const currentTargetHeaterCoolerState = serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.TargetHeaterCoolerState).value
-                    //     if (currentTargetHeaterCoolerState === this.platform.Characteristics.hap.TargetHeaterCoolerState.COOL) {
-                    //       characteristic = this.platform.Characteristics.hap.CoolingThresholdTemperature
-                    //     } else if (currentTargetHeaterCoolerState === this.platform.Characteristics.hap.TargetHeaterCoolerState.HEAT) {
-                    //       characteristic = this.platform.Characteristics.hap.HeatingThresholdTemperature
-                    //     }
-                    //   } else if (typeof accessoryToControl === 'Thermostat') {
-                    //     characteristic = this.platform.Characteristics.hap.TargetTemperature
-                    //   }
-                    //   if (characteristic !== undefined) {
-                    //     serviceToControl._service.getCharacteristic(characteristic).setValue(sceneExecutionActions.targetTemperature)
-                    //   }
-                    // }
-                    // if (sceneExecutionActions.targetState !== undefined) { // For ACs and thermostats
-                    //   const characteristic = undefined;
-                    //   if (typeof accessoryToControl === 'HeaterCooler') {
-                    //     characteristic = this.platform.Characteristics.hap.TargetHeaterCoolerState
-                    //   } else if (typeof accessoryToControl === 'Thermostat') {
-                    //     characteristic = this.platform.Characteristics.hap.TargetHeatingCoolingState
-                    //   }
-                    //   if (characteristic !== undefined) {
-                    //     serviceToControl._service.getCharacteristic(characteristic).setValue(sceneExecutionActions.targetState)
-                    //   }
-                    // }
-                    // if (sceneExecutionActions.rotationSpeed !== undefined) { // For ACs (, fans and thermostats?)
-                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(sceneExecutionActions.rotationSpeed)
-                    // }
-                    // if (sceneExecutionActions.swingMode !== undefined) { // For ACs (, fans and thermostats?)
-                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.SwingMode).setValue(sceneExecutionActions.swingMode)
-                    // }
-                    // if (sceneExecutionActions.holdPosition !== undefined) { // For WindowCovering
-                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.HoldPosition).setValue(sceneExecutionActions.holdPosition) // Supposed to be boolean
-                    // }
-                    // if (sceneExecutionActions.targetPosition !== undefined) { // For WindowCovering
-                    //   serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.TargetPosition).setValue(sceneExecutionActions.targetPosition)
-                    // }
+                const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
+                const entityIeee = pathComponents[0]; // 0x5465654664646464
+                const entityEndpointName = pathComponents[1]; // (l1)
+                // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+                const isSeparatedEndpoint = entityEndpointName ? this.platform.separateDeviceEndpoints[entityIeee]?.includes(entityEndpointName) : false;
+                const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
+                const endpointToControl =
+                  entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                    // Allow also triggering buttons actions, so in matter it will execute the button automation.
-                    if (
-                      sceneExecutionActions?.buttonAction === 'Single' ||
-                      sceneExecutionActions?.buttonAction === 'Double' ||
-                      sceneExecutionActions?.buttonAction === 'Long' ||
-                      sceneExecutionActions?.buttonAction === 'Press' ||
-                      sceneExecutionActions?.buttonAction === 'Release'
-                    ) {
-                      // TODO: Test if it functions properly.
-                      endpointToControl.bridgedDevice?.triggerSwitchEvent(sceneExecutionActions.buttonAction);
-                    }
+                if (endpointToControl) {
+                  // Allow also triggering buttons actions, so in matter it will execute the button automation.
+                  if (
+                    sceneExecutionActions?.buttonAction === 'Single' ||
+                    sceneExecutionActions?.buttonAction === 'Double' ||
+                    sceneExecutionActions?.buttonAction === 'Long' ||
+                    sceneExecutionActions?.buttonAction === 'Press' ||
+                    sceneExecutionActions?.buttonAction === 'Release'
+                  ) {
+                    // TODO: Test if it functions properly.
+                    endpointToControl.triggerSwitchEvent(sceneExecutionActions.buttonAction);
                   }
+
+                  this.publishCommand(entityIeee, sceneExecutionActions);
                 }
               }
             }
