@@ -24,6 +24,7 @@ declare module './entity.js' {
     getLastPayloadItem(key: string): PayloadValue;
     setNoUpdate(noUpdate: boolean): void;
     checkIfPropertyItemShouldBeExposed(key: string): boolean;
+    getEndpointOfProperty(property: string): string | undefined;
   }
 }
 
@@ -67,6 +68,9 @@ ZigbeeEntity.prototype.checkIfPropertyItemShouldBeExposed = function (key: strin
     }
   }
   return false;
+};
+ZigbeeEntity.prototype.getEndpointOfProperty = function (property: string): string | undefined {
+  return this.propertyMap.get(property)?.endpoint;
 };
 
 export interface SwitchingControllerSwitchLinkConfig {
@@ -158,10 +162,10 @@ export class SwitchingController {
     this.log.debug('switchesActionsConfigData contents: ' + JSON.stringify(this.switchesLinksConfigData));
   }
 
-  getDeviceEntity(ieee_address: string) {
+  getDeviceEntity(ieee_address: string, separatedEndpointID?: string) {
     const entity = ieee_address.startsWith('group-')
       ? this.platform.zigbeeEntities?.find((entity) => entity.isGroup && entity.group?.id === Number(ieee_address.split('-')[1]))
-      : this.platform.zigbeeEntities?.find((entity) => entity.isDevice && entity.device?.ieee_address === ieee_address);
+      : this.platform.zigbeeEntities?.find((entity) => entity.isDevice && entity.device?.ieee_address === ieee_address && (!separatedEndpointID || (separatedEndpointID && entity.bridgedDevice?.deviceName?.endsWith(separatedEndpointID))));
     return entity;
   }
 

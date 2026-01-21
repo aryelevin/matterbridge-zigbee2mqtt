@@ -483,6 +483,11 @@
                   }
                 }
               },
+              "internal_thermostat": {
+                "description": "Sets whether the AC have internal temperature sensor, if not, then if there's a temperature sensor configured, it will be shown instead",
+                "type": "boolean",
+                "default": true
+              },
               "endpoints": {
                 "description": "Endpoints",
                 "type": "array",

@@ -8,7 +8,7 @@ import * as https from 'node:https';
 
 import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
 import { MatterbridgeEndpoint } from 'matterbridge';
-import { BridgedDeviceBasicInformation, ColorControl, LevelControl, OnOff } from 'matterbridge/matter/clusters';
+import { BridgedDeviceBasicInformation, ColorControl, FanControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
@@ -121,37 +121,68 @@ export class AqaraS1ScenePanelController {
 
   // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
   // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
-  switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
-    let endpointName = '';
-    const keyComponents = key.split('_');
-    if (keyComponents.length > 1 && key !== 'color_temp' && key !== 'color_mode') {
-      endpointName = '/' + keyComponents[keyComponents.length - 1];
+  entityPropertyChanged(deviceIeee: string, separatedEndpoint: string | undefined = undefined, key: string, value: string | number | boolean, newPayload: Payload) {
+    const device = this.getDeviceEntity(deviceIeee, separatedEndpoint);
+
+    let endpointId = separatedEndpoint;
+    if (!separatedEndpoint) {
+      endpointId = device?.getEndpointOfProperty(key);
     }
+
+    let endpointName = '';
+    let endpointSuffix = '';
+    if (endpointId) {
+      endpointName = '/' + endpointId;
+      endpointSuffix = '_' + endpointId;
+    }
+
     const linkedPanels = this.endpointsToPanels[deviceIeee + endpointName];
     if (linkedPanels?.length) {
-      if (key.startsWith('state')) {
-        const lightEntity = this.getDeviceEntity(deviceIeee);
-        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '04010055', '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
-      } else if (key.startsWith('brightness')) {
-        const lightEntity = this.getDeviceEntity(deviceIeee);
-        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e010055', '000000' + (Math.round((value as number) / 2.54)).toString(16).padStart(2, '0'), 'brightness');
-      } else if (key.startsWith('color_temp')) {
-        const lightEntity = this.getDeviceEntity(deviceIeee);
-        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
-      } else if (key.startsWith('color')) {
-        const color = newPayload.color as { [key: string]: number };
-        const colorX = color?.x;
-        const colorY = color?.y;
-        const lightEntity = this.getDeviceEntity(deviceIeee);
-        if (lightEntity) this.sendLightStateToPanels(lightEntity, linkedPanels, '0e080055', Math.round(colorX * 65535).toString(16).padStart(4, '0') + Math.round(colorY * 65535).toString(16).padStart(4, '0'), 'color');
+      const linkedPanelDeviceType = linkedPanels[0].split('/')[2];
+      if (linkedPanelDeviceType === 'ac') {
+        if (
+          key.startsWith('state') ||
+          key.startsWith('system_mode') ||
+          key.startsWith('fan_mode') ||
+          key.startsWith('local_temperature') ||
+          key.startsWith('occupied_heating_setpoint') ||
+          key.startsWith('occupied_cooling_setpoint')
+        ) {
+          const onOff = newPayload['state' + endpointSuffix] === 'ON';
+          const systemMode = newPayload['system_mode' + endpointSuffix];
+          const fanMode = newPayload['fan_mode' + endpointSuffix];
+          const targetTemperature = newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] || 255;
+          const currentTemperature = newPayload['local_temperature' + endpointSuffix];
+          const internalThermostat = this.aqaraS1ActionsConfigData[linkedPanels[0].split('/')[1]]?.ac?.internal_thermostat;
+          if (device) this.sendStateToPanels(device, linkedPanels, internalThermostat ? '0e020055' : '0e200055', (onOff === true ? '1' : '0') + (systemMode === 'heat' ? '0' : systemMode === 'cool' ? '1' : '2') + (fanMode === 'low' ? '0' : fanMode === 'medium' ? '1' : fanMode === 'high' ? '2' : '3') + (internalThermostat ? '0' : 'f') + targetTemperature.toString(16).padStart(2, '0') + (internalThermostat ? ((Math.round(currentTemperature as number || 255) + 0) * 4).toString(16).padStart(2, '0') : '00'), '');
+        }
+      } else if (linkedPanelDeviceType.startsWith('curtain')) {
+        if (key.startsWith('state')) {
+          if (device) this.sendStateToPanels(device, linkedPanels, '0e020055', '000000' + (value === 'OPEN' ? 1 : value === 'CLOSE' ? 0 : 2).toString(16).padStart(2, '0'), 'state');
+        } else if (key.startsWith('position')) {
+          if (device) this.sendStateToPanels(device, linkedPanels, '01010055', this.getHexFromFloat32Bit(value as number), 'position');
+        }
+      } else if (linkedPanelDeviceType.startsWith('lights/')) {
+        if (key.startsWith('state')) {
+          if (device) this.sendStateToPanels(device, linkedPanels, '04010055', '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
+        } else if (key.startsWith('brightness')) {
+          if (device) this.sendStateToPanels(device, linkedPanels, '0e010055', '000000' + (Math.round((value as number) / 2.54)).toString(16).padStart(2, '0'), 'brightness');
+        } else if (key.startsWith('color_temp')) {
+          if (device) this.sendStateToPanels(device, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
+        } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
+          const color = newPayload[key] as { [key: string]: number };
+          const colorX = color?.x;
+          const colorY = color?.y;
+          if (device) this.sendStateToPanels(device, linkedPanels, '0e080055', Math.round(colorX * 65535).toString(16).padStart(4, '0') + Math.round(colorY * 65535).toString(16).padStart(4, '0'), 'color');
+        }
       }
     }
   }
 
-  getDeviceEntity(ieee_address: string) {
+  getDeviceEntity(ieee_address: string, separatedEndpointID?: string) {
     const entity = ieee_address.startsWith('group-')
       ? this.platform.zigbeeEntities?.find((entity) => entity.isGroup && entity.group?.id === Number(ieee_address.split('-')[1]))
-      : this.platform.zigbeeEntities?.find((entity) => entity.isDevice && entity.device?.ieee_address === ieee_address);
+      : this.platform.zigbeeEntities?.find((entity) => entity.isDevice && entity.device?.ieee_address === ieee_address && (!separatedEndpointID || (separatedEndpointID && entity.bridgedDevice?.deviceName?.endsWith(separatedEndpointID))));
     return entity;
   }
 
@@ -368,21 +399,26 @@ export class AqaraS1ScenePanelController {
   }
 
   sendACStateToPanel(deviceIeeeAddress: string, acEndpoint: MatterbridgeEndpoint) {
-    let data = '';
-    data += acEndpoint.uniqueId;
-    this._writeDataToPanel(deviceIeeeAddress, data);
+    const onOff = acEndpoint.getAttribute(OnOff.Cluster.id, 'onOff');
+    const systemMode = acEndpoint.getAttribute(Thermostat.Cluster.id, 'systemMode'); // Thermostat.SystemMode.Heat, Thermostat.SystemMode.Cool, Thermostat.SystemMode.Auto
+    const fanMode = acEndpoint.getAttribute(FanControl.Cluster.id, 'targetSpeed'); // TODO: correct
+    const targetTemperature = acEndpoint.getAttribute(Thermostat.Cluster.id, systemMode === Thermostat.SystemMode.Cool ? 'occupiedCoolingSetpoint' : systemMode === Thermostat.SystemMode.Heat ? 'occupiedHeatingSetpoint' : '') || 255;
+    const currentTemperature = acEndpoint.getAttribute(Thermostat.Cluster.id, 'localTemperature');
+    const internalThermostat = this.aqaraS1ActionsConfigData[deviceIeeeAddress]?.ac?.internal_thermostat;
+    this.sendStateToPanel(deviceIeeeAddress, '6169725f636f6e64', internalThermostat ? '0e020055' : '0e200055', (onOff === true ? '1' : '0') + (systemMode === Thermostat.SystemMode.Heat ? '0' : systemMode === Thermostat.SystemMode.Cool ? '1' : '2') + (fanMode === 25 ? '0' : fanMode === 50 ? '1' : fanMode === 75 ? '2' : '3') + (internalThermostat ? '0' : 'f') + targetTemperature.toString(16).padStart(2, '0') + (internalThermostat ? ((Math.round(currentTemperature) + 0) * 4).toString(16).padStart(2, '0') : '00'));
   }
 
-  sendCoverPositionToPanel(deviceIeeeAddress: string, coverEndpoint: MatterbridgeEndpoint) {
-    let data = '';
-    data += coverEndpoint.uniqueId;
-    this._writeDataToPanel(deviceIeeeAddress, data);
+  sendCoverPositionToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
+    const position = coverEndpoint.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths');
+    this.log.info('Position: ' + position);
+    this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '01010055', this.getHexFromFloat32Bit(position / 100));
   }
 
-  sendCoverMovementModeToPanel(deviceIeeeAddress: string, coverEndpoint: MatterbridgeEndpoint) {
-    let data = '';
-    data += coverEndpoint.uniqueId;
-    this._writeDataToPanel(deviceIeeeAddress, data);
+  sendCoverMovementModeToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
+    const movementMatterState = coverEndpoint.getAttribute(WindowCovering.Cluster.id, 'operationalStatus').global;
+    const movementState = '000000' + (movementMatterState === WindowCovering.MovementStatus.Opening ? 1 : movementMatterState === WindowCovering.MovementStatus.Closing ? 0 : 2).toString(16).padStart(2, '0'); // TODO: Check the correct parameters...
+    this.log.info('Movement Mode: ' + movementState);
+    this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '0e020055', movementState);
   }
 
   sendLightOnOffStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
@@ -414,7 +450,7 @@ export class AqaraS1ScenePanelController {
     this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e080055', Math.round(colorX * 65535).toString(16).padStart(4, '0') + Math.round(colorY * 65535).toString(16).padStart(4, '0'));
   }
 
-  sendLightStateToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], parameter: string, content: string, valueToCheck: string, secondValueToCheck?: string) {
+  sendStateToPanels(originalEntity: ZigbeeEntity, panelsToUpdate: string[], parameter: string, content: string, valueToCheck: string, secondValueToCheck?: string) {
     if (panelsToUpdate?.length) {
       for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
         const panelResourceItem = panelsToUpdate[i];
@@ -425,9 +461,17 @@ export class AqaraS1ScenePanelController {
           let shouldUpdatePanelState = true;
           for (let ii = lightsControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
             const lightResourcePath = lightsControlledWithPanelDevice[ii].split('/');
-            const accessoryToCheck = this.getDeviceEntity(lightResourcePath[0]); // this.gateway.platform.gatewayMap[lightResourcePath[1]].accessoryByRpath['/' + lightResourcePath[2] + '/' + lightResourcePath[3]].service
+            // TODO: Refactor (Endpoints)...
+            const accessoryToCheck = this.getDeviceEntity(lightResourcePath[0]);
             if (accessoryToCheck) {
-              if (accessoryToCheck !== originalLightEntity && accessoryToCheck.getLastPayloadItem(valueToCheck) !== undefined && ((accessoryToCheck.getLastPayloadItem(valueToCheck) !== originalLightEntity.getLastPayloadItem(valueToCheck)) || (secondValueToCheck !== undefined && accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== undefined && accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== originalLightEntity.getLastPayloadItem(secondValueToCheck)))) { // this.obj.state.on
+              if (
+                accessoryToCheck !== originalEntity &&
+                accessoryToCheck.getLastPayloadItem(valueToCheck) !== undefined &&
+                (accessoryToCheck.getLastPayloadItem(valueToCheck) !== originalEntity.getLastPayloadItem(valueToCheck) ||
+                  (secondValueToCheck !== undefined &&
+                    accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== undefined &&
+                    accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== originalEntity.getLastPayloadItem(secondValueToCheck)))
+              ) {
                 shouldUpdatePanelState = false;
                 break;
               }
@@ -437,9 +481,64 @@ export class AqaraS1ScenePanelController {
           if (shouldUpdatePanelState) {
             this.sendLightDataToPanel(pathComponents[1], lightNo, parameter, content);
           }
+        } else if (pathComponents[2].startsWith('curtain')) {
+          const coverNo = pathComponents[2].charAt(pathComponents[2].length - 1);
+          const coversControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem];
+          let shouldUpdatePanelState = true;
+          for (let ii = coversControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
+            const coverResourcePath = coversControlledWithPanelDevice[ii].split('/');
+            // TODO: Refactor (Endpoints)...
+            const accessoryToCheck = this.getDeviceEntity(coverResourcePath[0]);
+            if (accessoryToCheck) {
+              if (
+                accessoryToCheck !== originalEntity &&
+                accessoryToCheck.getLastPayloadItem(valueToCheck) !== undefined &&
+                (accessoryToCheck.getLastPayloadItem(valueToCheck) !== originalEntity.getLastPayloadItem(valueToCheck) ||
+                  (secondValueToCheck !== undefined &&
+                    accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== undefined &&
+                    accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== originalEntity.getLastPayloadItem(secondValueToCheck)))
+              ) {
+                shouldUpdatePanelState = false;
+                break;
+              }
+            }
+          }
+
+          if (shouldUpdatePanelState) {
+            this.sendCoverDataToPanel(pathComponents[1], coverNo, parameter, content);
+          }
+        } else if (pathComponents[2] === 'ac') {
+          const coversControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem];
+          let shouldUpdatePanelState = true;
+          for (let ii = coversControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
+            const coverResourcePath = coversControlledWithPanelDevice[ii].split('/');
+            // TODO: Refactor (Endpoints)...
+            const accessoryToCheck = this.getDeviceEntity(coverResourcePath[0]);
+            if (accessoryToCheck) {
+              if (
+                accessoryToCheck !== originalEntity &&
+                accessoryToCheck.getLastPayloadItem(valueToCheck) !== undefined &&
+                (accessoryToCheck.getLastPayloadItem(valueToCheck) !== originalEntity.getLastPayloadItem(valueToCheck) ||
+                  (secondValueToCheck !== undefined &&
+                    accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== undefined &&
+                    accessoryToCheck.getLastPayloadItem(secondValueToCheck) !== originalEntity.getLastPayloadItem(secondValueToCheck)))
+              ) {
+                shouldUpdatePanelState = false;
+                break;
+              }
+            }
+          }
+
+          if (shouldUpdatePanelState) {
+            this.sendStateToPanel(pathComponents[1], '6169725f636f6e64', parameter, content);
+          }
         }
       }
     }
+  }
+
+  sendCoverDataToPanel(deviceIeeeAddress: string, coverNo: string, parameter: string, content: string) {
+    this.sendStateToPanel(deviceIeeeAddress, '6375727461696e' + parseInt(coverNo).toString(16).padStart(2, '3'), parameter, content);
   }
 
   sendLightDataToPanel(deviceIeeeAddress: string, lightNo: string, parameter: string, content: string) {
@@ -447,7 +546,7 @@ export class AqaraS1ScenePanelController {
   }
 
   sendLightOnOffToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], newOn: boolean) {
-    this.sendLightStateToPanels(originalLightEntity, panelsToUpdate, '04010055', '000000' + (newOn ? 1 : 0).toString(16).padStart(2, '0'), 'on');
+    this.sendStateToPanels(originalLightEntity, panelsToUpdate, '04010055', '000000' + (newOn ? 1 : 0).toString(16).padStart(2, '0'), 'on');
     // TODO: Needs to move to switchingController...
     // // Queue it for a later processing to allow any other lights to complete its on/off operation to allow anyOn be correct...
     // nextTick(() => {
@@ -545,10 +644,12 @@ export class AqaraS1ScenePanelController {
 
       // Now subscribe to events related to panels to be able to update panel state in case of controlled device have changed not from a panel...
       for (const endpoint in this.endpointsToPanels) {
-        const deviceIeee = endpoint.split('/')[0];
+        const endpointComponents = endpoint.split('/');
+        const deviceIeee = endpointComponents[0];
         if (!this.lastStates[deviceIeee]) {
           this.lastStates[deviceIeee] = {};
-          const device = this.getDeviceEntity(deviceIeee);
+          const separatedDeviceEndpoint = this.platform.separateDeviceEndpoints[deviceIeee]?.includes(endpointComponents[1]) ? endpointComponents[1] : undefined;
+          const device = this.getDeviceEntity(deviceIeee, separatedDeviceEndpoint);
           if (device) {
             this.platform.z2m.on('MESSAGE-' + device.entityName, (payload: Payload) => {
               if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
@@ -557,7 +658,7 @@ export class AqaraS1ScenePanelController {
                 const value = payload[key];
                 if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastStates[deviceIeee][key]) {
                   this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
-                  this.switchStateChanged(deviceIeee || '', key, value, payload);
+                  this.entityPropertyChanged(deviceIeee || '', separatedDeviceEndpoint, key, value, payload);
                 }
               }
               // // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = false
@@ -650,7 +751,7 @@ export class AqaraS1ScenePanelController {
       for (const panelIeeeAddresss of panels) {
         const panelMACAddress = panelIeeeAddresss.slice(2); // From 0x54XXXXXXXXX to 54XXXXXXXXX
         const panelData = this.aqaraS1ActionsConfigData[panelIeeeAddresss];
-        const panelLightObject = this.getDeviceEntity(panelIeeeAddresss);
+        const panelLightObject = this.getDeviceEntity(panelIeeeAddresss); // Could be its not needed, its used only for the "if" statement below...
         if (panelLightObject) {
           let parsedData = this.aqaraS1ExecutedConfigurationsData[panelIeeeAddresss];
 
@@ -989,43 +1090,45 @@ export class AqaraS1ScenePanelController {
                 const entityIeee = pathComponents[0]; // 0x5465654664646464
                 const entityEndpointName = pathComponents[1]; // (l1)
                 const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-                const entityToControl = this.getDeviceEntity(entityIeee); // The main device
+                // const entityToControl = this.getDeviceEntity(entityIeee); // The main device
                 // const endpointToControl = entityEndpointName ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                if (entityToControl) {
-                  const payload: Payload = {};
-                  if (this.lastStates?.[entityIeee]?.['state' + entityEndpointSuffix] !== onOff) {
-                    payload['state' + entityEndpointSuffix] = onOff;
-                  }
-                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
-                  // endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
-                  if (onOff) {
-                    const modeStr = mode === 0 ? 'heat' : mode === 1 ? 'cool' : 'auto'; // TODO: support all other modes supported by the panel...
-                    if (this.lastStates?.[entityIeee]?.['system_mode' + entityEndpointSuffix] !== modeStr) {
-                      payload['system_mode' + entityEndpointSuffix] = modeStr;
-                    }
-                    const fanModeStr = fan === 0 ? 'low' : fan === 1 ? 'medium' : fan === 2 ? 'high' : 'auto'; // TODO: check the correct modes values on the panel...
-                    if (this.lastStates?.[entityIeee]?.['fan_mode' + entityEndpointSuffix] !== fanModeStr) {
-                      payload['fan_mode' + entityEndpointSuffix] = fanModeStr;
-                    }
-                    if (
-                      (mode === 0 || mode === 1) &&
-                      this.lastStates?.[entityIeee]?.[(mode === 0 ? 'occupied_heating_setpoint' : 'occupied_cooling_setpoint') + entityEndpointSuffix] !== setTemperature
-                    ) {
-                      payload[(mode === 0 ? 'occupied_heating_setpoint' : 'occupied_cooling_setpoint') + entityEndpointSuffix] = setTemperature;
-                    }
-                    if (Object.keys(payload).length) {
-                      this.publishCommand(entityIeee, payload);
-                    }
-                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'systemMode', mode === 0 ? Thermostat.SystemMode.Heat : mode === 1 ? Thermostat.SystemMode.Cool : Thermostat.SystemMode.Auto, endpointToControl.bridgedDevice.log);
-                    // endpointToControl.bridgedDevice?.commandHandler.executeHandler('changeToMode', { newMode: mode });
-
-                    // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(fan === 0 ? 25 : fan === 1 ? 50 : fan === 2 ? 75 : 100)
-                    // if (mode === 0 || mode === 1) {
-                    //   serviceToControl._service.getCharacteristic(mode === 0 ? this.platform.Characteristics.hap.HeatingThresholdTemperature : this.platform.Characteristics.hap.CoolingThresholdTemperature).setValue(setTemperature)
-                    // }
-                  }
+                // if (entityToControl) {
+                // TODO: check that multiple parameters can be set in one payload (for example, when setting system_mode to cool and the occupied_cooling_setpoint is set to 22 in one payload)
+                const payload: Payload = {};
+                const onOffStr = onOff ? 'ON' : 'OFF';
+                if (this.lastStates?.[entityIeee]?.['state' + entityEndpointSuffix] !== onOffStr) {
+                  payload['state' + entityEndpointSuffix] = onOffStr;
                 }
+                // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
+                // endpointToControl.bridgedDevice?.commandHandler.executeHandler(onOff ? 'on' : 'off');
+                if (onOff) {
+                  const modeStr = mode === 0 ? 'heat' : mode === 1 ? 'cool' : mode === 2 ? 'auto' : mode === 3 ? 'fan_only' : mode === 4 ? 'dry' : 'auto';
+                  if (this.lastStates?.[entityIeee]?.['system_mode' + entityEndpointSuffix] !== modeStr) {
+                    payload['system_mode' + entityEndpointSuffix] = modeStr;
+                  }
+                  const fanModeStr = fan === 0 ? 'low' : fan === 1 ? 'medium' : fan === 2 ? 'high' : 'auto';
+                  if (this.lastStates?.[entityIeee]?.['fan_mode' + entityEndpointSuffix] !== fanModeStr) {
+                    payload['fan_mode' + entityEndpointSuffix] = fanModeStr;
+                  }
+                  if (
+                    (mode === 0 || mode === 1) &&
+                    this.lastStates?.[entityIeee]?.[(mode === 0 ? 'occupied_heating_setpoint' : 'occupied_cooling_setpoint') + entityEndpointSuffix] !== setTemperature
+                  ) {
+                    payload[(mode === 0 ? 'occupied_heating_setpoint' : 'occupied_cooling_setpoint') + entityEndpointSuffix] = setTemperature;
+                  }
+                  if (Object.keys(payload).length) {
+                    this.publishCommand(entityIeee, payload);
+                  }
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'systemMode', mode === 0 ? Thermostat.SystemMode.Heat : mode === 1 ? Thermostat.SystemMode.Cool : Thermostat.SystemMode.Auto, endpointToControl.bridgedDevice.log);
+                  // endpointToControl.bridgedDevice?.commandHandler.executeHandler('changeToMode', { newMode: mode });
+
+                  // serviceToControl._service.getCharacteristic(this.platform.Characteristics.hap.RotationSpeed).setValue(fan === 0 ? 25 : fan === 1 ? 50 : fan === 2 ? 75 : 100)
+                  // if (mode === 0 || mode === 1) {
+                  //   serviceToControl._service.getCharacteristic(mode === 0 ? this.platform.Characteristics.hap.HeatingThresholdTemperature : this.platform.Characteristics.hap.CoolingThresholdTemperature).setValue(setTemperature)
+                  // }
+                }
+                // }
               }
             } else if (deviceResourceType.startsWith('curtain')) { // Curtains control
               if (stateParam[0] === 0x01 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position
@@ -1041,14 +1144,14 @@ export class AqaraS1ScenePanelController {
                   const entityIeee = pathComponents[0]; // 0x5465654664646464
                   const entityEndpointName = pathComponents[1]; // (l1)
                   const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-                  const entityToControl = this.getDeviceEntity(entityIeee); // The main device
+                  // const entityToControl = this.getDeviceEntity(entityIeee); // The main device
                   // const endpointToControl = entityEndpointName ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                  if (entityToControl) {
-                    this.publishCommand(entityIeee, { ['position' + entityEndpointSuffix]: position });
-                    // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position * 100, endpointToControl.bridgedDevice.log);
-                    // endpointToControl.bridgedDevice?.commandHandler.executeHandler('goToLiftPercentage', { request: { liftPercent100thsValue: position * 100 } });
-                  }
+                  // if (entityToControl) {
+                  this.publishCommand(entityIeee, { ['position' + entityEndpointSuffix]: position });
+                  // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position * 100, endpointToControl.bridgedDevice.log);
+                  // endpointToControl.bridgedDevice?.commandHandler.executeHandler('goToLiftPercentage', { request: { liftPercent100thsValue: position * 100 } });
+                  // }
                 }
               } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position State
                 const positionState = dataArray[dataStartIndex + 24];
@@ -1061,30 +1164,30 @@ export class AqaraS1ScenePanelController {
                   const entityIeee = pathComponents[0]; // 0x5465654664646464
                   const entityEndpointName = pathComponents[1]; // (l1)
                   const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-                  const entityToControl = this.getDeviceEntity(entityIeee); // The main device
+                  // const entityToControl = this.getDeviceEntity(entityIeee); // The main device
                   // const endpointToControl = entityEndpointName ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                  if (entityToControl) {
-                    if (positionState < 0x02) { // Open or Close
-                      this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: positionState === 0x01 ? 'CLOSE' : 'OPEN' });
-                      // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', (positionState === 0x01 ? 100 : 0) * 100, endpointToControl.bridgedDevice.log);
-                      // endpointToControl.bridgedDevice?.commandHandler.executeHandler(positionState === 0x01 ? 'downOrClose' : 'upOrOpen');
-                      // const operationState = positionState === 0x01 ? WindowCovering.MovementStatus.Closing : positionState === 0x00 ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Stopped;
-                      // /* await */ endpointToControl?.bridgedDevice?.setAttribute(
-                      //   WindowCovering.Cluster.id,
-                      //   'operationalStatus',
-                      //   { global: operationState, lift: operationState, tilt: operationState },
-                      //   endpointToControl.bridgedDevice.log,
-                      // );
-                    } else { // Stop
-                      // const position = endpointToControl?.bridgedDevice?.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', endpointToControl.bridgedDevice.log);
-                      // // if (isValidNumber(position, 0, 10000)) {
-                      // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position, endpointToControl.bridgedDevice.log);
-                      // // }
-                      // endpointToControl.bridgedDevice?.commandHandler.executeHandler('stopMotion');
-                      this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: 'STOP' });
-                    }
+                  // if (entityToControl) {
+                  if (positionState < 0x02) { // Open or Close
+                    this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: positionState === 0x01 ? 'OPEN' : 'CLOSE' });
+                    // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', (positionState === 0x01 ? 100 : 0) * 100, endpointToControl.bridgedDevice.log);
+                    // endpointToControl.bridgedDevice?.commandHandler.executeHandler(positionState === 0x01 ? 'downOrClose' : 'upOrOpen');
+                    // const operationState = positionState === 0x01 ? WindowCovering.MovementStatus.Closing : positionState === 0x00 ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Stopped;
+                    // /* await */ endpointToControl?.bridgedDevice?.setAttribute(
+                    //   WindowCovering.Cluster.id,
+                    //   'operationalStatus',
+                    //   { global: operationState, lift: operationState, tilt: operationState },
+                    //   endpointToControl.bridgedDevice.log,
+                    // );
+                  } else { // Stop
+                    // const position = endpointToControl?.bridgedDevice?.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', endpointToControl.bridgedDevice.log);
+                    // // if (isValidNumber(position, 0, 10000)) {
+                    // /* await */ endpointToControl?.bridgedDevice?.setAttribute(WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position, endpointToControl.bridgedDevice.log);
+                    // // }
+                    // endpointToControl.bridgedDevice?.commandHandler.executeHandler('stopMotion');
+                    this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: 'STOP' });
                   }
+                  // }
                 }
               }
             } else if (deviceResourceType.startsWith('lights/')) { // Lights control
@@ -1115,36 +1218,36 @@ export class AqaraS1ScenePanelController {
                 const entityIeee = pathComponents[0]; // 0x5465654664646464
                 const entityEndpointName = pathComponents[1]; // (l1)
                 const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-                const entityToControl = this.getDeviceEntity(entityIeee); // The main device
+                // const entityToControl = this.getDeviceEntity(entityIeee); // The main device
                 // const endpointToControl = entityEndpointName ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                if (entityToControl) {
-                  if (onOff !== undefined) {
-                    this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: onOff ? 'ON' : 'OFF' });
-                    // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
-                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
-                  }
-                  if (brightness !== undefined) {
-                    this.publishCommand(entityIeee, { ['brightness' + entityEndpointSuffix]: Math.round((Math.max(3, Math.min(254, (brightness * 2.54))) / 254) * 255) });
-                    // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
-                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
-                  }
-                  if (colorTemperature !== undefined) {
-                    this.publishCommand(entityIeee, { ['color_temp' + entityEndpointSuffix]: colorTemperature });
-                    // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
-                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
-                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
-                  }
-                  if (colorX !== undefined && colorY !== undefined) {
-                    this.publishCommand(entityIeee, {
-                      ['color' + entityEndpointSuffix]: { x: Math.round((colorX / 65536) * 10000) / 10000, y: Math.round((colorY / 65536) * 10000) / 10000 },
-                    });
-                    // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
-                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
-                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
-                    // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
-                  }
+                // if (entityToControl) {
+                if (onOff !== undefined) {
+                  this.publishCommand(entityIeee, { ['state' + entityEndpointSuffix]: onOff ? 'ON' : 'OFF' });
+                  // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(OnOff.Cluster.id, 'onOff', onOff, endpointToControl.bridgedDevice.log);
                 }
+                if (brightness !== undefined) {
+                  this.publishCommand(entityIeee, { ['brightness' + entityEndpointSuffix]: Math.round((Math.max(3, Math.min(254, brightness * 2.54)) / 254) * 255) });
+                  // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(LevelControl.Cluster.id, 'currentLevel', brightness, endpointToControl.bridgedDevice.log);
+                }
+                if (colorTemperature !== undefined) {
+                  this.publishCommand(entityIeee, { ['color_temp' + entityEndpointSuffix]: colorTemperature });
+                  // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', colorTemperature, endpointToControl.bridgedDevice.log);
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, endpointToControl.bridgedDevice.log);
+                }
+                if (colorX !== undefined && colorY !== undefined) {
+                  this.publishCommand(entityIeee, {
+                    ['color' + entityEndpointSuffix]: { x: Math.round((colorX / 65536) * 10000) / 10000, y: Math.round((colorY / 65536) * 10000) / 10000 },
+                  });
+                  // No need to set noUpdate to false since here its a scene panel input, not a light state change etc...
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentX', colorX, endpointToControl.bridgedDevice.log);
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'currentY', colorY, endpointToControl.bridgedDevice.log);
+                  // /* await */ endpointToControl.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, endpointToControl.bridgedDevice.log);
+                }
+                // }
               }
             }
           }
@@ -1169,17 +1272,21 @@ export class AqaraS1ScenePanelController {
             // TODO: maybe set the state, on groups always online, on others, use the device.reachable state. What with multiple devices resources controller with one device???
             this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '080007fd', '00000001'); // Just respond with "Online" mode...
           } else if (deviceResourceType === 'air_cond') {
-            if (stateParam[0] === 0x0e && stateParam[2] === 0x00 && stateParam[3] === 0x55 && (stateParam[1] === 0x20 || stateParam[1] === 0x02)) { // Air conditioner/Heater-Cooler device state
+            if (stateParam[0] === 0x0e && stateParam[2] === 0x00 && stateParam[3] === 0x55 && (stateParam[1] === 0x20 || stateParam[1] === 0x02)) { // Air conditioner device state
               const panelDevicePath = '/' + deviceIeeeAddress + '/ac';
-              const deviceIeee = this.panelsToEndpoints[panelDevicePath][0];
-              const deviceToControl = this.getDeviceEntity(deviceIeee);
+              const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0]; // 0x5465654664646464(/l1)
+              const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
+              const entityIeee = pathComponents[0]; // 0x5465654664646464
+              const entityEndpointName = pathComponents[1]; // (l1)
+              // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+              const isSeparatedEndpoint = entityEndpointName ? this.platform.separateDeviceEndpoints[entityIeee]?.includes(entityEndpointName) : false;
+              const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
+              const endpointToControl =
+                entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-              if (deviceToControl) {
-                const endpointToControl = deviceToControl;
-                if (endpointToControl?.bridgedDevice) {
-                  // accessoryToControl.service.updatePanel(panelDevicePath.split('/'));
-                  this.sendACStateToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
-                }
+              if (endpointToControl) {
+                // accessoryToControl.service.updatePanel(panelDevicePath.split('/'));
+                this.sendACStateToPanel(deviceIeeeAddress, endpointToControl);
               }
             } else if (stateParam[0] === 0x08 && stateParam[1] === 0x00 && stateParam[2] === 0x1f && stateParam[3] === 0xa7) { // Modes
               const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress]['ac'];
@@ -1242,31 +1349,29 @@ export class AqaraS1ScenePanelController {
               this.log.info('AC Requires data which is not handled!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
             }
           } else if (deviceResourceType.startsWith('curtain')) {
-            if (stateParam[0] === 0x01 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position
-              const panelDevicePath = '/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1);
-              const deviceIeee = this.panelsToEndpoints[panelDevicePath][0];
-              const deviceToControl = this.getDeviceEntity(deviceIeee);
+            const coverNo = deviceResourceType.charAt(deviceResourceType.length - 1);
+            const panelDevicePath = '/' + deviceIeeeAddress + '/curtain_' + coverNo;
+            const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0]; // 0x5465654664646464(/l1)
+            const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
+            const entityIeee = pathComponents[0]; // 0x5465654664646464
+            const entityEndpointName = pathComponents[1]; // (l1)
+            // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+            const isSeparatedEndpoint = entityEndpointName ? this.platform.separateDeviceEndpoints[entityIeee]?.includes(entityEndpointName) : false;
+            const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
+            const endpointToControl =
+              entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-              if (deviceToControl) {
-                const endpointToControl = deviceToControl;
-                if (endpointToControl?.bridgedDevice) {
-                  // accessoryToControl.service.updatePanelPositionState(panelDevicePath.split('/'));
-                  this.sendCoverPositionToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
-                }
+            if (stateParam[0] === 0x01 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position
+              if (endpointToControl) {
+                // accessoryToControl.service.updatePanelPositionState(panelDevicePath.split('/'));
+                this.sendCoverPositionToPanel(deviceIeeeAddress, coverNo, endpointToControl);
               } else {
                 this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '01010055', this.getHexFromFloat32Bit(0));
               }
             } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Position State
-              const panelDevicePath = '/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1);
-              const deviceIeee = this.panelsToEndpoints[panelDevicePath][0];
-              const deviceToControl = this.getDeviceEntity(deviceIeee);
-
-              if (deviceToControl) {
-                const endpointToControl = deviceToControl;
-                if (endpointToControl?.bridgedDevice) {
-                  // accessoryToControl.service.updatePanelMovementState(panelDevicePath.split('/'));
-                  this.sendCoverMovementModeToPanel(deviceIeeeAddress, endpointToControl.bridgedDevice);
-                }
+              if (endpointToControl) {
+                // accessoryToControl.service.updatePanelMovementState(panelDevicePath.split('/'));
+                this.sendCoverMovementModeToPanel(deviceIeeeAddress, coverNo, endpointToControl);
               } else {
                 this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '0e020055', '00000002');
               }
@@ -1275,25 +1380,28 @@ export class AqaraS1ScenePanelController {
             const lightNo = deviceResourceType.charAt(deviceResourceType.length - 1);
             const panelDevicePath = '/' + deviceIeeeAddress + '/light_' + lightNo;
             const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0];
-            const deviceToControl = this.getDeviceEntity(deviceIeee);
-            // TODO: Child endpoints!!!
+            const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
+            const entityIeee = pathComponents[0]; // 0x5465654664646464
+            const entityEndpointName = pathComponents[1]; // (l1)
+            // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+            const isSeparatedEndpoint = entityEndpointName ? this.platform.separateDeviceEndpoints[entityIeee]?.includes(entityEndpointName) : false;
+            const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
+            const endpointToControl =
+              entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-            if (deviceToControl /* && accessoryToControl.values.serviceName === 'Light'*/) {
-              const endpointToControl = deviceToControl;
-              if (endpointToControl?.bridgedDevice) {
-                if (stateParam[0] === 0x04 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light On/Off
-                  // accessoryToControl.service.updatePanelOnOffState(panelDevicePath.split('/'));
-                  this.sendLightOnOffStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
-                } else if (stateParam[0] === 0x0e && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Brightness
-                  // accessoryToControl.service.updatePanelBrightnessState(panelDevicePath.split('/'));
-                  this.sendLightBrightnessStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
-                } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light CT
-                  // accessoryToControl.service.updatePanelColorTemperatureState(panelDevicePath.split('/'));
-                  this.sendLightColorTemperatureStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
-                } else if (stateParam[0] === 0x0e && stateParam[1] === 0x08 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Color
-                  // accessoryToControl.service.updatePanelColorState(panelDevicePath.split('/'));
-                  this.sendLightColorStateToPanel(deviceIeeeAddress, lightNo, endpointToControl.bridgedDevice);
-                }
+            if (endpointToControl /* && accessoryToControl.values.serviceName === 'Light'*/) {
+              if (stateParam[0] === 0x04 && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light On/Off
+                // accessoryToControl.service.updatePanelOnOffState(panelDevicePath.split('/'));
+                this.sendLightOnOffStateToPanel(deviceIeeeAddress, lightNo, endpointToControl);
+              } else if (stateParam[0] === 0x0e && stateParam[1] === 0x01 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Brightness
+                // accessoryToControl.service.updatePanelBrightnessState(panelDevicePath.split('/'));
+                this.sendLightBrightnessStateToPanel(deviceIeeeAddress, lightNo, endpointToControl);
+              } else if (stateParam[0] === 0x0e && stateParam[1] === 0x02 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light CT
+                // accessoryToControl.service.updatePanelColorTemperatureState(panelDevicePath.split('/'));
+                this.sendLightColorTemperatureStateToPanel(deviceIeeeAddress, lightNo, endpointToControl);
+              } else if (stateParam[0] === 0x0e && stateParam[1] === 0x08 && stateParam[2] === 0x00 && stateParam[3] === 0x55) { // Light Color
+                // accessoryToControl.service.updatePanelColorState(panelDevicePath.split('/'));
+                this.sendLightColorStateToPanel(deviceIeeeAddress, lightNo, endpointToControl);
               }
             }
           }
@@ -1316,6 +1424,7 @@ export class AqaraS1ScenePanelController {
                 const sceneExecutionActions = sceneExecutionData[deviceIeeeItem];
                 const deviceToControl = this.getDeviceEntity(deviceIeeeItem);
 
+                // TODO: Change to publish!!!
                 if (deviceToControl) {
                   const endpointToControl = deviceToControl;
                   if (endpointToControl) {
