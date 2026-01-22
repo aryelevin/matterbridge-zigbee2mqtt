@@ -408,11 +408,11 @@ export class AqaraS1ScenePanelController {
   sendACStateToPanel(deviceIeeeAddress: string, acEndpoint: MatterbridgeEndpoint) {
     const onOff = acEndpoint.getAttribute(OnOff.Cluster.id, 'onOff');
     const systemMode = acEndpoint.getAttribute(Thermostat.Cluster.id, 'systemMode'); // Thermostat.SystemMode.Heat, Thermostat.SystemMode.Cool, Thermostat.SystemMode.Auto
-    const fanMode = acEndpoint.getAttribute(FanControl.Cluster.id, 'targetSpeed'); // TODO: correct
+    const fanMode = acEndpoint.getAttribute(FanControl.Cluster.id, 'fanMode');
     const targetTemperature = acEndpoint.getAttribute(Thermostat.Cluster.id, systemMode === Thermostat.SystemMode.Cool ? 'occupiedCoolingSetpoint' : systemMode === Thermostat.SystemMode.Heat ? 'occupiedHeatingSetpoint' : '') || 255;
     const currentTemperature = acEndpoint.getAttribute(Thermostat.Cluster.id, 'localTemperature');
     const internalThermostat = this.aqaraS1ActionsConfigData[deviceIeeeAddress]?.ac?.internal_thermostat;
-    this.sendStateToPanel(deviceIeeeAddress, '6169725f636f6e64', internalThermostat ? '0e020055' : '0e200055', (onOff === true ? '1' : '0') + (systemMode === Thermostat.SystemMode.Heat ? '0' : systemMode === Thermostat.SystemMode.Cool ? '1' : '2') + (fanMode === 25 ? '0' : fanMode === 50 ? '1' : fanMode === 75 ? '2' : '3') + (internalThermostat ? '0' : 'f') + targetTemperature.toString(16).padStart(2, '0') + (internalThermostat ? ((Math.round(currentTemperature) + 0) * 4).toString(16).padStart(2, '0') : '00'));
+    this.sendStateToPanel(deviceIeeeAddress, '6169725f636f6e64', internalThermostat ? '0e020055' : '0e200055', (onOff === true ? '1' : '0') + (systemMode === Thermostat.SystemMode.Heat ? '0' : systemMode === Thermostat.SystemMode.Cool ? '1' : '2') + (fanMode === FanControl.FanMode.Low ? '0' : fanMode === FanControl.FanMode.Medium ? '1' : fanMode === FanControl.FanMode.High ? '2' : '3') + (internalThermostat ? '0' : 'f') + targetTemperature.toString(16).padStart(2, '0') + (internalThermostat ? ((Math.round(currentTemperature) + 0) * 4).toString(16).padStart(2, '0') : '00'));
   }
 
   sendCoverPositionToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
