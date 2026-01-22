@@ -95,6 +95,7 @@ import {
   Pm10ConcentrationMeasurement,
   SmokeCoAlarm,
   FanControl,
+  FanControlCluster,
 } from 'matterbridge/matter/clusters';
 
 import { ZigbeePlatform } from './module.js';
@@ -1984,7 +1985,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const fan_mode = zigbeeDevice.propertyMap.get('fan_mode' + endpointSuffix);
       const fan_mode_values = fan_mode?.values;
       if (fan_mode_values?.includes('auto')) {
-        zigbeeDevice.bridgedDevice.createDefaultFanControlClusterServer(FanControl.FanMode.Off, FanControl.FanModeSequence.OffLowMedHighAuto, 0, 0);
+        zigbeeDevice.bridgedDevice.createMultiSpeedFanControlClusterServer(FanControl.FanMode.Auto, FanControl.FanModeSequence.OffLowMedHighAuto, 0, 0, 4, 0, 0);
         mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(FanControl.Cluster.id), 1);
       }
     }
@@ -2210,6 +2211,51 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
             }, zigbeeDevice.thermostatTimeoutTime);
+          },
+          zigbeeDevice.log,
+        );
+    }
+
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(FanControlCluster.id)) {
+      const fanModeLookup = ['Off', 'Low', 'Medium', 'High', 'On', 'Auto', 'Smart'];
+      if (zigbeeDevice.bridgedDevice.hasAttributeServer(FanControlCluster.id, 'fanMode'))
+        zigbeeDevice.bridgedDevice.subscribeAttribute(
+          FanControl.Cluster.id,
+          'fanMode',
+          (newValue: FanControl.FanMode, oldValue: FanControl.FanMode, context) => {
+            zigbeeDevice.log.info(`Fan mode changed from ${fanModeLookup[oldValue]} to ${fanModeLookup[newValue]} context: ${context.offline === true ? 'offline' : 'online'}`);
+            if (context.offline === true) return; // Do not set attributes when offline
+            if (newValue === FanControl.FanMode.Off) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.Low) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 33, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 33, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.Medium) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 66, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 66, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.High) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.On) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.Auto) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 50, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 50, zigbeeDevice.log);
+            }
+          },
+          zigbeeDevice.log,
+        );
+
+      if (zigbeeDevice.bridgedDevice.hasAttributeServer(FanControlCluster.id, 'percentSetting'))
+        zigbeeDevice.bridgedDevice.subscribeAttribute(
+          FanControl.Cluster.id,
+          'percentSetting',
+          (newValue: number | null, oldValue: number | null, context) => {
+            zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.offline === true ? 'offline' : 'online'}`);
+            if (context.offline === true) return; // Do not set attributes when offline
+            if (isValidNumber(newValue, 0, 100)) zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', newValue, zigbeeDevice.log);
           },
           zigbeeDevice.log,
         );
