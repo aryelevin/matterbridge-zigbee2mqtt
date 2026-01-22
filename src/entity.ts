@@ -2226,8 +2226,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.log.info(`Fan mode changed from ${fanModeLookup[oldValue]} to ${fanModeLookup[newValue]} context: ${context.offline === true ? 'offline' : 'online'}`);
             if (context.offline === true) return; // Do not set attributes when offline
             if (newValue === FanControl.FanMode.Off) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
+              // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
+              // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
             } else if (newValue === FanControl.FanMode.Low) {
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 33, zigbeeDevice.log);
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 33, zigbeeDevice.log);
@@ -2237,12 +2237,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
             } else if (newValue === FanControl.FanMode.High) {
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
-            } else if (newValue === FanControl.FanMode.On) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
             } else if (newValue === FanControl.FanMode.Auto) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 50, zigbeeDevice.log);
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 50, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
             }
           },
           zigbeeDevice.log,
@@ -2253,9 +2250,36 @@ export class ZigbeeDevice extends ZigbeeEntity {
           FanControl.Cluster.id,
           'percentSetting',
           (newValue: number | null, oldValue: number | null, context) => {
+            const roundToNearestPoint = (input: number, points: number[]): number => {
+              if (points.length === 0) {
+                return input; // Or throw an error
+              }
+
+              // Sort points for potentially better performance with large lists,
+              // though not strictly required for correctness with reduce.
+              points.sort((a, b) => a - b);
+
+              return points.reduce((closest, current) => {
+                const distanceToCurrent = Math.abs(current - input);
+                const distanceToClosest = Math.abs(closest - input);
+
+                // If current point is closer, it becomes the new closest.
+                // If distances are equal, we might prefer the larger or smaller,
+                // here we keep the 'closest' found so far (effectively favoring earlier in sorted list).
+                return distanceToCurrent < distanceToClosest ? current : closest;
+              }, points[0]); // Start with the first point as the initial closest
+            };
+
+            const dataPoints = [0, 33, 66, 100];
+
             zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.offline === true ? 'offline' : 'online'}`);
             if (context.offline === true) return; // Do not set attributes when offline
-            if (isValidNumber(newValue, 0, 100)) zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', newValue, zigbeeDevice.log);
+            if (isValidNumber(newValue, 0, 100)) {
+              const fixedValue = roundToNearestPoint(newValue, dataPoints);
+              zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', fixedValue, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
+            }
           },
           zigbeeDevice.log,
         );
