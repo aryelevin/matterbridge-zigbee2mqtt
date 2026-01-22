@@ -2224,7 +2224,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           'fanMode',
           (newValue: FanControl.FanMode, oldValue: FanControl.FanMode, context) => {
             zigbeeDevice.log.info(`Fan mode changed from ${fanModeLookup[oldValue]} to ${fanModeLookup[newValue]} context: ${context.offline === true ? 'offline' : 'online'}`);
-            if (context.offline === true) return; // Do not set attributes when offline
+            // if (context.offline === true) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
             if (newValue === FanControl.FanMode.Off) {
               // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
               // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
@@ -2241,6 +2241,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
             }
+
+            if (zigbeeDevice.propertyMap.has('fan_mode' + endpointSuffix) && newValue !== FanControl.FanMode.Off)
+              zigbeeDevice.publishCommand('FanMode', device.friendly_name, { ['fan_mode' + endpointSuffix]: ['off', 'low', 'medium', 'high', 'on', 'auto'][newValue] || 'auto' });
           },
           zigbeeDevice.log,
         );
@@ -2273,7 +2276,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             const dataPoints = [0, 33, 66, 100];
 
             zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.offline === true ? 'offline' : 'online'}`);
-            if (context.offline === true) return; // Do not set attributes when offline
+            // if (context.offline === true) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
             if (isValidNumber(newValue, 0, 100)) {
               const fixedValue = roundToNearestPoint(newValue, dataPoints);
               zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
