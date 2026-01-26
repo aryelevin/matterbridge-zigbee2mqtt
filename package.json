@@ -2,7 +2,7 @@
   "name": "matterbridge-zigbee2mqtt",
   "version": "3.0.3",
   "description": "Matterbridge zigbee2mqtt plugin",
-  "author": "https://github.com/Luligu",
+  "author": "https://github.com/aryelevin",
   "license": "Apache-2.0",
   "type": "module",
   "main": "dist/module.js",
@@ -10,10 +10,10 @@
   "homepage": "https://www.npmjs.com/package/matterbridge-zigbee2mqtt",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Luligu/matterbridge-zigbee2mqtt.git"
+    "url": "git+https://github.com/aryelevin/matterbridge-zigbee2mqtt.git"
   },
   "bugs": {
-    "url": "https://github.com/Luligu/matterbridge-zigbee2mqtt/issues"
+    "url": "https://github.com/aryelevin/matterbridge-zigbee2mqtt/issues"
   },
   "funding": {
     "type": "buymeacoffee",
