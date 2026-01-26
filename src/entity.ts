@@ -2232,6 +2232,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           FanControl.Cluster.id,
           'fanMode',
           (newValue: FanControl.FanMode, oldValue: FanControl.FanMode, context) => {
+            if (newValue === oldValue) return;
             zigbeeDevice.log.info(`Fan mode changed from ${fanModeLookup[oldValue]} to ${fanModeLookup[newValue]} context: ${context.offline === true ? 'offline' : 'online'}`);
             // if (context.offline === true) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
             if (newValue === FanControl.FanMode.Off) {
@@ -2262,6 +2263,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           FanControl.Cluster.id,
           'percentSetting',
           (newValue: number | null, oldValue: number | null, context) => {
+            if (newValue === oldValue) return;
             const roundToNearestPoint = (input: number, points: number[]): number => {
               if (points.length === 0) {
                 return input; // Or throw an error
