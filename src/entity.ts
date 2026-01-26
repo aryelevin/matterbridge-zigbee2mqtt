@@ -2290,6 +2290,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             // if (context.offline === true) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
             if (isValidNumber(newValue, 0, 100)) {
               const fixedValue = roundToNearestPoint(newValue, dataPoints);
+              if (fixedValue === oldValue) return;
               zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', fixedValue, zigbeeDevice.log);
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
