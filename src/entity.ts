@@ -1976,7 +1976,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
         const sMode = zigbeeDevice.propertyMap.get('system_mode' + endpointSuffix);
         if (sMode) sMode.values = 'off|cool'; // Set system_mode to off|cool if only cooling is supported cause it's not supported by the cluster without AutoMode
       } else {
-        zigbeeDevice.bridgedDevice.createDefaultThermostatClusterServer(undefined, undefined, undefined, 0, minHeating, maxHeating, minCooling, maxCooling);
+        zigbeeDevice.bridgedDevice.createDefaultThermostatClusterServer(
+          undefined,
+          undefined,
+          undefined,
+          system_mode?.type === 'ac' ? 0 : undefined, // Allow cool and heat temps to be the same for ACs, since it independed and in many cases having one temperature setting for both (Aqara VRF Controller for example).
+          minHeating,
+          maxHeating,
+          minCooling,
+          maxCooling,
+        );
         mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
       }
     }
