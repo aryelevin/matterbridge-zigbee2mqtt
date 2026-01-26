@@ -204,7 +204,9 @@ export class SwitchingController {
               ) {
                 // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
                 // if (devicesToListenToEvents[deviceIeee] === true) {
-                this.log.info((device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
+                this.log.info(
+                  (device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.',
+                );
                 this.switchStateChanged(deviceIeee || '', key, value, payload);
                 this.lastStates[deviceIeee][key] = value;
                 // }
@@ -254,7 +256,7 @@ export class SwitchingController {
                 newPayload[key] = lastPayloadValue;
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
               } else if (this.lastStates[entityIeee]) {
-                // Update linked switches...
+                // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
                 this.switchStateChanged(entityIeee, key, value, newPayload);
                 this.lastStates[entityIeee][key] = value;
               }
@@ -272,7 +274,7 @@ export class SwitchingController {
                 newPayload[key] = lastPayloadValue;
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
               } else if (this.lastStates[entityIeee]) {
-                // Update linked switches...
+                // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
                 this.switchStateChanged(entityIeee, key, value, newPayload);
                 this.lastStates[entityIeee][key] = value;
               }
@@ -288,7 +290,7 @@ export class SwitchingController {
                 newPayload[key] = lastPayloadValue;
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
               } else if (this.lastStates[entityIeee]) {
-                // Update linked switches...
+                // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
                 this.switchStateChanged(entityIeee, key, value, newPayload);
                 this.lastStates[entityIeee][key] = value;
               }
@@ -362,7 +364,7 @@ export class SwitchingController {
           // }
         }
       }
-      // If the linked light is same device/entity as the source, then make no update to be false to allow the state of the linked lights to be up to date...
+      // If the linked light is same device/entity as the source (Just different endpoints within a device), then make no update to be false to allow the state of the linked lights to be up to date...
       if (deviceIeee === entity) {
         const device = this.getDeviceEntity(deviceIeee);
         device?.setNoUpdate(false);
