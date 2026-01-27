@@ -2243,14 +2243,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
                 // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
                 // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
               } else if (newValue === FanControl.FanMode.Low) {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 33, zigbeeDevice.log);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 33, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 33, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 33, zigbeeDevice.log);
               } else if (newValue === FanControl.FanMode.Medium) {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 66, zigbeeDevice.log);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 66, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 66, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 66, zigbeeDevice.log);
               } else if (newValue === FanControl.FanMode.High) {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
               } else if (newValue === FanControl.FanMode.Auto) {
                 // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 5, zigbeeDevice.log);
                 // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 5, zigbeeDevice.log);
