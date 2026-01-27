@@ -2242,24 +2242,22 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.noUpdateTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
             }, zigbeeDevice.noUpdateTimeoutTime);
-            // nextTick(() => {
-              if (newValue === FanControl.FanMode.Off) {
-                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
-                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
-              } else if (newValue === FanControl.FanMode.Low) {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 33, zigbeeDevice.log);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 33, zigbeeDevice.log);
-              } else if (newValue === FanControl.FanMode.Medium) {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 66, zigbeeDevice.log);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 66, zigbeeDevice.log);
-              } else if (newValue === FanControl.FanMode.High) {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
-              } else if (newValue === FanControl.FanMode.Auto) {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
-              }
-            // });
+            if (newValue === FanControl.FanMode.Off) {
+              // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
+              // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.Low) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 33, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 33, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.Medium) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 66, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 66, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.High) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
+            } else if (newValue === FanControl.FanMode.Auto) {
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 0, zigbeeDevice.log);
+            }
           },
           zigbeeDevice.log,
         );
@@ -2297,14 +2295,20 @@ export class ZigbeeDevice extends ZigbeeEntity {
             if (isValidNumber(newValue, 0, 100)) {
               const fixedValue = roundToNearestPoint(newValue, dataPoints);
               if (fixedValue === oldValue) return;
-              zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', fixedValue, zigbeeDevice.log);
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
-              const fanModeSetting =
-                fixedValue === 33 ? FanControl.FanMode.Low : fixedValue === 66 ? FanControl.FanMode.Medium : fixedValue === 100 ? FanControl.FanMode.High : FanControl.FanMode.Auto;
-              // nextTick(() => {
+              nextTick(() => {
+                zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
+                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', fixedValue, zigbeeDevice.log);
+                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
+                const fanModeSetting =
+                  fixedValue === 33
+                    ? FanControl.FanMode.Low
+                    : fixedValue === 66
+                      ? FanControl.FanMode.Medium
+                      : fixedValue === 100
+                        ? FanControl.FanMode.High
+                        : FanControl.FanMode.Auto;
                 zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'fanMode', fanModeSetting, zigbeeDevice.log);
-              // });
+              });
             }
           },
           zigbeeDevice.log,
