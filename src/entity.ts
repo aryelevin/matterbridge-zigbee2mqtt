@@ -2252,8 +2252,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
                 zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 100, zigbeeDevice.log);
                 zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 100, zigbeeDevice.log);
               } else if (newValue === FanControl.FanMode.Auto) {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 5, zigbeeDevice.log);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 5, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 5, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', 5, zigbeeDevice.log);
               }
             });
           },
@@ -2286,11 +2286,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
               }, points[0]); // Start with the first point as the initial closest
             };
 
-            const dataPoints = [5, 33, 66, 100];
+            const dataPoints = [0, 33, 66, 100];
 
             zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.offline === true ? 'offline' : 'online'}`);
             // if (context.offline === true) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
-            if (isValidNumber(newValue, 5, 100)) {
+            if (isValidNumber(newValue, 0, 100)) {
               const fixedValue = roundToNearestPoint(newValue, dataPoints);
               if (fixedValue === oldValue) return;
               zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
