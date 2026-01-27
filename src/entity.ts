@@ -2296,10 +2296,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
               zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', fixedValue, zigbeeDevice.log);
               zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
-              const fanModeSetting =
-                fixedValue === 33 ? FanControl.FanMode.Low : fixedValue === 66 ? FanControl.FanMode.Medium : fixedValue === 100 ? FanControl.FanMode.High : FanControl.FanMode.Auto;
+              // const fanModeSetting =
+              //   fixedValue === 33 ? FanControl.FanMode.Low : fixedValue === 66 ? FanControl.FanMode.Medium : fixedValue === 100 ? FanControl.FanMode.High : FanControl.FanMode.Auto;
               nextTick(() => {
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'fanMode', fanModeSetting, zigbeeDevice.log);
+                // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'fanMode', fanModeSetting, zigbeeDevice.log);
               });
             }
           },
