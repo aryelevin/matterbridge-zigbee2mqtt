@@ -2238,6 +2238,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
             // if (context.offline === true) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
             if (zigbeeDevice.propertyMap.has('fan_mode' + endpointSuffix) && newValue !== FanControl.FanMode.Off)
               zigbeeDevice.publishCommand('FanMode', device.friendly_name, { ['fan_mode' + endpointSuffix]: ['off', 'low', 'medium', 'high', 'on', 'auto'][newValue] || 'auto' });
+            zigbeeDevice.noUpdate = true;
+            zigbeeDevice.noUpdateTimeout = setTimeout(() => {
+              zigbeeDevice.noUpdate = false;
+            }, zigbeeDevice.noUpdateTimeoutTime);
             nextTick(() => {
               if (newValue === FanControl.FanMode.Off) {
                 // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', 0, zigbeeDevice.log);
