@@ -24,6 +24,7 @@
 import EventEmitter from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
+import { nextTick } from 'node:process';
 
 import {
   DeviceTypeDefinition,
@@ -101,7 +102,6 @@ import {
 import { ZigbeePlatform } from './module.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
-import { nextTick } from 'node:process';
 
 interface BehaviorOptions {
   clusterId: ClusterId;

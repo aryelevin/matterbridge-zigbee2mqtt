@@ -349,9 +349,6 @@ export class SwitchingController {
       }
     }
 
-    // // Now set it here to avoid loops in the this.switchStateChanged() method below (Switch->Light->Switch, light won't happen again since line before switchStateChanged the lastState is updated already)...
-    // this.lastStates[deviceIeee][key] = value;
-
     for (const entity in payloads) {
       const payload = payloads[entity];
       for (const endpoint in payload) {

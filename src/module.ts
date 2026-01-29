@@ -27,6 +27,7 @@ import { MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig, Plat
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf, LogLevel } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
+import { deepCopy } from 'matterbridge/matter';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
@@ -38,7 +39,6 @@ import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.j
 import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js';
 import { PlatformControls } from './platformControls.js';
 import { SwitchingController, SwitchingControllerSwitchLinkConfig, SwitchingControllerSwitchConfig } from './switchingController.js';
-import { deepCopy } from 'matterbridge/matter';
 
 export interface ALHomeLocationCoordinates {
   longitude: number;
