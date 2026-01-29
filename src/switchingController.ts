@@ -207,8 +207,8 @@ export class SwitchingController {
                 this.log.info(
                   (device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.',
                 );
-                this.switchStateChanged(deviceIeee || '', key, value, payload);
                 this.lastStates[deviceIeee][key] = value;
+                this.switchStateChanged(deviceIeee || '', key, value, payload);
                 // }
               }
             }
@@ -257,8 +257,8 @@ export class SwitchingController {
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
               } else if (this.lastStates[entityIeee]) {
                 // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
-                this.switchStateChanged(entityIeee, key, value, newPayload);
                 this.lastStates[entityIeee][key] = value;
+                this.switchStateChanged(entityIeee, key, value, newPayload);
               }
             } else if (key.startsWith('brightness')) {
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
@@ -275,8 +275,8 @@ export class SwitchingController {
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
               } else if (this.lastStates[entityIeee]) {
                 // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
-                this.switchStateChanged(entityIeee, key, value, newPayload);
                 this.lastStates[entityIeee][key] = value;
+                this.switchStateChanged(entityIeee, key, value, newPayload);
               }
             } else if (key.startsWith('color_temp')) {
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
@@ -291,8 +291,8 @@ export class SwitchingController {
                 this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
               } else if (this.lastStates[entityIeee]) {
                 // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
-                this.switchStateChanged(entityIeee, key, value, newPayload);
                 this.lastStates[entityIeee][key] = value;
+                this.switchStateChanged(entityIeee, key, value, newPayload);
               }
             } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
               // TODO:
@@ -348,6 +348,9 @@ export class SwitchingController {
         payloads[linkedDeviceIeee][paramToControl] = value;
       }
     }
+
+    // // Now set it here to avoid loops in the this.switchStateChanged() method below (Switch->Light->Switch, light won't happen again since line before switchStateChanged the lastState is updated already)...
+    // this.lastStates[deviceIeee][key] = value;
 
     for (const entity in payloads) {
       const payload = payloads[entity];
