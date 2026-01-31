@@ -190,7 +190,7 @@ export class SwitchingController {
         this.lastStates[deviceIeee] = {};
         const device = this.getDeviceEntity(deviceIeee);
         this.platform.z2m.on('MESSAGE-' + (device !== undefined ? device.entityName : deviceIeee), (payload: Payload) => {
-          if (this.platform.platformControls?.switchesOn !== false) {
+          if (this.platform.platformControls.switchesOn) {
             if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
             // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
             for (const key in payload) {
@@ -228,7 +228,7 @@ export class SwitchingController {
   }
 
   checkSwitchShabbatMode(deviceIeee: string, newPayload: Payload) {
-    if (this.platform.platformControls?.switchesOn === false) {
+    if (this.platform.platformControls.switchesOn === false) {
       const device = this.getDeviceEntity(deviceIeee);
       const entityIeee = device?.device ? device.device.ieee_address : device?.isGroup && device.group ? device.group.friendly_name : deviceIeee;
       if (device) {

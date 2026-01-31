@@ -77,7 +77,6 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   jewishCalendarSensorConfig?: JewishCalendarSensorsConfig;
   addShabbatModeDummySwitchType?: DummySwitchType;
   aqaraS1ActionsConfigData?: { [key: string]: AqaraS1ScenePanelConfig };
-  aqaraS1ExecutedConfigurationsData?: { [key: string]: { [key: string]: string[] | { [key: number]: string } } };
   switchesLinks?: { [key: string]: SwitchingControllerSwitchLinkConfig };
   switchesActions?: { [key: string]: SwitchingControllerSwitchConfig };
   switchesOnStateCommands?: { [key: string]: { [key: string]: string } };
@@ -109,13 +108,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private connectTimeout = 90000; // 90 seconds
   private availabilityTimeout = 10000; // 10 seconds
   // Added by me: Arye Levin
-  public platformControls: PlatformControls | undefined;
+  public platformControls: PlatformControls;
   public dummySwitchesAccessories: DummySwitch[] = [];
   public jewishCalendarSensors: JewishCalendarSensors | undefined;
   public shabbatModeDummySwitch: DummySwitch | undefined;
   public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController | undefined;
   public switchingController: SwitchingController | undefined;
-  public separateDeviceEndpoints: DeviceFeatureBlackList = {};
   // End of Added by me: Arye Levin
 
   // debug
@@ -209,6 +207,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
     // this.log.debug(`Config:\n${rs}${JSON.stringify(config, null, 2)}${rs}`);
+
+    // Added by me: Arye Levin
+    this.platformControls = new PlatformControls(this);
+    // End of Added by me: Arye Levin
 
     this.z2m = new Zigbee2MQTT(
       this.mqttHost,
@@ -474,20 +476,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await this.ready;
 
     // Added by me: Arye Levin
-    this.separateDeviceEndpoints = this.config.separateDeviceEndpoints || {};
-
-    this.platformControls = new PlatformControls(this);
     await this.registerDevice(this.platformControls.device);
-    // const jewishCalendarSensors = new JewishCalendarSensors(this, {
-    //   candlelighting: 30,
-    //   havdalah: 45,
-    //   offset: 0,
-    //   israel: true,
-    //   sheminiatzeret_in_sukkot: false,
-    //   sefiratHaOmerCustom: 'Iyar',
-    //   threeWeeksCustom: 'Ashkenazi',
-    // });
-    // await this.registerDevice(jewishCalendarSensors.sensor);
 
     const jewishCalendarConfig = this.config.jewishCalendarSensorConfig;
     if (jewishCalendarConfig && jewishCalendarConfig?.enabled === true) {
@@ -516,20 +505,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         this.platformControls?.setOnOff(!onOff);
         this.platformControls?.onOffDidSet(!onOff);
       });
-
-      // this.shabbatModeDummySwitch.device.commandHandler.removeHandler('on', () => {}); // will not work as we don't have reference to the function...
-      // this.shabbatModeDummySwitch.device?.addCommandHandler('on', async () => {
-      //   this.log.info('Shabbat Mode on called');
-      // });
-      // this.shabbatModeDummySwitch.device?.addCommandHandler('off', async () => {
-      //   this.log.info('Shabbat Mode off called');
-      // });
-
-      // this.shabbatModeDummySwitch.device.characteristicDelegate('on').on('didSet', (value, fromHomeKit) => {
-      //   if (fromHomeKit) {
-      //     this.platformAccessory.service.characteristicDelegate('switchesOn').value = !value
-      //   }
-      // }).value = !this.platformAccessory.service.characteristicDelegate('switchesOn').value
       await this.registerDevice(this.shabbatModeDummySwitch.device);
     }
 
@@ -725,8 +700,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
   private async registerZigbeeDevice(deviceOrig: BridgeDevice): Promise<ZigbeeDevice | undefined> {
     const device = deepCopy(deviceOrig);
-    if (this.separateDeviceEndpoints[device.ieee_address]) {
-      const endpoints = this.separateDeviceEndpoints[device.ieee_address];
+    if (this.config.separateDeviceEndpoints?.[device.ieee_address]) {
+      const endpoints = this.config.separateDeviceEndpoints[device.ieee_address];
       const exposesToRemoveMain: number[] = [];
       for (const endpoint of endpoints) {
         const deviceCopy = deepCopy(device);

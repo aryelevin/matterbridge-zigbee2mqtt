@@ -13,7 +13,6 @@ import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
-// import { nextTick } from 'node:process';
 import { Payload, PayloadValue } from './payloadTypes.js';
 
 // import { xyToHsl } from 'matterbridge/utils';
@@ -556,7 +555,7 @@ export class AqaraS1ScenePanelController {
     this.sendStateToPanels(originalLightEntity, panelsToUpdate, '04010055', '000000' + (newOn ? 1 : 0).toString(16).padStart(2, '0'), 'on');
     // TODO: Needs to move to switchingController...
     // // Queue it for a later processing to allow any other lights to complete its on/off operation to allow anyOn be correct...
-    // nextTick(() => {
+    // process.nextTick(() => {
     //   if (panelsToUpdate?.length) {
     //     for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
     //       const panelResourceItem = panelsToUpdate[i];
@@ -655,7 +654,7 @@ export class AqaraS1ScenePanelController {
         const deviceIeee = endpointComponents[0];
         if (!this.lastStates[deviceIeee]) {
           this.lastStates[deviceIeee] = {};
-          const separatedDeviceEndpoint = this.platform.separateDeviceEndpoints[deviceIeee]?.includes(endpointComponents[1]) ? endpointComponents[1] : undefined;
+          const separatedDeviceEndpoint = this.platform.config.separateDeviceEndpoints?.[deviceIeee]?.includes(endpointComponents[1]) ? endpointComponents[1] : undefined;
           const device = this.getDeviceEntity(deviceIeee, separatedDeviceEndpoint);
           if (device) {
             this.platform.z2m.on('MESSAGE-' + device.entityName, (payload: Payload) => {
@@ -1082,7 +1081,7 @@ export class AqaraS1ScenePanelController {
         const deviceSerialStr = this.toHexStringFromBytes(deviceSerial);
 
         if (commandCategory === 0x72 && commandAction === 0x01) { // State of device is reported and should set the controlled device to this state (Turn on or change position for example).
-          if (this.platform.platformControls?.switchesOn) {
+          if (this.platform.platformControls.switchesOn) {
             if (deviceResourceType === 'air_cond' && stateParam[0] === 0x0e && stateParam[2] === 0x00 && stateParam[3] === 0x55 && (stateParam[1] === 0x20 || stateParam[1] === 0x02)) { // Updated Air conditioner device state
               const onOff = dataArray[dataStartIndex + 21] >= 0x10;
               const mode = dataArray[dataStartIndex + 21] - (onOff ? 0x10 : 0x0);
@@ -1260,7 +1259,7 @@ export class AqaraS1ScenePanelController {
               const entityIeee = pathComponents[0]; // 0x5465654664646464
               const entityEndpointName = pathComponents[1]; // (l1)
               // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-              const isSeparatedEndpoint = entityEndpointName ? this.platform.separateDeviceEndpoints[entityIeee]?.includes(entityEndpointName) : false;
+              const isSeparatedEndpoint = entityEndpointName ? this.platform.config.separateDeviceEndpoints?.[entityIeee]?.includes(entityEndpointName) : false;
               const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
               const endpointToControl =
                 entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
@@ -1336,7 +1335,7 @@ export class AqaraS1ScenePanelController {
             const entityIeee = pathComponents[0]; // 0x5465654664646464
             const entityEndpointName = pathComponents[1]; // (l1)
             // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-            const isSeparatedEndpoint = entityEndpointName ? this.platform.separateDeviceEndpoints[entityIeee]?.includes(entityEndpointName) : false;
+            const isSeparatedEndpoint = entityEndpointName ? this.platform.config.separateDeviceEndpoints?.[entityIeee]?.includes(entityEndpointName) : false;
             const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
             const endpointToControl =
               entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
@@ -1362,7 +1361,7 @@ export class AqaraS1ScenePanelController {
             const entityIeee = pathComponents[0]; // 0x5465654664646464
             const entityEndpointName = pathComponents[1]; // (l1)
             // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-            const isSeparatedEndpoint = entityEndpointName ? this.platform.separateDeviceEndpoints[entityIeee]?.includes(entityEndpointName) : false;
+            const isSeparatedEndpoint = entityEndpointName ? this.platform.config.separateDeviceEndpoints?.[entityIeee]?.includes(entityEndpointName) : false;
             const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
             const endpointToControl =
               entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
@@ -1384,7 +1383,7 @@ export class AqaraS1ScenePanelController {
           // Might be i can just ignore it and let my timeout technique to resend the data...
           this.log.info('Light configuration notification received... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
         } else if (commandCategory === 0x73 && commandAction === 0x03) {
-          if (this.platform.platformControls?.switchesOn) {
+          if (this.platform.platformControls.switchesOn) {
             const panelDevice = this.getDeviceEntity(deviceIeeeAddress);
             const sceneNo = parseInt(data[data.length - 1]);
             const sceneConfigName = ('scene_' + sceneNo) as AqaraS1ScenePanelConfigKey;
@@ -1399,7 +1398,7 @@ export class AqaraS1ScenePanelController {
                 const entityIeee = pathComponents[0]; // 0x5465654664646464
                 const entityEndpointName = pathComponents[1]; // (l1)
                 // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-                const isSeparatedEndpoint = entityEndpointName ? this.platform.separateDeviceEndpoints[entityIeee]?.includes(entityEndpointName) : false;
+                const isSeparatedEndpoint = entityEndpointName ? this.platform.config.separateDeviceEndpoints?.[entityIeee]?.includes(entityEndpointName) : false;
                 const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
                 const endpointToControl =
                   entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...

@@ -24,7 +24,6 @@
 import EventEmitter from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
-import { nextTick } from 'node:process';
 
 import {
   DeviceTypeDefinition,
@@ -802,7 +801,7 @@ export class ZigbeeEntity extends EventEmitter {
       );
     } else if (this.isDevice && this.device) {
       this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(
-        this.device.friendly_name + (this.platform.separateDeviceEndpoints[this.device.ieee_address]?.includes(this.bridgedDevice?.id.split('_')[1] || '') ? `_${this.bridgedDevice.id.split('_')[1]}` : ''), // To avoid duplicate names use the id so separate endpoints of single device will have different names
+        this.device.friendly_name + (this.platform.config.separateDeviceEndpoints?.[this.device.ieee_address]?.includes(this.bridgedDevice?.id.split('_')[1] || '') ? `_${this.bridgedDevice.id.split('_')[1]}` : ''), // To avoid duplicate names use the id so separate endpoints of single device will have different names
         this.serial,
         0xfff1,
         this.device.definition ? this.device.definition.vendor : this.device.manufacturer,
@@ -1634,7 +1633,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (theOneOnlyEndpoint === '') {
       // There's no endpoints (most probably only one main endpoint)...
       hasOneOnlyEndpoint = false;
-    } else if (!platform.separateDeviceEndpoints[device.ieee_address]?.includes(theOneOnlyEndpoint)) {
+    } else if (!platform.config.separateDeviceEndpoints?.[device.ieee_address]?.includes(theOneOnlyEndpoint)) {
       // The single endpoint is not in the separate endpoints list, so don't consider it as separated endpoint, continue as usual instead...
       hasOneOnlyEndpoint = false;
     }
@@ -2295,7 +2294,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             if (isValidNumber(newValue, 0, 100)) {
               const fixedValue = roundToNearestPoint(newValue, dataPoints);
               if (fixedValue === oldValue) return;
-              nextTick(() => {
+              process.nextTick(() => {
                 zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
                 zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentSetting', fixedValue, zigbeeDevice.log);
                 zigbeeDevice.bridgedDevice?.setAttribute(FanControl.Cluster.id, 'percentCurrent', fixedValue, zigbeeDevice.log);

@@ -17,7 +17,7 @@ import { Payload } from './payloadTypes.js';
 export class PlatformControls {
   platform: ZigbeePlatform;
   public device: MatterbridgeEndpoint;
-  public swicthesOnEndpoint: MatterbridgeEndpoint;
+  public switchesOnEndpoint: MatterbridgeEndpoint;
   public switchesOn: boolean = false;
   public switchesOnCommandsConfig?: { [key: string]: { [key: string]: string } };
   public switchesOffCommandsConfig?: { [key: string]: { [key: string]: string } };
@@ -32,7 +32,7 @@ export class PlatformControls {
     this.device.createDefaultBasicInformationClusterServer('Platform Controls', '0x8803047880', 4874, 'AL Systems', 77, 'Platform Controls 20EBN9910', 1144, '1.2.8');
 
     // *********************** Create a switch device ***********************
-    this.swicthesOnEndpoint = this.device.addChildDeviceType(
+    this.switchesOnEndpoint = this.device.addChildDeviceType(
       'Enable Switches Switch',
       [onOffSwitch],
       { id: 'Enable Switches Switch', tagList: [{ mfgCode: null, namespaceId: LocationTag.Indoor.namespaceId, tag: LocationTag.Indoor.tag, label: 'Enable Switches Switch' }] },
@@ -40,28 +40,23 @@ export class PlatformControls {
     );
     // this.swicthesOnEndpoint.createDefaultBridgedDeviceBasicInformationClusterServer('Enable Switches Switch', 'SWI00010_' + this.swicthesOnEndpoint.id, 0xfff1, 'AL Bridge', 'AL Switch');
 
-    this.swicthesOnEndpoint.createDefaultIdentifyClusterServer().createDefaultGroupsClusterServer().createDefaultOnOffClusterServer();
+    this.switchesOnEndpoint.createDefaultIdentifyClusterServer().createDefaultGroupsClusterServer().createDefaultOnOffClusterServer();
 
     // The cluster attributes are set by MatterbridgeOnOffServer
-    this.swicthesOnEndpoint?.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
-      this.swicthesOnEndpoint?.log.info(`Command identify called identifyTime:${identifyTime}`);
+    this.switchesOnEndpoint.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
+      this.switchesOnEndpoint.log.info(`Enable Switches Command identify called identifyTime:${identifyTime}`);
     });
-    this.swicthesOnEndpoint?.addCommandHandler('on', async () => {
-      this.swicthesOnEndpoint?.log.info('Command on called');
+    this.switchesOnEndpoint.addCommandHandler('on', async () => {
+      this.switchesOnEndpoint.log.info('Enable Switches Command on called');
       this.onOffDidSet(true);
-
-      // setTimeout(() => {
-      //   // this.device.triggerEvent(OnOff.Cluster.id, 'onOff$Changed', { stateValue: false }, this.device.log);
-      //   this.device.setStateOf(OnOffBaseServer, { onOff: false });
-      // }, 1000);
     });
-    this.swicthesOnEndpoint?.addCommandHandler('off', async () => {
-      this.swicthesOnEndpoint?.log.info('Command off called');
+    this.switchesOnEndpoint.addCommandHandler('off', async () => {
+      this.switchesOnEndpoint.log.info('Enable Switches Command off called');
       this.onOffDidSet(false);
     });
 
     process.nextTick(() => {
-      this.switchesOn = this.swicthesOnEndpoint.getAttribute(OnOff.Cluster.id, 'onOff', this.swicthesOnEndpoint.log);
+      this.switchesOn = this.switchesOnEndpoint.getAttribute(OnOff.Cluster.id, 'onOff', this.switchesOnEndpoint.log);
     });
   }
 
@@ -86,11 +81,11 @@ export class PlatformControls {
         }
       }
     } else {
-      this.swicthesOnEndpoint.log.debug('No commands to execute');
+      this.switchesOnEndpoint.log.debug('No commands to execute');
     }
   }
 
   async setOnOff(value: boolean) {
-    await this.swicthesOnEndpoint?.setAttribute(OnOff.Cluster.id, 'onOff', value, this.swicthesOnEndpoint.log);
+    await this.switchesOnEndpoint.setAttribute(OnOff.Cluster.id, 'onOff', value, this.switchesOnEndpoint.log);
   }
 }
