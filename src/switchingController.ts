@@ -246,53 +246,52 @@ export class SwitchingController {
             if (key.startsWith('state')) {
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
               const newOnOffState = value === 'ON';
-              if (
-                endpointToControl &&
-                endpointToControl.hasClusterServer(OnOff.Cluster.id) &&
-                endpointToControl.hasAttributeServer(OnOff.Cluster.id, 'onOff') &&
-                endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState
-              ) {
-                // Allow change from the platform itself...
-                newPayload[key] = lastPayloadValue;
-                this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
-              } else if (this.lastStates[entityIeee]) {
-                // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
-                this.lastStates[entityIeee][key] = value;
-                this.switchStateChanged(entityIeee, key, value, newPayload);
+              if (endpointToControl && endpointToControl.hasClusterServer(OnOff.Cluster.id) && endpointToControl.hasAttributeServer(OnOff.Cluster.id, 'onOff')) {
+                if (endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff') !== newOnOffState) {
+                  // Allow change from the platform itself...
+                  newPayload[key] = lastPayloadValue;
+                  this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
+                } else if (this.lastStates[entityIeee]) {
+                  // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
+                  this.lastStates[entityIeee][key] = value;
+                  this.switchStateChanged(entityIeee, key, value, newPayload);
+                }
               }
             } else if (key.startsWith('brightness')) {
               const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
-              const currentBrightness = Math.round(((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') || 0) / 254) * 254);
-              this.log.info('Current brightness: ' + currentBrightness + ', new brightness: ' + value);
               if (
                 endpointToControl &&
                 endpointToControl.hasClusterServer(LevelControl.Cluster.id) &&
-                endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel') &&
-                currentBrightness !== value
+                endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')
               ) {
-                // Allow change from the platform itself...
-                newPayload[key] = lastPayloadValue;
-                this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
-              } else if (this.lastStates[entityIeee]) {
-                // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
-                this.lastStates[entityIeee][key] = value;
-                this.switchStateChanged(entityIeee, key, value, newPayload);
+                const currentBrightness = Math.round(((endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel') || 0) / 254) * 254);
+                this.log.info('Current brightness: ' + currentBrightness + ', new brightness: ' + value);
+                if (currentBrightness !== value) {
+                  // Allow change from the platform itself...
+                  newPayload[key] = lastPayloadValue;
+                  this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
+                } else if (this.lastStates[entityIeee]) {
+                  // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
+                  this.lastStates[entityIeee][key] = value;
+                  this.switchStateChanged(entityIeee, key, value, newPayload);
+                }
               }
             } else if (key.startsWith('color_temp')) {
-              const endpointToControl = keyComponents.length === 2 ? device.bridgedDevice?.getChildEndpointById(keyComponents[1]) : device.bridgedDevice;
+              const endpointToControl = keyComponents.length === 3 ? device.bridgedDevice?.getChildEndpointById(keyComponents[2]) : device.bridgedDevice;
               if (
                 endpointToControl &&
                 endpointToControl.hasClusterServer(ColorControl.Cluster.id) &&
-                endpointToControl.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds') &&
-                endpointToControl.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') !== value
+                endpointToControl.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')
               ) {
-                // Allow change from the platform itself...
-                newPayload[key] = lastPayloadValue;
-                this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
-              } else if (this.lastStates[entityIeee]) {
-                // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
-                this.lastStates[entityIeee][key] = value;
-                this.switchStateChanged(entityIeee, key, value, newPayload);
+                if (endpointToControl.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') !== value) {
+                  // Allow change from the platform itself...
+                  newPayload[key] = lastPayloadValue;
+                  this.publishCommand(deviceIeee, { [key]: lastPayloadValue }); // change it back
+                } else if (this.lastStates[entityIeee]) {
+                  // If the state is equal to the matter attribute, it means that the change is from within matter, so it should be allowed, and if there's a link to a switch, then update linked switches (turning on a LED strip should switch on a linked switch)...
+                  this.lastStates[entityIeee][key] = value;
+                  this.switchStateChanged(entityIeee, key, value, newPayload);
+                }
               }
             } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
               // TODO:
