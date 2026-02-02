@@ -79,11 +79,11 @@ export class DummySwitch {
       // this.dimmer = await this.addDevice(this.dimmer);
 
       // The cluster attributes are set by MatterbridgeLevelControlServer
-      this.device?.addCommandHandler('moveToLevel', async ({ request: { level } }) => {
-        this.device?.log.debug(`Command moveToLevel called request: ${level}`);
+      this.device.addCommandHandler('moveToLevel', async ({ request: { level } }) => {
+        this.device.log.debug(`Command moveToLevel called request: ${level}`);
       });
-      this.device?.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level } }) => {
-        this.device?.log.debug(`Command moveToLevelWithOnOff called request: ${level}`);
+      this.device.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level } }) => {
+        this.device.log.debug(`Command moveToLevelWithOnOff called request: ${level}`);
       });
     } else if (this.config.type === 'light') {
       // *********************** Create a on off light device ***********************
@@ -102,11 +102,11 @@ export class DummySwitch {
     this.device.createDefaultIdentifyClusterServer().createDefaultGroupsClusterServer().createDefaultOnOffClusterServer().createDefaultPowerSourceWiredClusterServer();
 
     // The cluster attributes are set by MatterbridgeOnOffServer
-    this.device?.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
-      this.device?.log.info(`Command identify called identifyTime:${identifyTime}`);
+    this.device.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
+      this.device.log.info(`Command identify called identifyTime:${identifyTime}`);
     });
-    this.device?.addCommandHandler('on', async () => {
-      this.device?.log.info('Command on called');
+    this.device.addCommandHandler('on', async () => {
+      this.device.log.info('Command on called');
       this.onOffDidSet(true);
 
       // setTimeout(() => {
@@ -114,13 +114,13 @@ export class DummySwitch {
       //   this.device.setStateOf(OnOffBaseServer, { onOff: false });
       // }, 1000);
     });
-    this.device?.addCommandHandler('off', async () => {
-      this.device?.log.info('Command off called');
+    this.device.addCommandHandler('off', async () => {
+      this.device.log.info('Command off called');
       this.onOffDidSet(false);
     });
   }
 
-  onOffDidSet(value: boolean) {
+  private onOffDidSet(value: boolean) {
     if (this.callback) {
       this.callback(value);
     }
@@ -190,6 +190,11 @@ export class DummySwitch {
   }
 
   async setOnOff(value: boolean) {
-    await this.device?.setAttribute(OnOff.Cluster.id, 'onOff', value, this.device.log);
+    await this.device.setAttribute(OnOff.Cluster.id, 'onOff', value, this.device.log);
+    this.onOffDidSet(value);
+  }
+
+  async updateOnOff(value: boolean) {
+    await this.device.setAttribute(OnOff.Cluster.id, 'onOff', value, this.device.log);
   }
 }

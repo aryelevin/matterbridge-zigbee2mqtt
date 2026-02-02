@@ -48,19 +48,19 @@ export class PlatformControls {
     });
     this.switchesOnEndpoint.addCommandHandler('on', async () => {
       this.switchesOnEndpoint.log.info('Enable Switches Command on called');
-      this.onOffDidSet(true);
+      this.switchesOnOffDidSet(true);
     });
     this.switchesOnEndpoint.addCommandHandler('off', async () => {
       this.switchesOnEndpoint.log.info('Enable Switches Command off called');
-      this.onOffDidSet(false);
-    });
-
-    process.nextTick(() => {
-      this.switchesOn = this.switchesOnEndpoint.getAttribute(OnOff.Cluster.id, 'onOff', this.switchesOnEndpoint.log);
+      this.switchesOnOffDidSet(false);
     });
   }
 
-  onOffDidSet(value: boolean) {
+  setPlatformControlsConfiguration() {
+    this.switchesOn = this.switchesOnEndpoint.getAttribute(OnOff.Cluster.id, 'onOff', this.switchesOnEndpoint.log);
+  }
+
+  private switchesOnOffDidSet(value: boolean) {
     this.switchesOn = value;
 
     const commandsToExecute = value ? this.switchesOnCommandsConfig : this.switchesOffCommandsConfig;
@@ -85,7 +85,8 @@ export class PlatformControls {
     }
   }
 
-  async setOnOff(value: boolean) {
+  async setSwitchesOnOff(value: boolean) {
     await this.switchesOnEndpoint.setAttribute(OnOff.Cluster.id, 'onOff', value, this.switchesOnEndpoint.log);
+    this.switchesOnOffDidSet(value);
   }
 }

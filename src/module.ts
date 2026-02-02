@@ -112,8 +112,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public dummySwitchesAccessories: DummySwitch[] = [];
   public jewishCalendarSensors: JewishCalendarSensors | undefined;
   public shabbatModeDummySwitch: DummySwitch | undefined;
-  public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController | undefined;
-  public switchingController: SwitchingController | undefined;
+  public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController;
+  public switchingController: SwitchingController;
   // End of Added by me: Arye Levin
 
   // debug
@@ -210,6 +210,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     // Added by me: Arye Levin
     this.platformControls = new PlatformControls(this);
+
+    this.aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, config.aqaraS1ActionsConfigData || {});
+
+    this.switchingController = new SwitchingController(this, config.switchesLinks || {}, config.switchesActions || {});
     // End of Added by me: Arye Levin
 
     this.z2m = new Zigbee2MQTT(
@@ -479,14 +483,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await this.registerDevice(this.platformControls.device);
 
     const jewishCalendarConfig = this.config.jewishCalendarSensorConfig;
-    if (jewishCalendarConfig && jewishCalendarConfig?.enabled === true) {
+    if (jewishCalendarConfig?.enabled === true) {
       this.jewishCalendarSensors = new JewishCalendarSensors(this, jewishCalendarConfig);
       await this.registerDevice(this.jewishCalendarSensors.sensor);
     }
 
     const dummySwitches = this.config.dummySwitches;
-    this.dummySwitchesAccessories = [];
-
     if (dummySwitches?.length) {
       for (const switchConfig of dummySwitches) {
         const accessory = new DummySwitch(this, switchConfig);
@@ -502,17 +504,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         } else {
           this.log.info('Shabbat Mode off called');
         }
-        this.platformControls?.setOnOff(!onOff);
-        this.platformControls?.onOffDidSet(!onOff);
+        this.platformControls.setSwitchesOnOff(!onOff);
       });
       await this.registerDevice(this.shabbatModeDummySwitch.device);
     }
-
-    if (this.config.aqaraS1ActionsConfigData) {
-      this.aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, this.config.aqaraS1ActionsConfigData);
-    }
-
-    this.switchingController = new SwitchingController(this, this.config.switchesLinks || {}, this.config.switchesActions || {});
     // End of Added by me: Arye Levin
 
     // Clear select device and entity since we have a bridge here and they will be recreated from the bridge
@@ -557,8 +552,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
 
     // Added by me: Arye Levin
-    this.aqaraS1ScenePanelConroller?.setAqaraS1PanelsConfiguration();
-    this.aqaraS1ScenePanelConroller?.updateWeather();
+    this.platformControls.setPlatformControlsConfiguration();
+    this.aqaraS1ScenePanelConroller.setAqaraS1PanelsConfiguration();
+    this.aqaraS1ScenePanelConroller.updateWeather();
     this.switchingController.setSwitchingControllerConfiguration();
     // End of Added by me: Arye Levin
     this.log.info(`Started zigbee2mqtt dynamic platform v${this.version}: ` + reason);
