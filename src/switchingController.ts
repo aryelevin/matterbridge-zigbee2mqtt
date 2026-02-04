@@ -163,8 +163,10 @@ export class SwitchingController {
     //   const sourceDevice = allEntitiesItem.device ? allEntitiesItem.device.ieee_address : allEntitiesItem.isGroup ? 'group-' + allEntitiesItem.group.id : allEntitiesItem.entityName;
     //   devicesToListenToEvents[sourceDevice.split('/')[0]] = false;
     // }
-    for (const sourceDevice in this.switchesLinksConfig) {
-      devicesToListenToEvents[sourceDevice.split('/')[0]] = true;
+    for (const linkConfig of this.switchesLinksConfig) {
+      for (const sourceSwitch of linkConfig.switches || []) {
+        devicesToListenToEvents[sourceSwitch.split('/')[0]] = true;
+      }
     }
     for (const sourceDevice in this.switchesActionsConfig) {
       devicesToListenToEvents[sourceDevice.split('/')[0]] = true;
