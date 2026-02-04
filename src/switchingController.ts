@@ -276,7 +276,7 @@ export class SwitchingController {
             if (!payloads[sourceSwitchIeee]) {
               payloads[sourceSwitchIeee] = {};
             }
-            payloads[sourceSwitchIeee][paramToControl] = value;
+            payloads[sourceSwitchIeee][paramToControl] = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
           }
         }
 
