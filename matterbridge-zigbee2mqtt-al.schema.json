@@ -1115,6 +1115,11 @@
 	    "items": {
         "type": "object",
 	      "properties": {
+          "enabled": {
+            "description": "Enable the linkage",
+            "type": "boolean",
+            "default": false
+          },
           "switches": {
             "description": "Source switches",
             "type": "array",
@@ -1123,11 +1128,6 @@
             },
             "uniqueItems": true,
             "selectFrom": "serial"
-          },
-          "enabled": {
-            "description": "Enable the linkage",
-            "type": "boolean",
-            "default": false
           },
           "linkedDevices": {
             "description": "Destination linked devices",
