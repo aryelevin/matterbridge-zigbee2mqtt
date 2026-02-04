@@ -74,9 +74,8 @@ ZigbeeEntity.prototype.getEndpointOfProperty = function (property: string): stri
 };
 
 export interface SwitchingControllerSwitchLinkConfig {
+  switches?: string[];
   enabled: boolean;
-  vice_versa: boolean;
-  update_state: boolean;
   linkedDevices?: string[]; // ["0x54abcd0987654321/l1_brightness", "0x541234567890abcd/l1_brightness"]
 }
 
@@ -103,51 +102,35 @@ export interface SwitchingControllerSwitchConfig {
 export class SwitchingController {
   public log: AnsiLogger;
   platform: ZigbeePlatform;
-  switchesLinksConfig: { [key: string]: SwitchingControllerSwitchLinkConfig }; // {"0x541234567890abcd/l2_brightness": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, vice_versa: true, linkedDevice:["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
-  switchesLinksConfigData: { [key: string]: string[] };
+  switchesLinksConfig: SwitchingControllerSwitchLinkConfig[]; // {"0x541234567890abcd/l2_brightness": {enabled: true, linkedDevices: ["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, linkedDevices: ["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
+  switchesLinksSwitchesToDevices: { [key: string]: string[] };
+  switchesLinksDevicesToSwitches: { [key: string]: string[] };
   switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {'0x541234567890abcd': {'enabled': true, switchType: 2, 'linkedDevices': {'0x54abcd0987654321/l1': '', '0x54abcd0987654322/center': ''}}, '0x541234567890abcd/single': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/state_l1': 'ON', '0x54abcd0987654322/l3': 'toggle_on'}}, '0x541234567890abcd/hold': {'enabled': true, 'repeat': true, 'linkedDevices': {'0x54abcd0987654321/brightness_l1': 254, '0x54abcd0987654322/center': 'bri_up'}}, '0x541234567890abcd/double': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/characteristic': {state_left: ON}, '0x54abcd0987654322/l2': 'bri_up'}}}
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
   lastStates: { [key: string]: Payload } = {};
   entitiesExecutionValues: { [key: string]: PayloadValue } = {};
 
-  constructor(
-    platform: ZigbeePlatform,
-    switchesLinksConfig: { [key: string]: SwitchingControllerSwitchLinkConfig },
-    switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig },
-  ) {
+  constructor(platform: ZigbeePlatform, switchesLinksConfig: SwitchingControllerSwitchLinkConfig[], switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }) {
     this.platform = platform;
     this.switchesLinksConfig = switchesLinksConfig;
-    this.switchesLinksConfigData = {};
+    this.switchesLinksSwitchesToDevices = {};
+    this.switchesLinksDevicesToSwitches = {};
     this.switchesActionsConfig = switchesActionsConfig;
 
-    for (const sourceDevice in this.switchesLinksConfig) {
-      const linkConfig = this.switchesLinksConfig[sourceDevice];
+    for (const linkConfig of this.switchesLinksConfig) {
       if (linkConfig.enabled) {
+        const sourceSwitches = linkConfig.switches || [];
         const linkedDevices = linkConfig.linkedDevices || [];
-        if (!this.switchesLinksConfigData[sourceDevice]) this.switchesLinksConfigData[sourceDevice] = [];
-        this.switchesLinksConfigData[sourceDevice].push(...linkedDevices);
-        if (linkConfig.vice_versa) {
+        for (const sourceSwitch of sourceSwitches) {
+          if (!this.switchesLinksSwitchesToDevices[sourceSwitch]) this.switchesLinksSwitchesToDevices[sourceSwitch] = [];
+          this.switchesLinksSwitchesToDevices[sourceSwitch].push(...linkedDevices);
+          this.switchesLinksSwitchesToDevices[sourceSwitch].push(...sourceSwitches);
+          this.switchesLinksSwitchesToDevices[sourceSwitch].splice(this.switchesLinksSwitchesToDevices[sourceSwitch].indexOf(sourceSwitch), 1);
           for (let index = 0; index < linkedDevices.length; index++) {
             const linkedDeviceItem = linkedDevices[index];
-            if (!this.switchesLinksConfigData[linkedDeviceItem]) this.switchesLinksConfigData[linkedDeviceItem] = [];
-            const linkedDeviceLinks = this.switchesLinksConfigData[linkedDeviceItem];
-            linkedDeviceLinks.push(sourceDevice);
-          }
-
-          for (let index = 0; index < linkedDevices.length; index++) {
-            const linkedDeviceItem = linkedDevices[index];
-            const linkedDeviceLinks = this.switchesLinksConfigData[linkedDeviceItem];
-
-            for (let index2 = 0; index2 < linkedDeviceLinks.length; index2++) {
-              const element = linkedDeviceLinks[index2];
-              const linkesOfLinkedDeviceLinks = this.switchesLinksConfigData[element] || [];
-              for (let index3 = 0; index3 < linkesOfLinkedDeviceLinks.length; index3++) {
-                const element2 = linkesOfLinkedDeviceLinks[index3];
-                if (element2 !== linkedDeviceItem && !linkedDeviceLinks.includes(element2)) {
-                  linkedDeviceLinks.push(element2);
-                }
-              }
-            }
+            if (!this.switchesLinksDevicesToSwitches[linkedDeviceItem]) this.switchesLinksDevicesToSwitches[linkedDeviceItem] = [];
+            const switchesOfDevice = this.switchesLinksDevicesToSwitches[linkedDeviceItem];
+            switchesOfDevice.push(sourceSwitch);
           }
         }
       }
@@ -159,7 +142,8 @@ export class SwitchingController {
       logLevel: platform.config.debug ? LogLevel.DEBUG : platform.log.logLevel,
     });
     this.log.debug(`Loaded: SwitchingController`);
-    this.log.debug('switchesActionsConfigData contents: ' + JSON.stringify(this.switchesLinksConfigData));
+    this.log.debug('switchesLinksSwitchesToDevices contents: ' + JSON.stringify(this.switchesLinksSwitchesToDevices));
+    this.log.debug('switchesLinksDevicesToSwitches contents: ' + JSON.stringify(this.switchesLinksDevicesToSwitches));
   }
 
   getDeviceEntity(ieee_address: string, separatedEndpointID?: string) {
@@ -179,7 +163,7 @@ export class SwitchingController {
     //   const sourceDevice = allEntitiesItem.device ? allEntitiesItem.device.ieee_address : allEntitiesItem.isGroup ? 'group-' + allEntitiesItem.group.id : allEntitiesItem.entityName;
     //   devicesToListenToEvents[sourceDevice.split('/')[0]] = false;
     // }
-    for (const sourceDevice in this.switchesLinksConfigData) {
+    for (const sourceDevice in this.switchesLinksConfig) {
       devicesToListenToEvents[sourceDevice.split('/')[0]] = true;
     }
     for (const sourceDevice in this.switchesActionsConfig) {
@@ -223,6 +207,94 @@ export class SwitchingController {
             // this.lastStates[deviceIeee] = deepCopy(payload);
           }
         });
+      }
+    }
+  }
+
+  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, actionSourceIsFromMatter: boolean) {
+    if (attribute === 'onOff' || attribute === 'currentLevel') {
+      // If true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side)...
+      if (actionSourceIsFromMatter) {
+        //
+      }
+      const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
+      const deviceEndpoint = deviceIeee + '/' + changedPropertyName + endpoint;
+      const switchesToUpdate = this.switchesLinksDevicesToSwitches[deviceEndpoint];
+      if (switchesToUpdate?.length) {
+        // Check if the switch should be state = on (If any of its linkes is on, then true, the case is for turning one linked device off, but other linked devices is still on, then the switch(es) should stay on).
+        // // Queue it for a later processing to allow any other lights to complete its on/off operation to allow anyOn be correct...
+        // process.nextTick(() => {
+        //   if (panelsToUpdate?.length) {
+        //     for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
+        //       const panelResourceItem = panelsToUpdate[i];
+        //       const pathComponents = panelResourceItem.split('/');
+    
+        //       if (pathComponents[4] === 'switch'/* && that.bridge.platform.bridgeMap[pathComponents[1]].fullState.lights[pathComponents[3]].state.on != that.hk.on */) {
+        //         const lightsControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem]
+        //         let anyOn = false
+        //         if (newOn) {
+        //           anyOn = true
+        //         } else {
+        //           for (let ii = lightsControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
+        //             const lightResourcePath = lightsControlledWithPanelDevice[ii].split('/')
+        //             const accessoryToCheck = this.gateway.platform.gatewayMap[lightResourcePath[1]].accessoryByRpath['/' + lightResourcePath[2] + '/' + lightResourcePath[3]].service
+        //             if (accessoryToCheck) {
+        //               if (accessoryToCheck !== this && accessoryToCheck.values.on) {
+        //                 anyOn = true
+        //                 break
+        //               }
+        //             }
+        //           }
+        //         }
+    
+        //         if (anyOn !== this.gateway.platform.gatewayMap[pathComponents[1]].context.fullState.lights[pathComponents[3]].state.on) {
+        //           const panelResourcePath = '/' + pathComponents[2] + '/' + pathComponents[3] + '/state'
+        //           this.log.info('Going to set on: ' + anyOn + ' at panel: ' + panelResourcePath)
+        //           this.gateway.platform.gatewayMap[pathComponents[1]].client.put(panelResourcePath, { on: anyOn }).then((obj) => {
+        //             // To make sure to avoid its socket message with the attribute report...
+        //             // We need to set it here at the callback of the PUT command, since we need to make sure that if more than 3 calls happens concurrently, it will be delayed and could get into on/off racing condition infinite loop. (To do this, i just need to verify that the attribute report of it happens only after the callback is triggered...)
+        //             this.gateway.platform.gatewayMap[pathComponents[1]].context.fullState.lights[pathComponents[3]].state.on = anyOn
+        //             this.log.info('Successfully set on: ' + anyOn + ' at panel: ' + panelResourcePath)
+        //           }).catch((error) => {
+        //             this.log.error('Error setting panel switch state %s: %s', panelResourcePath, error)
+        //           })
+        //         }
+        //       }
+        //     }
+        //   }
+        // });
+        const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
+        for (const sourceSwitch of switchesToUpdate) {
+          const sourceSwitchPathComponents = sourceSwitch.split('/');
+          const sourceSwitchIeee = sourceSwitchPathComponents[0];
+          const paramToControl = sourceSwitchPathComponents[1];
+
+          if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== value) {
+            // Don't update whats not needed to be updated...
+            if (!payloads[sourceSwitchIeee]) {
+              payloads[sourceSwitchIeee] = {};
+            }
+            payloads[sourceSwitchIeee][paramToControl] = value;
+          }
+        }
+
+        for (const entity in payloads) {
+          const payload = payloads[entity];
+          for (const endpoint in payload) {
+            const value = payload[endpoint];
+            this.publishCommand(entity, { [endpoint]: value });
+            // if (this.lastStates[entity]) {
+            //   this.lastStates[entity][endpoint] = value;
+            //   this.switchStateChanged(entity, endpoint, value, this.lastStates[entity]);
+            // }
+          }
+
+          this.entitiesExecutionValues[entity] = value;
+          setTimeout(() => {
+            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+            delete this.entitiesExecutionValues[entity];
+          }, 200);
+        }
       }
     }
   }
@@ -317,7 +389,7 @@ export class SwitchingController {
     }
     const deviceEndpointPath = deviceIeee + '/' + key;
 
-    const linkedDevices = this.switchesLinksConfigData[deviceEndpointPath];
+    const linkedDevices = this.switchesLinksSwitchesToDevices[deviceEndpointPath];
     if (!linkedDevices?.length) {
       return;
     }

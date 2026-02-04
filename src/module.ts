@@ -77,7 +77,7 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   jewishCalendarSensorConfig?: JewishCalendarSensorsConfig;
   addShabbatModeDummySwitchType?: DummySwitchType;
   aqaraS1ActionsConfigData?: { [key: string]: AqaraS1ScenePanelConfig };
-  switchesLinks?: { [key: string]: SwitchingControllerSwitchLinkConfig };
+  switchesLinks?: SwitchingControllerSwitchLinkConfig[];
   switchesActions?: { [key: string]: SwitchingControllerSwitchConfig };
   switchesOnStateCommands?: { [key: string]: { [key: string]: string } };
   switchesOffStateCommands?: { [key: string]: { [key: string]: string } };
@@ -213,7 +213,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, config.aqaraS1ActionsConfigData || {});
 
-    this.switchingController = new SwitchingController(this, config.switchesLinks || {}, config.switchesActions || {});
+    this.switchingController = new SwitchingController(this, config.switchesLinks || [], config.switchesActions || {});
     // End of Added by me: Arye Levin
 
     this.z2m = new Zigbee2MQTT(

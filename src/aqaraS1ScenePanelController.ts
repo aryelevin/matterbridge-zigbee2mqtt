@@ -553,48 +553,6 @@ export class AqaraS1ScenePanelController {
 
   sendLightOnOffToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], newOn: boolean) {
     this.sendStateToPanels(originalLightEntity, panelsToUpdate, '04010055', '000000' + (newOn ? 1 : 0).toString(16).padStart(2, '0'), 'on');
-    // TODO: Needs to move to switchingController...
-    // // Queue it for a later processing to allow any other lights to complete its on/off operation to allow anyOn be correct...
-    // process.nextTick(() => {
-    //   if (panelsToUpdate?.length) {
-    //     for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
-    //       const panelResourceItem = panelsToUpdate[i];
-    //       const pathComponents = panelResourceItem.split('/');
-
-    //       if (pathComponents[4] === 'switch'/* && that.bridge.platform.bridgeMap[pathComponents[1]].fullState.lights[pathComponents[3]].state.on != that.hk.on */) {
-    //         const lightsControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem]
-    //         let anyOn = false
-    //         if (newOn) {
-    //           anyOn = true
-    //         } else {
-    //           for (let ii = lightsControlledWithPanelDevice.length - 1; ii >= 0; ii--) {
-    //             const lightResourcePath = lightsControlledWithPanelDevice[ii].split('/')
-    //             const accessoryToCheck = this.gateway.platform.gatewayMap[lightResourcePath[1]].accessoryByRpath['/' + lightResourcePath[2] + '/' + lightResourcePath[3]].service
-    //             if (accessoryToCheck) {
-    //               if (accessoryToCheck !== this && accessoryToCheck.values.on) {
-    //                 anyOn = true
-    //                 break
-    //               }
-    //             }
-    //           }
-    //         }
-
-    //         if (anyOn !== this.gateway.platform.gatewayMap[pathComponents[1]].context.fullState.lights[pathComponents[3]].state.on) {
-    //           const panelResourcePath = '/' + pathComponents[2] + '/' + pathComponents[3] + '/state'
-    //           this.log.info('Going to set on: ' + anyOn + ' at panel: ' + panelResourcePath)
-    //           this.gateway.platform.gatewayMap[pathComponents[1]].client.put(panelResourcePath, { on: anyOn }).then((obj) => {
-    //             // To make sure to avoid its socket message with the attribute report...
-    //             // We need to set it here at the callback of the PUT command, since we need to make sure that if more than 3 calls happens concurrently, it will be delayed and could get into on/off racing condition infinite loop. (To do this, i just need to verify that the attribute report of it happens only after the callback is triggered...)
-    //             this.gateway.platform.gatewayMap[pathComponents[1]].context.fullState.lights[pathComponents[3]].state.on = anyOn
-    //             this.log.info('Successfully set on: ' + anyOn + ' at panel: ' + panelResourcePath)
-    //           }).catch((error) => {
-    //             this.log.error('Error setting panel switch state %s: %s', panelResourcePath, error)
-    //           })
-    //         }
-    //       }
-    //     }
-    //   }
-    // });
   }
 
   async setAqaraS1PanelsConfiguration() {

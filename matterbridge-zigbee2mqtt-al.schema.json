@@ -1110,30 +1110,27 @@
     },
     "switchesLinks": {
       "description": "Configures links between switches (alternates, lights etc)",
-      "type": "object",
-      "selectFrom": "serial",
+      "type": "array",
       "uniqueItems": true,
-      "additionalProperties": {
-        "description": "Source Device",
+	    "items": {
         "type": "object",
-        "properties": {
+	      "properties": {
+          "switches": {
+            "description": "Source switches",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true,
+            "selectFrom": "serial"
+          },
           "enabled": {
-            "description": "Enable the link",
-            "type": "boolean",
-            "default": false
-          },
-          "vice_versa": {
-            "description": "Whether the linked devices also controls the source device",
-            "type": "boolean",
-            "default": true
-          },
-          "update_state": {
-            "description": "If 'vise versa' is false, then sets whether the source switch is updated its state when any of the linked lights is on",
+            "description": "Enable the linkage",
             "type": "boolean",
             "default": false
           },
           "linkedDevices": {
-            "description": "Destination Linked Devices",
+            "description": "Destination linked devices",
             "type": "array",
             "items": {
               "type": "string"
