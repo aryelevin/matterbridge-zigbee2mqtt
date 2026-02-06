@@ -109,6 +109,8 @@ export class SwitchingController {
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
   lastStates: { [key: string]: Payload } = {};
   entitiesExecutionValues: { [key: string]: PayloadValue } = {};
+  linkedDevicesEndpointExecutionTimes: { [key: string]: number } = {}; // {'0x541234567890abcd/brightness': 1678283828}
+  linkedSwitchesEndpointExecutionTimes: { [key: string]: number } = {}; // {'0x54abcd0987654321/brightness': 1678283828}
 
   constructor(platform: ZigbeePlatform, switchesLinksConfig: SwitchingControllerSwitchLinkConfig[], switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }) {
     this.platform = platform;
@@ -271,12 +273,14 @@ export class SwitchingController {
           const sourceSwitchIeee = sourceSwitchPathComponents[0];
           const paramToControl = sourceSwitchPathComponents[1];
 
+          // Don't update whats not needed to be updated...
           if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== value) {
-            // Don't update whats not needed to be updated...
-            if (!payloads[sourceSwitchIeee]) {
-              payloads[sourceSwitchIeee] = {};
+            if (Date.now() - this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] >= 2000) {
+              if (!payloads[sourceSwitchIeee]) {
+                payloads[sourceSwitchIeee] = {};
+              }
+              payloads[sourceSwitchIeee][paramToControl] = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
             }
-            payloads[sourceSwitchIeee][paramToControl] = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
           }
         }
 
@@ -285,6 +289,7 @@ export class SwitchingController {
           for (const endpoint in payload) {
             const value = payload[endpoint];
             this.publishCommand(entity, { [endpoint]: value });
+            this.linkedSwitchesEndpointExecutionTimes[entity + '/' + endpoint] = Date.now();
             // if (this.lastStates[entity]) {
             //   this.lastStates[entity][endpoint] = value;
             //   this.switchStateChanged(entity, endpoint, value, this.lastStates[entity]);
@@ -410,15 +415,17 @@ export class SwitchingController {
       const linkedDeviceIeee = linkedDevicePathComponents[0];
       const paramToControl = linkedDevicePathComponents[1];
 
+      // Don't update whats not needed to be updated...
       if (
         (linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) ||
         (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.[paramToControl] !== value)
       ) {
-        // Don't update whats not needed to be updated...
-        if (!payloads[linkedDeviceIeee]) {
-          payloads[linkedDeviceIeee] = {};
+        if (Date.now() - this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath] >= 2000) {
+          if (!payloads[linkedDeviceIeee]) {
+            payloads[linkedDeviceIeee] = {};
+          }
+          payloads[linkedDeviceIeee][paramToControl] = value;
         }
-        payloads[linkedDeviceIeee][paramToControl] = value;
       }
     }
 
@@ -427,6 +434,7 @@ export class SwitchingController {
       for (const endpoint in payload) {
         const value = payload[endpoint];
         this.publishCommand(entity, { [endpoint]: value });
+        this.linkedDevicesEndpointExecutionTimes[entity + '/' + endpoint] = Date.now();
         if (this.lastStates[entity]) {
           this.lastStates[entity][endpoint] = value;
           this.switchStateChanged(entity, endpoint, value, this.lastStates[entity]);
