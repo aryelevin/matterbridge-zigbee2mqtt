@@ -618,6 +618,7 @@ export class ZigbeeEntity extends EventEmitter {
       isChildEndpoint ? endpoint : '',
       'onOff',
       true,
+      false,
       true,
     );
     // End of Added by me: Arye Levin
@@ -647,6 +648,7 @@ export class ZigbeeEntity extends EventEmitter {
       isChildEndpoint ? endpoint : '',
       'onOff',
       false,
+      true,
       true,
     );
     // End of Added by me: Arye Levin
@@ -681,6 +683,7 @@ export class ZigbeeEntity extends EventEmitter {
         isChildEndpoint ? endpoint : '',
         'onOff',
         true,
+        false,
         true,
       );
       // End of Added by me: Arye Levin
@@ -698,6 +701,7 @@ export class ZigbeeEntity extends EventEmitter {
         isChildEndpoint ? endpoint : '',
         'onOff',
         false,
+        true,
         true,
       );
       // End of Added by me: Arye Levin
@@ -721,6 +725,7 @@ export class ZigbeeEntity extends EventEmitter {
       isChildEndpoint ? endpoint : '',
       'currentLevel',
       data.request.level,
+      undefined,
       true,
     );
     // End of Added by me: Arye Levin
@@ -746,6 +751,7 @@ export class ZigbeeEntity extends EventEmitter {
         'onOff',
         false,
         true,
+        true,
       );
       // End of Added by me: Arye Levin
     } else {
@@ -759,6 +765,7 @@ export class ZigbeeEntity extends EventEmitter {
           isChildEndpoint ? endpoint : '',
           'onOff',
           true,
+          false,
           true,
         );
         // End of Added by me: Arye Levin
@@ -770,6 +777,7 @@ export class ZigbeeEntity extends EventEmitter {
         isChildEndpoint ? endpoint : '',
         'currentLevel',
         data.request.level,
+        undefined,
         true,
       );
       // End of Added by me: Arye Levin
@@ -1073,6 +1081,7 @@ export class ZigbeeEntity extends EventEmitter {
         childEndpointName?.length ? '_' + childEndpointName : '',
         attributeName,
         value as number | boolean,
+        localValue,
         false,
       );
     }
