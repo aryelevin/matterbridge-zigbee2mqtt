@@ -227,9 +227,6 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
       this.lastSeen = Date.now();
-      // Added by me: Arye Levin
-      this.platform.switchingController.checkSwitchShabbatMode(this.device ? this.device.ieee_address : this.group ? 'group-' + this.group.id : this.entityName, payload);
-      // End of Added by me: Arye Levin
 
       // Check and deep copy the payload
       if (deepEqual(this.lastPayload, payload, this.ignoreFeatures)) return;
@@ -249,7 +246,7 @@ export class ZigbeeEntity extends EventEmitter {
         this.log.debug(`Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
         return;
       }
-      if (this.noUpdate) {
+      if (this.noUpdate) { // TODO: If i change a device state from matter side and right away i change it again from the device side, the state is not refelected on the matter side (Including switches off mode which will miss this change as will not enforce the state), I need a solution for this...
         this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
         return;
       }
@@ -1076,16 +1073,25 @@ export class ZigbeeEntity extends EventEmitter {
     // Added by me: Arye Levin
     if (attributeName === 'onOff' || attributeName === 'currentLevel') {
       // This is state or brightness set, send to switching controller for processing...
-      this.platform.switchingController.deviceHasChangedMatterAttribute(
-        this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
-        childEndpointName?.length ? '_' + childEndpointName : '',
-        attributeName,
-        value as number | boolean,
-        localValue,
-        false,
-      );
-      // If its shabbat mode, don't update the attribute, since within switching controller the state is reverted...
-      if (this.platform.platformControls.switchesOn === false) {
+      if (this.platform.platformControls.switchesEnabled) {
+        this.platform.switchingController.deviceHasChangedMatterAttribute(
+          this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
+          childEndpointName?.length ? '_' + childEndpointName : '',
+          attributeName,
+          value as number | boolean,
+          localValue,
+          false,
+        );
+      } else {
+        // Send it to switching controller to handle revert to old value...
+        this.platform.switchingController.deviceHasChangedMatterAttributeInSwitchesOffMode(
+          this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
+          childEndpointName?.length ? '_' + childEndpointName : '',
+          attributeName,
+          value as number | boolean,
+          localValue,
+        );
+        // If switches disabled return here so it won't update the attribute, since within switching controller method above the state is reverted...
         return;
       }
     }
