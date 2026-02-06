@@ -275,6 +275,9 @@ export class SwitchingController {
 
           // Don't update whats not needed to be updated...
           if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== value) {
+            if (!this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl]) {
+              this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = Date.now() - 2000;
+            }
             if (Date.now() - this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] >= 2000) {
               if (!payloads[sourceSwitchIeee]) {
                 payloads[sourceSwitchIeee] = {};
@@ -420,6 +423,9 @@ export class SwitchingController {
         (linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) ||
         (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.[paramToControl] !== value)
       ) {
+        if (!this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath]) {
+          this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath] = Date.now() - 2000;
+        }
         if (Date.now() - this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath] >= 2000) {
           if (!payloads[linkedDeviceIeee]) {
             payloads[linkedDeviceIeee] = {};
