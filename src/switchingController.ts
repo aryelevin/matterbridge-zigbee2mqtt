@@ -226,7 +226,7 @@ export class SwitchingController {
       if (!actionSourceIsFromMatter && this.platform.platformControls.switchesOn === false) { 
         // Enforce switch state when switchesOn is off...
         const z2mOldValue = attribute === 'onOff' ? (oldValue ? 'ON' : 'OFF') : oldValue;
-        this.publishCommand(deviceIeee, { [endpoint]: z2mOldValue }); // change it back
+        this.publishCommand(deviceIeee, { [changedPropertyName + endpoint]: z2mOldValue }); // change it back
         return;
       }
       const switchesToUpdate = this.switchesLinksDevicesToSwitches[deviceEndpoint];
