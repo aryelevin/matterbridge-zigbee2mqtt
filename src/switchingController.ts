@@ -217,6 +217,7 @@ export class SwitchingController {
 
   deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, actionSourceIsFromMatter: boolean) {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
+      const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       // If true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side)...
       if (actionSourceIsFromMatter) {
         //
@@ -274,7 +275,7 @@ export class SwitchingController {
           const paramToControl = sourceSwitchPathComponents[1];
 
           // Don't update whats not needed to be updated...
-          if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== value) {
+          if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== z2mValue) {
             if (!this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl]) {
               this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = Date.now() - 2000;
             }
@@ -282,7 +283,7 @@ export class SwitchingController {
               if (!payloads[sourceSwitchIeee]) {
                 payloads[sourceSwitchIeee] = {};
               }
-              payloads[sourceSwitchIeee][paramToControl] = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
+              payloads[sourceSwitchIeee][paramToControl] = z2mValue;
             }
           }
         }
@@ -299,7 +300,7 @@ export class SwitchingController {
             // }
           }
 
-          this.entitiesExecutionValues[entity] = value;
+          this.entitiesExecutionValues[entity] = z2mValue;
           setTimeout(() => {
             // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete this.entitiesExecutionValues[entity];
@@ -412,9 +413,8 @@ export class SwitchingController {
     }
 
     const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
-    for (let i = linkedDevices.length - 1; i >= 0; i--) {
-      const linkedDeviceItem = linkedDevices[i];
-      const linkedDevicePathComponents = linkedDeviceItem.split('/');
+    for (const linkedDevice of linkedDevices) {
+      const linkedDevicePathComponents = linkedDevice.split('/');
       const linkedDeviceIeee = linkedDevicePathComponents[0];
       const paramToControl = linkedDevicePathComponents[1];
 
