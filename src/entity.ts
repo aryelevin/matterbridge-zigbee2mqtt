@@ -1084,6 +1084,10 @@ export class ZigbeeEntity extends EventEmitter {
         localValue,
         false,
       );
+      // If its shabbat mode, don't update the attribute, since within switching controller the state is reverted...
+      if (this.platform.platformControls.switchesOn === false) {
+        return;
+      }
     }
     // End of Added by me: Arye Levin
     try {

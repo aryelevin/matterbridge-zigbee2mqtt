@@ -223,7 +223,7 @@ export class SwitchingController {
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
       const deviceEndpoint = deviceIeee + '/' + changedPropertyName + endpoint;
       // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
-      if (!actionSourceIsFromMatter && this.platform.platformControls.switchesOn === false) { 
+      if (!actionSourceIsFromMatter && this.platform.platformControls.switchesOn === false) {
         // Enforce switch state when switchesOn is off...
         const z2mOldValue = attribute === 'onOff' ? (oldValue ? 'ON' : 'OFF') : oldValue;
         this.publishCommand(deviceIeee, { [changedPropertyName + endpoint]: z2mOldValue }); // change it back
