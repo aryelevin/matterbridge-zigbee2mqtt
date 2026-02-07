@@ -283,12 +283,13 @@ export class SwitchingController {
 
           const linkedDeviceLastExecutionTime = this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl];
           if (!linkedDeviceLastExecutionTime || Date.now() - linkedDeviceLastExecutionTime >= 2000) {
-            this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
+            // Set now Date as last switch update time to avoid immedite action from the switch side itself after a change from matter side...
             this.linkedSwitchesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = Date.now();
-            // Now make sure to update the source switch state on the cache to avoid executing the switch incoming state confirmation MQTT message...
+            // Make sure to update the source switch state on the cache to avoid executing the switch incoming state confirmation MQTT message...
             if (this.lastStates[sourceSwitchIeee]) {
               this.lastStates[sourceSwitchIeee][paramToControl] = z2mValue;
             }
+            this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
             // TODO: should be removed after validation of EndpointExecutionTimes technique including the cancellation of actions (see TODOs on the else scopes on this method and switchStateChanged() method).
             this.entitiesExecutionValues[sourceSwitchIeee] = z2mValue;
             setTimeout(() => {
