@@ -281,23 +281,26 @@ export class SwitchingController {
           const sourceSwitchIeee = sourceSwitchPathComponents[0];
           const paramToControl = sourceSwitchPathComponents[1];
 
-          const linkedDeviceLastExecutionTime = this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl];
-          if (!linkedDeviceLastExecutionTime || Date.now() - linkedDeviceLastExecutionTime >= 2000) {
-            // Set now Date as last switch update time to avoid immedite action from the switch side itself after a change from matter side...
-            this.linkedSwitchesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = Date.now();
-            // Make sure to update the source switch state on the cache to avoid executing the switch incoming state confirmation MQTT message...
-            if (this.lastStates[sourceSwitchIeee]) {
-              this.lastStates[sourceSwitchIeee][paramToControl] = z2mValue;
+          // To avoid processing for no reason (can be after switchStateChanged() called for a source switch handling, which will lead to this deviceHasChangedMatterAttribute() method call after mqtt will report the new target device state from the switch action, can be avoided by this if statement or by adding matter attributes set on the switchStateChanged() method logic...)
+          if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== z2mValue) {
+            const linkedDeviceLastExecutionTime = this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl];
+            if (!linkedDeviceLastExecutionTime || Date.now() - linkedDeviceLastExecutionTime >= 2000) {
+              // Set now Date as last switch update time to avoid immedite action from the switch side itself after a change from matter side...
+              this.linkedSwitchesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = Date.now();
+              // Make sure to update the source switch state on the cache to avoid executing the switch incoming state confirmation MQTT message...
+              if (this.lastStates[sourceSwitchIeee]) {
+                this.lastStates[sourceSwitchIeee][paramToControl] = z2mValue;
+              }
+              this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
+              // TODO: should be removed after validation of EndpointExecutionTimes technique including the cancellation of actions (see TODOs on the else scopes on this method and switchStateChanged() method).
+              this.entitiesExecutionValues[sourceSwitchIeee] = z2mValue;
+              setTimeout(() => {
+                // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+                delete this.entitiesExecutionValues[sourceSwitchIeee];
+              }, 200);
+            } else {
+              // TODO: What to do? Revert the device matter state?
             }
-            this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
-            // TODO: should be removed after validation of EndpointExecutionTimes technique including the cancellation of actions (see TODOs on the else scopes on this method and switchStateChanged() method).
-            this.entitiesExecutionValues[sourceSwitchIeee] = z2mValue;
-            setTimeout(() => {
-              // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-              delete this.entitiesExecutionValues[sourceSwitchIeee];
-            }, 200);
-          } else {
-            // TODO: What to do? Revert the device matter state?
           }
         }
       }
