@@ -965,7 +965,7 @@ export class AqaraS1ScenePanelController {
       const device = this.getDeviceEntity(currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss);
 
       // Check that the resource is reachable...
-      if (device?.bridgedDevice?.getAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', this.log) !== true) {
+      if (device?.bridgedDevice?.getAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable') !== true) {
         this.log.error('Configuration cannot being sent to unreachable accessories, skipping...');
         this.lastCommandTimeout = undefined;
         this.configurationCommandsToExecute.pop();
