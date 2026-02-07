@@ -283,10 +283,8 @@ export class SwitchingController {
 
           // Don't update whats not needed to be updated...
           if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== z2mValue) {
-            if (!this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl]) {
-              this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = Date.now() - 2000;
-            }
-            if (Date.now() - this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] >= 2000) {
+            const linkedDeviceLastExecutionTime = this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl];
+            if (!linkedDeviceLastExecutionTime || Date.now() - linkedDeviceLastExecutionTime >= 2000) {
               if (!payloads[sourceSwitchIeee]) {
                 payloads[sourceSwitchIeee] = {};
               }
@@ -352,10 +350,8 @@ export class SwitchingController {
         (linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) ||
         (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.[paramToControl] !== value)
       ) {
-        if (!this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath]) {
-          this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath] = Date.now() - 2000;
-        }
-        if (Date.now() - this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath] >= 2000) {
+        const linkedSwitchLastExecutionTime = this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath];
+        if (!linkedSwitchLastExecutionTime || Date.now() - linkedSwitchLastExecutionTime >= 2000) {
           if (!payloads[linkedDeviceIeee]) {
             payloads[linkedDeviceIeee] = {};
           }
@@ -393,7 +389,7 @@ export class SwitchingController {
     }
   }
 
-  processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload) {
+  async processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload) {
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed' + '_' + newPayload['action_rotation_button_state']];
     if (actionsConfig.enabled) {
       for (const linkedDevice in actionsConfig.linkedDevices) {
@@ -405,33 +401,33 @@ export class SwitchingController {
           const entityToControl = this.getDeviceEntity(entityIeee);
           const endpointToControl = entityEndpoint !== '' ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) : entityToControl?.bridgedDevice;
 
-          if (entityToControl) {
+          if (endpointToControl) {
             if (actionToDo === 'brightness') {
-              if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                if (!endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff')) {
+              if (endpointToControl.hasClusterServer(LevelControl.Cluster.id) && endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                if (!endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff')) {
                   if (rotationPercentage > 0) {
-                    if (this.lastStates[entityIeee]['brightness' + entityEndpoint] !== 3 || this.lastStates[entityIeee]['state' + entityEndpoint] !== 'ON') {
-                      this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' });
-                      // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
-                    }
+                    await endpointToControl.setAttribute(OnOff.Cluster.id, 'onOff', true);
+                    await endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', 3);
+                    this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' });
                   }
                 } else {
-                  const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
-                  const newBrightnessState = Math.round((Math.max(3, Math.min(254, currentBrightness + (rotationPercentage * 2.54))) / 254) * 255); // 3 is 1% and 254 is 100% in the 255 scale...
-                  if (this.lastStates[entityIeee]['brightness' + entityEndpoint] !== newBrightnessState) {
-                    this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: newBrightnessState });
-                    // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
+                  const currentBrightness = endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel');
+                  const newBrightnessState = Math.max(1, Math.min(254, currentBrightness + Math.round(rotationPercentage * 2.54))); // 3 is 1% and 254 is 100% in the 255 scale...
+                  if (newBrightnessState !== currentBrightness) {
+                    const z2mNewBrightness = Math.round((newBrightnessState / 254) * 255);
+                    await endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', newBrightnessState);
+                    this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: z2mNewBrightness });
                   }
                 }
               }
             } else if (actionToDo === 'color_temp') {
-              if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
-                const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+              if (endpointToControl.hasClusterServer(ColorControl.Cluster.id) && endpointToControl.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                const currentColorTemperature = endpointToControl.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
                 // const endpointCTParams = entityToControl.device?.definition.exposes
-                const newColorTemperatureState = Math.round(Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage))); // TODO: take the min/max from the object itself...
-                if (this.lastStates[entityIeee]['color_temp' + entityEndpoint] !== newColorTemperatureState) {
+                const newColorTemperatureState = Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage)); // TODO: take the min/max from the object itself...
+                if (newColorTemperatureState !== currentColorTemperature) {
+                  await endpointToControl.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', newColorTemperatureState);
                   this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
-                  // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
                 }
               }
             }
