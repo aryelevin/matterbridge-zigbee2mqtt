@@ -407,15 +407,39 @@ export class SwitchingController {
                 if (!endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff')) {
                   if (rotationPercentage > 0) {
                     await endpointToControl.setAttribute(OnOff.Cluster.id, 'onOff', true);
+                    this.deviceHasChangedMatterAttribute(
+                      entityIeee,
+                      entityEndpoint,
+                      'onOff',
+                      true,
+                      false,
+                      true,
+                    );
                     await endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', 3);
+                    this.deviceHasChangedMatterAttribute(
+                      entityIeee,
+                      entityEndpoint,
+                      'currentLevel',
+                      3,
+                      undefined,
+                      true,
+                    );
                     this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' });
                   }
                 } else {
                   const currentBrightness = endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel');
-                  const newBrightnessState = Math.max(1, Math.min(254, currentBrightness + Math.round(rotationPercentage * 2.54))); // 3 is 1% and 254 is 100% in the 255 scale...
+                  const newBrightnessState = Math.max(3, Math.min(254, currentBrightness + Math.round(rotationPercentage * 2.54))); // 3 is 1% and 254 is 100% in the 255 scale...
                   if (newBrightnessState !== currentBrightness) {
                     const z2mNewBrightness = Math.round((newBrightnessState / 254) * 255);
                     await endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', newBrightnessState);
+                    this.deviceHasChangedMatterAttribute(
+                      entityIeee,
+                      entityEndpoint,
+                      'currentLevel',
+                      newBrightnessState,
+                      undefined,
+                      true,
+                    );
                     this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: z2mNewBrightness });
                   }
                 }
@@ -427,6 +451,7 @@ export class SwitchingController {
                 const newColorTemperatureState = Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage)); // TODO: take the min/max from the object itself...
                 if (newColorTemperatureState !== currentColorTemperature) {
                   await endpointToControl.setAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds', newColorTemperatureState);
+                  // no deviceHasChangedMatterAttribute() call since colorTemperatureMireds isn't supported yet (Not needed??)...
                   this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
                 }
               }
