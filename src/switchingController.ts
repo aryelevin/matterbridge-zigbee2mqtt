@@ -622,19 +622,19 @@ export class SwitchingController {
             const entityToControl = this.getDeviceEntity(entityIeee);
             const endpointToControl = entityEndpoint !== '' ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) : entityToControl?.bridgedDevice;
 
-            if (entityToControl) {
+            if (endpointToControl) {
               const repeatZBFunction = (delay: number, timeoutKey: string) => {
                 this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
                   if (typeof actionToDo === 'string' && actionToDo.startsWith('on_low_bri')) {
-                    if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      if (!endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff')) {
+                    if (endpointToControl.hasClusterServer(LevelControl.Cluster.id) && endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      if (!endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff')) {
                         this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' });
                         // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
                         if (actionToDo === 'on_low_bri') {
                           continueRepeat = false;
                         }
                       } else if (actionToDo === 'on_low_bri_up') {
-                        const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                        const currentBrightness = Math.round((endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                         const newBrightnessState = Math.min(254, currentBrightness + 13); // 254 is 100% in the 255 scale...
                         this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: newBrightnessState });
                         // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
@@ -648,8 +648,8 @@ export class SwitchingController {
                       continueRepeat = false;
                     }
                   } else if (actionToDo === 'bri_down') {
-                    if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                    if (endpointToControl.hasClusterServer(LevelControl.Cluster.id) && endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      const currentBrightness = Math.round((endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       const newBrightnessState = Math.max(3, currentBrightness - 13); // 3 is 1% in the 255 scale...
                       this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: newBrightnessState });
                       // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
@@ -660,8 +660,8 @@ export class SwitchingController {
                       continueRepeat = false;
                     }
                   } else if (actionToDo === 'ct_down') {
-                    if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
-                      const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+                    if (endpointToControl.hasClusterServer(ColorControl.Cluster.id) && endpointToControl.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                      const currentColorTemperature = endpointToControl.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
                       const newColorTemperatureState = Math.max(153, currentColorTemperature - 32);
                       this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
                       // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
@@ -672,8 +672,8 @@ export class SwitchingController {
                       continueRepeat = false;
                     }
                   } else if (actionToDo === 'ct_up') {
-                    if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
-                      const currentColorTemperature = endpointToControl?.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+                    if (endpointToControl.hasClusterServer(ColorControl.Cluster.id) && endpointToControl.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                      const currentColorTemperature = endpointToControl.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
                       const newColorTemperatureState = Math.min(500, currentColorTemperature + 32);
                       this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
                       // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
@@ -685,26 +685,26 @@ export class SwitchingController {
                     }
                   } else if (actionToDo === 'on_defaults') {
                     const payload: Payload = { ['state' + entityEndpoint]: 'ON' };
-                    if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                    if (endpointToControl.hasClusterServer(LevelControl.Cluster.id) && endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                       payload['brightness' + entityEndpoint] = 254;
                     }
-                    if (endpointToControl?.hasClusterServer(ColorControl.Cluster.id) && endpointToControl?.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+                    if (endpointToControl.hasClusterServer(ColorControl.Cluster.id) && endpointToControl.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
                       // service.getCharacteristic(that.platform.Characteristics.hap.ColorTemperature).setValue(actionsConfig.actionsToDo?.['' + buttonevent]?.defaultCT || 363)
                       payload['color_temp' + entityEndpoint] = 363;
                     }
                     this.publishCommand(entityIeee, payload);
                     // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
                   } else if (typeof actionToDo === 'string' && actionToDo.startsWith('toggle_on')) {
-                    const currentOnOff = endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    const currentOnOff = endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff');
                     const newPowerState = !currentOnOff;
                     const payload: Payload = { ['state' + entityEndpoint]: newPowerState ? 'ON' : 'OFF' };
                     if (
                       actionToDo === 'toggle_on_full_bri' &&
                       newPowerState &&
-                      endpointToControl?.hasClusterServer(LevelControl.Cluster.id) &&
-                      endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')
+                      endpointToControl.hasClusterServer(LevelControl.Cluster.id) &&
+                      endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')
                     ) {
-                      const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                      const currentBrightness = Math.round((endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       if (currentBrightness !== 254) {
                         payload['brightness' + entityEndpoint] = 254;
                       }
@@ -712,14 +712,14 @@ export class SwitchingController {
                     this.publishCommand(entityIeee, payload);
                     // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
                   } else if (actionToDo === 'on_or_full_bri') {
-                    const currentOnOff = endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    const currentOnOff = endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff');
                     const payload: Payload = { ['state' + entityEndpoint]: 'ON' };
                     if (
                       currentOnOff &&
-                      endpointToControl?.hasClusterServer(LevelControl.Cluster.id) &&
-                      endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')
+                      endpointToControl.hasClusterServer(LevelControl.Cluster.id) &&
+                      endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')
                     ) {
-                      if (Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255) !== 254) {
+                      if (Math.round((endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255) !== 254) {
                         payload['brightness' + entityEndpoint] = 254;
                       }
                     }
@@ -727,12 +727,12 @@ export class SwitchingController {
                     // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
                   } else if (actionToDo === 'on_full_bri_or_bri_up') {
                     const payload: Payload = {};
-                    const currentOnOff = endpointToControl?.getAttribute(OnOff.Cluster.id, 'onOff');
+                    const currentOnOff = endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff');
                     if (!currentOnOff) {
                       payload['state' + entityEndpoint] = 'ON';
                     }
-                    if (endpointToControl?.hasClusterServer(LevelControl.Cluster.id) && endpointToControl?.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
-                      const currentBrightness = Math.round((endpointToControl?.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+                    if (endpointToControl.hasClusterServer(LevelControl.Cluster.id) && endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
+                      const currentBrightness = Math.round((endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
                       if (!currentOnOff) {
                         if (currentBrightness !== 254) {
                           payload['brightness' + entityEndpoint] = 254;
