@@ -225,6 +225,7 @@ export class SwitchingController {
   // Should be called when matter side changed (By incoming event from z2m by manual control or z2m frontend control of a switch or light, or when user uses matter to control z2m - actionSourceIsFromMatter is true then...)
   // When actionSourceIsFromMatter is true, oldValue can be undefined...
   // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
+  // Make sure all calls to this method is after verified change of attribute value... (onOff changed from true to false etc..)
   deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number | undefined, actionSourceIsFromMatter: boolean) {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
@@ -275,40 +276,28 @@ export class SwitchingController {
         //     }
         //   }
         // });
-        const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
         for (const sourceSwitch of switchesToUpdate) {
           const sourceSwitchPathComponents = sourceSwitch.split('/');
           const sourceSwitchIeee = sourceSwitchPathComponents[0];
           const paramToControl = sourceSwitchPathComponents[1];
 
-          // Don't update whats not needed to be updated...
-          if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== z2mValue) {
-            const linkedDeviceLastExecutionTime = this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl];
-            if (!linkedDeviceLastExecutionTime || Date.now() - linkedDeviceLastExecutionTime >= 2000) {
-              if (!payloads[sourceSwitchIeee]) {
-                payloads[sourceSwitchIeee] = {};
-              }
-              payloads[sourceSwitchIeee][paramToControl] = z2mValue;
+          const linkedDeviceLastExecutionTime = this.linkedDevicesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl];
+          if (!linkedDeviceLastExecutionTime || Date.now() - linkedDeviceLastExecutionTime >= 2000) {
+            this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
+            this.linkedSwitchesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = Date.now();
+            // Now make sure to update the source switch state on the cache to avoid executing the switch incoming state confirmation MQTT message...
+            if (this.lastStates[sourceSwitchIeee]) {
+              this.lastStates[sourceSwitchIeee][paramToControl] = z2mValue;
             }
+            // TODO: should be removed after validation of EndpointExecutionTimes technique including the cancellation of actions (see TODOs on the else scopes on this method and switchStateChanged() method).
+            this.entitiesExecutionValues[sourceSwitchIeee] = z2mValue;
+            setTimeout(() => {
+              // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+              delete this.entitiesExecutionValues[sourceSwitchIeee];
+            }, 200);
+          } else {
+            // TODO: What to do? Revert the device matter state?
           }
-        }
-
-        for (const entity in payloads) {
-          const payload = payloads[entity];
-          for (const endpoint in payload) {
-            const value = payload[endpoint];
-            this.publishCommand(entity, { [endpoint]: value });
-            this.linkedSwitchesEndpointExecutionTimes[entity + '/' + endpoint] = Date.now();
-            if (this.lastStates[entity]) {
-              this.lastStates[entity][endpoint] = value;
-            }
-          }
-
-          this.entitiesExecutionValues[entity] = z2mValue;
-          setTimeout(() => {
-            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-            delete this.entitiesExecutionValues[entity];
-          }, 200);
         }
       }
     }
@@ -356,6 +345,8 @@ export class SwitchingController {
             payloads[linkedDeviceIeee] = {};
           }
           payloads[linkedDeviceIeee][paramToControl] = value;
+        } else {
+          // TODO: What to do? Wait and see if its a final state? revert the switch state?
         }
       }
     }
@@ -381,6 +372,7 @@ export class SwitchingController {
         const device = this.getDeviceEntity(deviceIeee);
         device?.setNoUpdate(false);
       }
+      // TODO: should be removed after validation of EndpointExecutionTimes technique including the cancellation of actions (see TODOs on the else scopes on this method and deviceHasChangedMatterAttribute() method).
       this.entitiesExecutionValues[entity] = value;
       setTimeout(() => {
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
