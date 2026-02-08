@@ -226,7 +226,14 @@ export class SwitchingController {
   // When actionSourceIsFromMatter is true, oldValue can be undefined...
   // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
   // Make sure all calls to this method is after verified change of attribute value... (onOff changed from true to false etc..)
-  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number | undefined, actionSourceIsFromMatter: boolean) {
+  deviceHasChangedMatterAttribute(
+    deviceIeee: string,
+    endpoint: string,
+    attribute: string,
+    value: boolean | number,
+    oldValue: boolean | number | undefined,
+    actionSourceIsFromMatter: boolean,
+  ) {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
@@ -307,8 +314,6 @@ export class SwitchingController {
     }
   }
 
-  // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
-  // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
   switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
     if (key === 'action') {
       this.processIncomingButtonEvent(deviceIeee, value as string);
@@ -403,23 +408,9 @@ export class SwitchingController {
                 if (!endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff')) {
                   if (rotationPercentage > 0) {
                     await endpointToControl.setAttribute(OnOff.Cluster.id, 'onOff', true);
-                    this.deviceHasChangedMatterAttribute(
-                      entityIeee,
-                      entityEndpoint,
-                      'onOff',
-                      true,
-                      false,
-                      true,
-                    );
+                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'onOff', true, false, true);
                     await endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', 3);
-                    this.deviceHasChangedMatterAttribute(
-                      entityIeee,
-                      entityEndpoint,
-                      'currentLevel',
-                      3,
-                      undefined,
-                      true,
-                    );
+                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', 3, undefined, true);
                     this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' });
                   }
                 } else {
@@ -428,14 +419,7 @@ export class SwitchingController {
                   if (newBrightnessState !== currentBrightness) {
                     const z2mNewBrightness = Math.round((newBrightnessState / 254) * 255);
                     await endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', newBrightnessState);
-                    this.deviceHasChangedMatterAttribute(
-                      entityIeee,
-                      entityEndpoint,
-                      'currentLevel',
-                      newBrightnessState,
-                      undefined,
-                      true,
-                    );
+                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', newBrightnessState, undefined, true);
                     this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: z2mNewBrightness });
                   }
                 }
@@ -616,7 +600,7 @@ export class SwitchingController {
             const entityIeee = pathComponents[0];
             const entityEndpoint = pathComponents[1] ? '_' + pathComponents[1] : '';
             const entityToControl = this.getDeviceEntity(entityIeee);
-            const endpointToControl = entityEndpoint !== '' ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) : entityToControl?.bridgedDevice;
+            const endpointToControl = entityEndpoint !== '' ? (entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) || entityToControl?.bridgedDevice) : entityToControl?.bridgedDevice;
 
             if (endpointToControl) {
               const repeatZBFunction = (delay: number, timeoutKey: string) => {
@@ -745,7 +729,7 @@ export class SwitchingController {
                     // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
                   } else {
                     // This is a command to send an endpoint...
-                    this.publishCommand(entityIeee, { [entityEndpoint]: actionToDo });
+                    this.publishCommand(entityIeee, { [entityEndpoint.substring(1)]: actionToDo });
                     // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
                   }
 
