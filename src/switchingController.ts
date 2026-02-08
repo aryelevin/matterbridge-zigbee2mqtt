@@ -600,7 +600,10 @@ export class SwitchingController {
             const entityIeee = pathComponents[0];
             const entityEndpoint = pathComponents[1] ? '_' + pathComponents[1] : '';
             const entityToControl = this.getDeviceEntity(entityIeee);
-            const endpointToControl = entityEndpoint !== '' ? (entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) || entityToControl?.bridgedDevice) : entityToControl?.bridgedDevice;
+            const endpointToControl =
+              entityEndpoint !== ''
+                ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) || entityToControl?.bridgedDevice // If the config is custom property and not an endpoint ('0x1234567890123456/brighntess'), the load of child endpoint will fail as this isn't endpoint name, just property, then use the main bridged device.
+                : entityToControl?.bridgedDevice;
 
             if (endpointToControl) {
               const repeatZBFunction = (delay: number, timeoutKey: string) => {
