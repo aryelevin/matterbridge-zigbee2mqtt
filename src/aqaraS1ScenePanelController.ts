@@ -1213,7 +1213,7 @@ export class AqaraS1ScenePanelController {
             if (stateParam[0] === 0x0e && stateParam[2] === 0x00 && stateParam[3] === 0x55 && (stateParam[1] === 0x20 || stateParam[1] === 0x02)) { // Air conditioner device state
               const panelDevicePath = '/' + deviceIeeeAddress + '/ac';
               const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0]; // 0x5465654664646464(/l1)
-              const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
+              const pathComponents = deviceIeee?.split('/'); // [0x5465654664646464(, l1)]
               const entityIeee = pathComponents[0]; // 0x5465654664646464
               const entityEndpointName = pathComponents[1]; // (l1)
               // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
@@ -1289,7 +1289,7 @@ export class AqaraS1ScenePanelController {
             const coverNo = deviceResourceType.charAt(deviceResourceType.length - 1);
             const panelDevicePath = '/' + deviceIeeeAddress + '/curtain_' + coverNo;
             const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0]; // 0x5465654664646464(/l1)
-            const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
+            const pathComponents = deviceIeee?.split('/'); // [0x5465654664646464(, l1)]
             const entityIeee = pathComponents[0]; // 0x5465654664646464
             const entityEndpointName = pathComponents[1]; // (l1)
             // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
@@ -1315,7 +1315,7 @@ export class AqaraS1ScenePanelController {
             const lightNo = deviceResourceType.charAt(deviceResourceType.length - 1);
             const panelDevicePath = '/' + deviceIeeeAddress + '/light_' + lightNo;
             const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0];
-            const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
+            const pathComponents = deviceIeee?.split('/'); // [0x5465654664646464(, l1)]
             const entityIeee = pathComponents[0]; // 0x5465654664646464
             const entityEndpointName = pathComponents[1]; // (l1)
             // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
