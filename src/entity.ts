@@ -722,7 +722,7 @@ export class ZigbeeEntity extends EventEmitter {
       isChildEndpoint ? endpoint : '',
       'currentLevel',
       data.request.level,
-      undefined,
+      data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') will also works...
       true,
     );
     // End of Added by me: Arye Levin
@@ -774,7 +774,7 @@ export class ZigbeeEntity extends EventEmitter {
         isChildEndpoint ? endpoint : '',
         'currentLevel',
         data.request.level,
-        undefined,
+        data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') will also works...
         true,
       );
       // End of Added by me: Arye Levin

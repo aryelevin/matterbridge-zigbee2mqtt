@@ -226,14 +226,7 @@ export class SwitchingController {
   // When actionSourceIsFromMatter is true, oldValue can be undefined...
   // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
   // Make sure all calls to this method is after verified change of attribute value... (onOff changed from true to false etc..)
-  deviceHasChangedMatterAttribute(
-    deviceIeee: string,
-    endpoint: string,
-    attribute: string,
-    value: boolean | number,
-    oldValue: boolean | number | undefined,
-    actionSourceIsFromMatter: boolean,
-  ) {
+  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number, actionSourceIsFromMatter: boolean) {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
@@ -248,7 +241,7 @@ export class SwitchingController {
         //     for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
         //       const panelResourceItem = panelsToUpdate[i];
         //       const pathComponents = panelResourceItem.split('/');
-    
+
         //       if (pathComponents[4] === 'switch'/* && that.bridge.platform.bridgeMap[pathComponents[1]].fullState.lights[pathComponents[3]].state.on != that.hk.on */) {
         //         const lightsControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem]
         //         let anyOn = false
@@ -266,7 +259,7 @@ export class SwitchingController {
         //             }
         //           }
         //         }
-    
+
         //         if (anyOn !== this.gateway.platform.gatewayMap[pathComponents[1]].context.fullState.lights[pathComponents[3]].state.on) {
         //           const panelResourcePath = '/' + pathComponents[2] + '/' + pathComponents[3] + '/state'
         //           this.log.info('Going to set on: ' + anyOn + ' at panel: ' + panelResourcePath)
@@ -307,6 +300,12 @@ export class SwitchingController {
               }, 200);
             } else {
               // TODO: What to do? Revert the device matter state?
+              if (actionSourceIsFromMatter) {
+                const device = this.getDeviceEntity(deviceIeee);
+                process.nextTick(async () => {
+                  await device?.bridgedDevice?.setAttribute(attribute === 'onOff' ? OnOff.Cluster.id : LevelControl.Cluster.id, attribute, oldValue);
+                });
+              }
             }
           }
         }
@@ -407,10 +406,11 @@ export class SwitchingController {
               if (endpointToControl.hasClusterServer(LevelControl.Cluster.id) && endpointToControl.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')) {
                 if (!endpointToControl.getAttribute(OnOff.Cluster.id, 'onOff')) {
                   if (rotationPercentage > 0) {
+                    const currentBrightness = endpointToControl.getAttribute(LevelControl.Cluster.id, 'currentLevel');
                     await endpointToControl.setAttribute(OnOff.Cluster.id, 'onOff', true);
                     this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'onOff', true, false, true);
                     await endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', 3);
-                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', 3, undefined, true);
+                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', 3, currentBrightness, true);
                     this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' });
                   }
                 } else {
@@ -419,7 +419,7 @@ export class SwitchingController {
                   if (newBrightnessState !== currentBrightness) {
                     const z2mNewBrightness = Math.round((newBrightnessState / 254) * 255);
                     await endpointToControl.setAttribute(LevelControl.Cluster.id, 'currentLevel', newBrightnessState);
-                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', newBrightnessState, undefined, true);
+                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', newBrightnessState, currentBrightness, true);
                     this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: z2mNewBrightness });
                   }
                 }
