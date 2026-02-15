@@ -357,7 +357,9 @@ export class SwitchingController {
           // TODO: What to do? Wait and see if its a final state? revert the switch state?
           // For now, revert on/off state. I should take care of brightness and more as well... TBD...
           if (value === 'ON' || value === 'OFF') {
-            this.publishCommand(deviceIeee, { [key]: value === 'ON' ? 'OFF' : 'ON' });
+            const revertedValue = value === 'ON' ? 'OFF' : 'ON';
+            this.publishCommand(deviceIeee, { [key]: revertedValue });
+            this.lastStates[deviceIeee][key] = revertedValue;
           }
         }
       }
