@@ -607,18 +607,18 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
 
-    this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? endpoint : undefined);
-    this.cachePublish('on', { ['state' + (isChildEndpoint ? endpoint : '')]: 'ON' });
     // Added by me: Arye Levin
-    this.platform.switchingController.deviceHasChangedMatterAttribute(
+    if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
       this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
       isChildEndpoint ? endpoint : '',
       'onOff',
       true,
       false,
       true,
-    );
+    )) { return; }
     // End of Added by me: Arye Levin
+    this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? endpoint : undefined);
+    this.cachePublish('on', { ['state' + (isChildEndpoint ? endpoint : '')]: 'ON' });
   }
 
   // prettier-ignore
@@ -638,17 +638,17 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     
-    this.cachePublish('off', { ['state' + (isChildEndpoint ? endpoint : '')]: 'OFF' });
     // Added by me: Arye Levin
-    this.platform.switchingController.deviceHasChangedMatterAttribute(
+    if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
       this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
       isChildEndpoint ? endpoint : '',
       'onOff',
       false,
       true,
       true,
-    );
+    )) { return; }
     // End of Added by me: Arye Levin
+    this.cachePublish('off', { ['state' + (isChildEndpoint ? endpoint : '')]: 'OFF' });
   }
 
   // prettier-ignore
@@ -672,18 +672,18 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
 
-      this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? endpoint : undefined);
-      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? endpoint : '')]: 'ON' });
       // Added by me: Arye Levin
-      this.platform.switchingController.deviceHasChangedMatterAttribute(
+      if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
         this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
         isChildEndpoint ? endpoint : '',
         'onOff',
         true,
         false,
         true,
-      );
+      )) { return; }
       // End of Added by me: Arye Levin
+      this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? endpoint : undefined);
+      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? endpoint : '')]: 'ON' });
     } else {
       if (this.isDevice && this.device && !this.propertyMap.get('state' + (isChildEndpoint ? endpoint : '')) && this.propertyMap.get('system_mode' + (isChildEndpoint ? endpoint : ''))?.type === 'ac') {
         this.log.debug(`Command off called for ${this.ien}${this.device.friendly_name}${rs}${db} so setting systemMode with 'off'`);
@@ -691,17 +691,17 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
 
-      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? endpoint : '')]: 'OFF' });
       // Added by me: Arye Levin
-      this.platform.switchingController.deviceHasChangedMatterAttribute(
+      if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
         this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
         isChildEndpoint ? endpoint : '',
         'onOff',
         false,
         true,
         true,
-      );
+      )) { return; }
       // End of Added by me: Arye Levin
+      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? endpoint : '')]: 'OFF' });
     }
   }
 
@@ -715,17 +715,17 @@ export class ZigbeeEntity extends EventEmitter {
     this.log.debug(`Command moveToLevel called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const endpoint = isChildEndpoint ? ('_' + (data.endpoint.id.split('_')[1] || data.endpoint.id)) : ''; // For a separate endpoint of a device
-    this.cachePublish('moveToLevel', { ['brightness' + (isChildEndpoint ? endpoint : '')]: data.request.level }, data.request.transitionTime);
     // Added by me: Arye Levin
-    this.platform.switchingController.deviceHasChangedMatterAttribute(
+    if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
       this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
       isChildEndpoint ? endpoint : '',
       'currentLevel',
       data.request.level,
       data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') will also works...
       true,
-    );
+    )) { return; }
     // End of Added by me: Arye Levin
+    this.cachePublish('moveToLevel', { ['brightness' + (isChildEndpoint ? endpoint : '')]: data.request.level }, data.request.transitionTime);
   }
 
   // prettier-ignore
@@ -740,24 +740,22 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
       data.endpoint.log.debug(`Command moveToLevelWithOnOff received with level <= minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) => turn off the light`);
-      this.cachePublish('moveToLevelWithOnOff', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' }, data.request.transitionTime);
       // Added by me: Arye Levin
-      this.platform.switchingController.deviceHasChangedMatterAttribute(
+      if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
         this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
         isChildEndpoint ? endpoint : '',
         'onOff',
         false,
         true,
         true,
-      );
+      )) { return; }
       // End of Added by me: Arye Levin
+      this.cachePublish('moveToLevelWithOnOff', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' }, data.request.transitionTime);
     } else {
       if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
         data.endpoint.log.debug(`Command moveToLevelWithOnOff received with level > minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) and light is off => turn on the light with attributes`);
-        this.cachePayload['state' + (isChildEndpoint ? endpoint : '')] = 'ON';
-        this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? endpoint : '');
         // Added by me: Arye Levin
-        this.platform.switchingController.deviceHasChangedMatterAttribute(
+        const shouldTurnOn = this.platform.switchingController.deviceHasChangedMatterAttribute(
           this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
           isChildEndpoint ? endpoint : '',
           'onOff',
@@ -765,19 +763,25 @@ export class ZigbeeEntity extends EventEmitter {
           false,
           true,
         );
+        if (shouldTurnOn) {
+        // End of Added by me: Arye Levin
+          this.cachePayload['state' + (isChildEndpoint ? endpoint : '')] = 'ON';
+          this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? endpoint : '');
+        // Added by me: Arye Levin
+        }
         // End of Added by me: Arye Levin
       }
-      this.cachePublish('moveToLevelWithOnOff', { ['brightness' + (isChildEndpoint ? endpoint : '')]: data.request.level }, data.request.transitionTime); // Override the stored one
       // Added by me: Arye Levin
-      this.platform.switchingController.deviceHasChangedMatterAttribute(
+      if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
         this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
         isChildEndpoint ? endpoint : '',
         'currentLevel',
         data.request.level,
         data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') will also works...
         true,
-      );
+      )) { return; }
       // End of Added by me: Arye Levin
+      this.cachePublish('moveToLevelWithOnOff', { ['brightness' + (isChildEndpoint ? endpoint : '')]: data.request.level }, data.request.transitionTime); // Override the stored one
     }
   }
 

@@ -226,7 +226,7 @@ export class SwitchingController {
   // When actionSourceIsFromMatter is true, oldValue can be undefined...
   // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
   // Make sure all calls to this method is after verified change of attribute value... (onOff changed from true to false etc..)
-  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number, actionSourceIsFromMatter: boolean) {
+  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number, actionSourceIsFromMatter: boolean): boolean {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
@@ -302,15 +302,20 @@ export class SwitchingController {
           }
         } else {
           // TODO: What to do? Revert the device matter state?
+          // Commented since it is useless since this method deviceHasChangedMatterAttribute() is called after the z2m command is published, so this is basically makes matter state unsyncronized with z2m.
+          // I have to design it in a way that I can prevent the command from being sent or send another command to revert it, but it can be another problem as it will confuse the switch logic (maybe...)
+          // Maybe this method should be called before the publish command and it should return a bool which will tell the caller if it should continue with the command or not...
           if (actionSourceIsFromMatter) {
             const device = this.getDeviceEntity(deviceIeee);
             process.nextTick(async () => {
               await device?.bridgedDevice?.setAttribute(attribute === 'onOff' ? OnOff.Cluster.id : LevelControl.Cluster.id, attribute, oldValue);
             });
           }
+          return false;
         }
       }
     }
+    return true;
   }
 
   switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
