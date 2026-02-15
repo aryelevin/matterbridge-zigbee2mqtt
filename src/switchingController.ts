@@ -108,7 +108,6 @@ export class SwitchingController {
   switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {'0x541234567890abcd': {'enabled': true, switchType: 2, 'linkedDevices': {'0x54abcd0987654321/l1': '', '0x54abcd0987654322/center': ''}}, '0x541234567890abcd/single': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/state_l1': 'ON', '0x54abcd0987654322/l3': 'toggle_on'}}, '0x541234567890abcd/hold': {'enabled': true, 'repeat': true, 'linkedDevices': {'0x54abcd0987654321/brightness_l1': 254, '0x54abcd0987654322/center': 'bri_up'}}, '0x541234567890abcd/double': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/characteristic': {state_left: ON}, '0x54abcd0987654322/l2': 'bri_up'}}}
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
   lastStates: { [key: string]: Payload } = {};
-  entitiesExecutionValues: { [key: string]: PayloadValue } = {};
   linkedDevicesEndpointExecutionTimes: { [key: string]: number } = {}; // {'0x541234567890abcd/brightness': 1678283828}
   linkedSwitchesEndpointExecutionTimes: { [key: string]: number } = {}; // {'0x54abcd0987654321/brightness': 1678283828}
 
@@ -292,24 +291,17 @@ export class SwitchingController {
                 this.lastStates[sourceSwitchIeee][paramToControl] = z2mValue;
               }
               this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
-              // TODO: should be removed after validation of EndpointExecutionTimes technique including the cancellation of actions (see TODOs on the else scopes on this method and switchStateChanged() method).
-              this.entitiesExecutionValues[sourceSwitchIeee] = z2mValue;
-              setTimeout(() => {
-                // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-                delete this.entitiesExecutionValues[sourceSwitchIeee];
-              }, 200);
             }
           }
         } else {
           // TODO: What to do? Revert the device matter state?
-          // Commented since it is useless since this method deviceHasChangedMatterAttribute() is called after the z2m command is published, so this is basically makes matter state unsyncronized with z2m.
-          // I have to design it in a way that I can prevent the command from being sent or send another command to revert it, but it can be another problem as it will confuse the switch logic (maybe...)
-          // Maybe this method should be called before the publish command and it should return a bool which will tell the caller if it should continue with the command or not...
           if (actionSourceIsFromMatter) {
             const device = this.getDeviceEntity(deviceIeee);
             process.nextTick(async () => {
               await device?.bridgedDevice?.setAttribute(attribute === 'onOff' ? OnOff.Cluster.id : LevelControl.Cluster.id, attribute, oldValue);
             });
+          } else {
+            // It should revert the device state??? (It happens here when: Switch -> linked device -> linked device changes again for some reason [via device local control or any other way to control it aka z2m FE])...
           }
           return false;
         }
@@ -330,72 +322,57 @@ export class SwitchingController {
     const deviceEndpointPath = deviceIeee + '/' + key;
 
     const linkedDevices = this.switchesLinksSwitchesToDevices[deviceEndpointPath];
-    if (!linkedDevices?.length) {
-      return;
-    }
+    if (linkedDevices?.length) {
+      const linkedSwitchLastExecutionTime = this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath];
+      if (!linkedSwitchLastExecutionTime || Date.now() - linkedSwitchLastExecutionTime >= 2000) {
+        const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
+        for (const linkedDevice of linkedDevices) {
+          const linkedDevicePathComponents = linkedDevice.split('/');
+          const linkedDeviceIeee = linkedDevicePathComponents[0];
+          const paramToControl = linkedDevicePathComponents[1];
 
-    if (this.entitiesExecutionValues[deviceIeee] && this.entitiesExecutionValues[deviceIeee] !== value) {
-      this.publishCommand(deviceIeee, { [key]: this.entitiesExecutionValues[deviceIeee] }); // change it back
-      const device = this.getDeviceEntity(deviceIeee);
-      device?.setNoUpdate(false);
-      return;
-    }
-
-    const linkedSwitchLastExecutionTime = this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath];
-    if (!linkedSwitchLastExecutionTime || Date.now() - linkedSwitchLastExecutionTime >= 2000) {
-      const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
-      for (const linkedDevice of linkedDevices) {
-        const linkedDevicePathComponents = linkedDevice.split('/');
-        const linkedDeviceIeee = linkedDevicePathComponents[0];
-        const paramToControl = linkedDevicePathComponents[1];
-
-        // Don't update whats not needed to be updated...
-        if (
-          (linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) ||
-          (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.[paramToControl] !== value)
-        ) {
-          if (!payloads[linkedDeviceIeee]) {
-            payloads[linkedDeviceIeee] = {};
-          }
-          payloads[linkedDeviceIeee][paramToControl] = value;
-        }
-      }
-
-      for (const entity in payloads) {
-        const payload = payloads[entity];
-        for (const endpoint in payload) {
-          const value = payload[endpoint];
-          this.publishCommand(entity, { [endpoint]: value });
-          this.linkedDevicesEndpointExecutionTimes[entity + '/' + endpoint] = Date.now();
-          if (this.lastStates[entity]) {
-            this.lastStates[entity][endpoint] = value;
-            this.switchStateChanged(entity, endpoint, value, this.lastStates[entity]);
-            // // Check if there's linkes from this controlled entity to another (chained events), but make sure it isn't already in this payloads which will make it happen twice and will screw up the logic
-            // const linkedDevices = this.switchesLinksConfigData[entity + '/' + endpoint];
-            // if (linkedDevices.length) {
-
-            // }
+          // Don't update whats not needed to be updated...
+          if (
+            (linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) ||
+            (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.[paramToControl] !== value)
+          ) {
+            if (!payloads[linkedDeviceIeee]) {
+              payloads[linkedDeviceIeee] = {};
+            }
+            payloads[linkedDeviceIeee][paramToControl] = value;
           }
         }
-        // If the linked light is same device/entity as the source (Just different endpoints within a device), then make no update to be false to allow the state of the linked lights to be up to date...
-        if (deviceIeee === entity) {
-          const device = this.getDeviceEntity(deviceIeee);
-          device?.setNoUpdate(false);
+
+        for (const entity in payloads) {
+          const payload = payloads[entity];
+          for (const endpoint in payload) {
+            const value = payload[endpoint];
+            this.publishCommand(entity, { [endpoint]: value });
+            this.linkedDevicesEndpointExecutionTimes[entity + '/' + endpoint] = Date.now();
+            if (this.lastStates[entity]) {
+              this.lastStates[entity][endpoint] = value;
+              this.switchStateChanged(entity, endpoint, value, this.lastStates[entity]);
+              // // Check if there's linkes from this controlled entity to another (chained events), but make sure it isn't already in this payloads which will make it happen twice and will screw up the logic
+              // const linkedDevices = this.switchesLinksConfigData[entity + '/' + endpoint];
+              // if (linkedDevices.length) {
+
+              // }
+            }
+          }
+          // If the linked light is same device/entity as the source (Just different endpoints within a device), then make no update to be false to allow the state of the linked lights to be up to date...
+          if (deviceIeee === entity) {
+            const device = this.getDeviceEntity(deviceIeee);
+            device?.setNoUpdate(false);
+          }
         }
-        // TODO: should be removed after validation of EndpointExecutionTimes technique including the cancellation of actions (see TODOs on the else scopes on this method and deviceHasChangedMatterAttribute() method).
-        this.entitiesExecutionValues[entity] = value;
-        setTimeout(() => {
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          delete this.entitiesExecutionValues[entity];
-        }, 200);
-      }
-    } else {
-      // TODO: What to do? Wait and see if its a final state? revert the switch state?
-      // For now, revert on/off state. I should take care of brightness and more as well... TBD...
-      if (value === 'ON' || value === 'OFF') {
-        const revertedValue = value === 'ON' ? 'OFF' : 'ON';
-        this.publishCommand(deviceIeee, { [key]: revertedValue });
-        this.lastStates[deviceIeee][key] = revertedValue;
+      } else {
+        // TODO: What to do? Wait and see if its a final state? revert the switch state?
+        // For now, revert on/off state. I should take care of brightness and more as well... TBD...
+        if (value === 'ON' || value === 'OFF') {
+          const revertedValue = value === 'ON' ? 'OFF' : 'ON';
+          this.publishCommand(deviceIeee, { [key]: revertedValue });
+          this.lastStates[deviceIeee][key] = revertedValue;
+        }
       }
     }
   }
