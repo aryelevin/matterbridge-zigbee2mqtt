@@ -61,14 +61,11 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
 // Setup the test environment
 await setupTest(NAME, false);
 
-// Setup the matter and test environment
-createTestEnvironment(NAME);
-
 describe('TestPlatform', () => {
   let platform: ZigbeePlatform;
 
-  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
-  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
+  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
+  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
 
   const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',
@@ -130,7 +127,6 @@ describe('TestPlatform', () => {
   });
 
   it('should return an instance of ZigbeePlatform', async () => {
-    matterbridge.matterbridgeVersion = '3.5.0';
     const platform = initializePlugin(matterbridge, log, mockConfig);
     expect(platform).toBeInstanceOf(ZigbeePlatform);
     await platform.onShutdown();
@@ -279,6 +275,7 @@ describe('TestPlatform', () => {
 
     await platform.onStart('Jest Test');
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Started zigbee2mqtt dynamic platform/));
+    await flushAsync();
   }, 60000);
 
   it('should have registered devices', async () => {
@@ -293,6 +290,11 @@ describe('TestPlatform', () => {
     expect(platform.z2mBridgeGroups.length).toBe(10);
   });
 
+  it('should have configured', async () => {
+    expect(platform).toBeDefined();
+    await platform.onConfigure();
+  });
+
   it('should update entity OFFLINE', async () => {
     for (const entity of platform.zigbeeEntities) {
       expect(entity).toBeDefined();
@@ -302,6 +304,7 @@ describe('TestPlatform', () => {
       await wait(50);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${entity.entityName}${rs}`);
     }
+    await flushAsync();
   }, 60000);
 
   it('should update entity ONLINE', async () => {
@@ -313,6 +316,14 @@ describe('TestPlatform', () => {
       await wait(50);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${entity.entityName}${rs}`);
     }
+    await flushAsync();
+  }, 60000);
+
+  it('should update with permit_join', async () => {
+    platform.z2m.emit('permit_join', 'Coordinator', 30, true);
+    platform.z2m.emit('permit_join', 'Coordinator', 30, false);
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `Device Coordinator unlocked`);
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `Device Coordinator locked`);
   }, 60000);
 
   it('should update /bridge/state online', async () => {
@@ -428,11 +439,10 @@ describe('TestPlatform', () => {
         platform.z2m.emit('MESSAGE-' + entity.entityName, payloadJson);
       }
     });
+    await flushAsync();
   }, 60000);
 
   it('should update /Lights/set', async () => {
-    // setDebug(true);
-
     const entity = 'Lights';
 
     jest.clearAllMocks();
@@ -442,7 +452,7 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
+      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
     );
 
     jest.clearAllMocks();
@@ -459,28 +469,27 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
+        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
       ),
     );
-    // setDebug(false);
   });
 
   it('should add NewGroup', async () => {
@@ -522,6 +531,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(doorLockDevice.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
@@ -535,6 +546,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 });
     await device.executeCommandHandler('lockDoor');
     await device.executeCommandHandler('unlockDoor');
@@ -552,6 +565,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(onOffLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(dimmableLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(colorTemperatureLight.code)).toBeUndefined();
@@ -568,6 +583,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 });
     await device.setAttribute('onOff', 'onOff', false);
     await device.executeCommandHandler('on', {}, 'onOff', {}, device);
@@ -606,6 +623,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(coverDevice.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
@@ -619,6 +638,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 });
     await device.executeCommandHandler('upOrOpen');
     await device.executeCommandHandler('downOrClose');
@@ -640,6 +661,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(thermostatDevice.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
@@ -653,6 +676,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 });
     await device.executeCommandHandler('setpointRaiseLower', { mode: Thermostat.SetpointRaiseLowerMode.Both, amount: 10 });
 
@@ -668,6 +693,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(onOffLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(dimmableLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(colorTemperatureLight.code)).toBeDefined();
@@ -684,6 +711,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(onOffLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(dimmableLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(colorTemperatureLight.code)).toBeUndefined();
@@ -700,6 +729,8 @@ describe('TestPlatform', () => {
     const device = entity?.bridgedDevice;
     expect(device).toBeDefined();
     if (!device) return;
+    await device.construction.ready;
+    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 });
     await device.setAttribute('onOff', 'onOff', false);
     await device.executeCommandHandler('on', {}, 'onOff', {}, device);
@@ -752,7 +783,19 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringMatching(/^Changed logger level to/));
   });
 
+  it('should call publish', async () => {
+    publishSpy.mockRestore();
+    await platform.publish('zigbee2mqtt', 'test', 'message');
+    await platform.publish('zigbee2mqtt', '', 'message');
+    expect(z2mPublishSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('should call onShutdown with reason', async () => {
+    // @ts-expect-error accessing private property for testing
+    platform.injectTimer = setTimeout(() => {}, 1000).unref();
+    platform.config.unregisterOnShutdown = true;
+    await platform.onShutdown('Jest Test');
+    platform.config.unregisterOnShutdown = false;
     await platform.onShutdown('Jest Test');
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Shutdown zigbee2mqtt dynamic platform/));
   });
