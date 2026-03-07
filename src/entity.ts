@@ -26,81 +26,81 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
-  DeviceTypeDefinition,
   airConditioner,
   airQualitySensor,
+  bridgedNode,
+  colorTemperatureLight,
   colorTemperatureSwitch,
+  CommandHandlerData,
+  contactSensor,
+  coverDevice,
+  DeviceTypeDefinition,
+  dimmableLight,
+  dimmableOutlet,
   dimmableSwitch,
+  doorLockDevice,
+  electricalSensor,
+  extendedColorLight,
+  fanDevice,
+  genericSwitch,
+  humiditySensor,
+  lightSensor,
+  MatterbridgeEndpoint,
+  occupancySensor,
+  onOffLight,
+  onOffOutlet,
   onOffSwitch,
   powerSource,
-  bridgedNode,
-  electricalSensor,
-  onOffLight,
-  dimmableLight,
-  colorTemperatureLight,
-  onOffOutlet,
-  coverDevice,
-  thermostatDevice,
-  MatterbridgeEndpoint,
-  dimmableOutlet,
-  doorLockDevice,
-  occupancySensor,
-  lightSensor,
-  contactSensor,
-  temperatureSensor,
-  humiditySensor,
   pressureSensor,
-  genericSwitch,
-  waterLeakDetector,
   rainSensor,
   smokeCoAlarm,
-  extendedColorLight,
-  CommandHandlerData,
-  fanDevice,
+  temperatureSensor,
+  thermostatDevice,
+  waterLeakDetector,
 } from 'matterbridge';
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
-import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
-import * as color from 'matterbridge/utils';
-import { AtLeastOne, SwitchesTag, NumberTag } from 'matterbridge/matter';
-import { getClusterNameById, ClusterId, VendorId, Semtag } from 'matterbridge/matter/types';
+import { AnsiLogger, CYAN, db, debugStringify, dn, er, gn, hk, idn, ign, LogLevel, nf, or, rs, TimestampFormat, YELLOW, zb } from 'matterbridge/logger';
+import { AtLeastOne, NumberTag, SwitchesTag } from 'matterbridge/matter';
 import {
-  ElectricalEnergyMeasurement,
-  ElectricalPowerMeasurement,
-  WindowCoveringCluster,
-  DoorLockCluster,
-  BridgedDeviceBasicInformation,
-  OnOff,
-  Identify,
-  LevelControl,
-  ColorControl,
-  ColorControlCluster,
-  TemperatureMeasurement,
-  BooleanState,
-  RelativeHumidityMeasurement,
-  PressureMeasurement,
-  OccupancySensing,
-  IlluminanceMeasurement,
-  PowerSource,
-  WindowCovering,
-  DoorLock,
-  ThermostatCluster,
-  Thermostat,
   AirQuality,
-  TotalVolatileOrganicCompoundsConcentrationMeasurement,
+  BooleanState,
+  BridgedDeviceBasicInformation,
   CarbonDioxideConcentrationMeasurement,
   CarbonMonoxideConcentrationMeasurement,
-  FormaldehydeConcentrationMeasurement,
-  Pm1ConcentrationMeasurement,
-  Pm25ConcentrationMeasurement,
-  Pm10ConcentrationMeasurement,
-  SmokeCoAlarm,
+  ColorControl,
+  ColorControlCluster,
+  DoorLock,
+  DoorLockCluster,
+  ElectricalEnergyMeasurement,
+  ElectricalPowerMeasurement,
   FanControl,
   FanControlCluster,
+  FormaldehydeConcentrationMeasurement,
+  Identify,
+  IlluminanceMeasurement,
+  LevelControl,
+  OccupancySensing,
+  OnOff,
+  Pm1ConcentrationMeasurement,
+  Pm10ConcentrationMeasurement,
+  Pm25ConcentrationMeasurement,
+  PowerSource,
+  PressureMeasurement,
+  RelativeHumidityMeasurement,
+  SmokeCoAlarm,
+  TemperatureMeasurement,
+  Thermostat,
+  ThermostatCluster,
+  TotalVolatileOrganicCompoundsConcentrationMeasurement,
+  WindowCovering,
+  WindowCoveringCluster,
 } from 'matterbridge/matter/clusters';
+import { ClusterId, getClusterNameById, Semtag, VendorId } from 'matterbridge/matter/types';
+import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
+import * as color from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
-import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
+import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 
 interface BehaviorOptions {
   clusterId: ClusterId;
@@ -354,12 +354,6 @@ export class ZigbeeEntity extends EventEmitter {
         }
         if ((key === 'moving' || key === 'motor_state') && this.isDevice) {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
-          /*
-          const reversed = this.isCoverReversed();
-          if (reversed && (value === 'UP' || value === 'DOWN')) {
-            value = reversed ? (value === 'UP' ? 'DOWN' : 'UP') : value;
-          }
-          */
           if (value === 'UP' || value === 'opening') {
             const status = WindowCovering.MovementStatus.Opening;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
@@ -374,6 +368,22 @@ export class ZigbeeEntity extends EventEmitter {
             // this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
           }
         }
+        // if (key === 'motor_state' && this.isDevice) {
+        //   // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
+        //   if (value === 'opening') {
+        //     const status = WindowCovering.MovementStatus.Opening;
+        //     this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+        //   } else if (value === 'closing') {
+        //     const status = WindowCovering.MovementStatus.Closing;
+        //     this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+        //   } else if (value === 'stopped') {
+        //     const status = WindowCovering.MovementStatus.Stopped;
+        //     this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+        //     const position = this.bridgedDevice.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', this.log);
+        //     this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
+        //     this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position);
+        //   }
+        // }
 
         // Thermostat current_heating_setpoint is published and exposed like it is current_heating_setpoint and current_cooling_setpoint
         if (key === 'current_heating_setpoint' && 'system_mode' in payload && payload['system_mode'] === 'heat' && isValidNumber(value)) {
@@ -463,16 +473,6 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   /**
-   * Checks if the cover is reversed based on the last payload received.
-   * It is not a standard feature, so we check for motor_direction or reverse_direction keys in the payload.
-   *
-   * @returns {boolean} - True if the cover is reversed, false otherwise.
-   */
-  isCoverReversed(): boolean {
-    return this.lastPayload.motor_direction === 'reversed' || this.lastPayload.reverse_direction === 'back' || this.lastPayload.reverse_direction === true;
-  }
-
-  /**
    * Publish the cached commands with a delay of 100ms to group multiple commands into one.
    * It optimizes the number of messages sent to the MQTT broker for huge scenes on the controller.
    *
@@ -488,7 +488,8 @@ export class ZigbeeEntity extends EventEmitter {
     }
 
     if (payload) this.cachePayload = { ...this.cachePayload, ...payload };
-    if (this.transition && transitionTime && transitionTime / 10 >= 1) this.cachePayload['transition'] = Math.round(transitionTime / 10);
+    // zigbee2mqtt transition is in seconds (also 0.1) and Matter transition is in tenths of seconds, so we convert it to zigbee2mqtt transition and we only add it if the transition is enabled and the transition time is valid
+    if (this.transition && transitionTime && transitionTime / 10 >= 0) this.cachePayload['transition'] = transitionTime / 10;
     clearTimeout(this.cachePublishTimeout);
     this.cachePublishTimeout = setTimeout(() => {
       clearTimeout(this.cachePublishTimeout);
@@ -1189,6 +1190,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     let useState = false;
     let useBrightness = false;
+    let useTransition = false;
     let useColor = false;
     let useColorTemperature = false;
     let minColorTemperature = 140;
@@ -1240,6 +1242,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
             zigbeeGroup.log.debug(`- generic type ${CYAN}${expose.type}${db} expose name ${CYAN}${expose.name}${db} property ${CYAN}${expose.property}${db}`);
           }
         });
+        device.definition?.options.forEach((option) => {
+          useTransition = useTransition === true || option.name === 'transition' ? true : false;
+        });
       });
       zigbeeGroup.log.debug(
         `Group ${gn}${group.friendly_name}${rs}${db} switch: ${CYAN}${isSwitch}${db} light: ${CYAN}${isLight}${db} cover: ${CYAN}${isCover}${db} thermostat: ${CYAN}${isThermostat}${db}`,
@@ -1258,6 +1263,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
       if (useBrightness) {
         deviceType = dimmableLight;
         zigbeeGroup.propertyMap.set('brightness', { name: 'brightness', type: 'light', endpoint: '' });
+      }
+      if (useTransition) {
+        zigbeeGroup.transition = true;
       }
       if (useColorTemperature) {
         deviceType = colorTemperatureLight;
@@ -1324,13 +1332,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         zigbeeGroup.bridgedDevice.addCommandHandler('off', zigbeeGroup.offCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('toggle', zigbeeGroup.toggleCommandHandler.bind(zigbeeGroup));
       }
-      for (const child of zigbeeGroup.bridgedDevice.getChildEndpoints()) {
-        if (child.hasClusterServer(OnOff.Cluster.id)) {
-          child.addCommandHandler('on', zigbeeGroup.onCommandHandler.bind(zigbeeGroup));
-          child.addCommandHandler('off', zigbeeGroup.offCommandHandler.bind(zigbeeGroup));
-          child.addCommandHandler('toggle', zigbeeGroup.toggleCommandHandler.bind(zigbeeGroup));
-        }
-      }
     }
     if (isLight) {
       if (useBrightness) {
@@ -1375,9 +1376,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
       zigbeeGroup.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'systemMode',
-        (newValue: number, oldValue: number) => {
+        (newValue, oldValue, context) => {
           zigbeeGroup.bridgedDevice?.log.info(`Thermostat systemMode changed from ${oldValue} to ${newValue}`);
-          if (oldValue !== newValue) {
+          if (oldValue !== newValue && context.fabric !== undefined) {
             // Thermostat.SystemMode.Heat && newValue === Thermostat.SystemMode.Off
             zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat systemMode to ${newValue}`);
             if (newValue === Thermostat.SystemMode.Off) {
@@ -1390,7 +1391,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
             zigbeeGroup.noUpdate = true;
             zigbeeGroup.thermostatTimeout = setTimeout(() => {
               zigbeeGroup.noUpdate = false;
-            }, zigbeeGroup.thermostatTimeoutTime);
+            }, zigbeeGroup.thermostatTimeoutTime).unref();
           }
         },
         zigbeeGroup.log,
@@ -1398,30 +1399,34 @@ export class ZigbeeGroup extends ZigbeeEntity {
       zigbeeGroup.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'occupiedHeatingSetpoint',
-        (newValue: number, oldValue: number) => {
-          zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedHeatingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
-          zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedHeatingSetpoint to ${newValue / 100}`);
-          zigbeeGroup.publishCommand('CurrentHeatingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
-          zigbeeGroup.publishCommand('OccupiedHeatingSetpoint', group.friendly_name, { occupied_heating_setpoint: Math.round(newValue / 100) });
-          zigbeeGroup.noUpdate = true;
-          zigbeeGroup.thermostatTimeout = setTimeout(() => {
-            zigbeeGroup.noUpdate = false;
-          }, zigbeeGroup.thermostatTimeoutTime);
+        (newValue, oldValue, context) => {
+          if (oldValue !== newValue && context.fabric !== undefined) {
+            zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedHeatingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
+            zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedHeatingSetpoint to ${newValue / 100}`);
+            zigbeeGroup.publishCommand('CurrentHeatingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
+            zigbeeGroup.publishCommand('OccupiedHeatingSetpoint', group.friendly_name, { occupied_heating_setpoint: Math.round(newValue / 100) });
+            zigbeeGroup.noUpdate = true;
+            zigbeeGroup.thermostatTimeout = setTimeout(() => {
+              zigbeeGroup.noUpdate = false;
+            }, zigbeeGroup.thermostatTimeoutTime).unref();
+          }
         },
         zigbeeGroup.log,
       );
       zigbeeGroup.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'occupiedCoolingSetpoint',
-        (newValue: number, oldValue: number) => {
-          zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedCoolingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
-          zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedCoolingSetpoint to ${newValue / 100}`);
-          zigbeeGroup.publishCommand('CurrentCoolingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
-          zigbeeGroup.publishCommand('OccupiedCoolingSetpoint', group.friendly_name, { occupied_cooling_setpoint: Math.round(newValue / 100) });
-          zigbeeGroup.noUpdate = true;
-          zigbeeGroup.thermostatTimeout = setTimeout(() => {
-            zigbeeGroup.noUpdate = false;
-          }, zigbeeGroup.thermostatTimeoutTime);
+        (newValue, oldValue, context) => {
+          if (oldValue !== newValue && context.fabric !== undefined) {
+            zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedCoolingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
+            zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedCoolingSetpoint to ${newValue / 100}`);
+            zigbeeGroup.publishCommand('CurrentCoolingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
+            zigbeeGroup.publishCommand('OccupiedCoolingSetpoint', group.friendly_name, { occupied_cooling_setpoint: Math.round(newValue / 100) });
+            zigbeeGroup.noUpdate = true;
+            zigbeeGroup.thermostatTimeout = setTimeout(() => {
+              zigbeeGroup.noUpdate = false;
+            }, zigbeeGroup.thermostatTimeoutTime).unref();
+          }
         },
         zigbeeGroup.log,
       );
@@ -2272,15 +2277,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
       zigbeeDevice.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'systemMode',
-        (value) => {
-          if (isValidNumber(value, Thermostat.SystemMode.Off, Thermostat.SystemMode.FanOnly) && zigbeeDevice.thermostatSystemModeLookup[value] !== '') {
-            const system_mode = zigbeeDevice.thermostatSystemModeLookup[value];
-            zigbeeDevice.log.debug(`Subscribe systemMode called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with ${value} => ${system_mode}`);
+        (newValue, oldValue, context) => {
+          if (newValue === oldValue || context.fabric === undefined) return;
+          if (isValidNumber(newValue, Thermostat.SystemMode.Off, Thermostat.SystemMode.FanOnly) && zigbeeDevice.thermostatSystemModeLookup[newValue] !== '') {
+            const system_mode = zigbeeDevice.thermostatSystemModeLookup[newValue];
+            zigbeeDevice.log.debug(`Subscribe systemMode called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with ${newValue} => ${system_mode}`);
             zigbeeDevice.publishCommand('SystemMode', device.friendly_name, { ['system_mode' + endpointSuffix]: system_mode });
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, zigbeeDevice.thermostatTimeoutTime);
+            }, zigbeeDevice.thermostatTimeoutTime).unref();
           }
         },
         zigbeeDevice.log,
@@ -2289,20 +2295,21 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.bridgedDevice.subscribeAttribute(
           ThermostatCluster.id,
           'occupiedHeatingSetpoint',
-          (value) => {
-            zigbeeDevice.log.debug(`Subscribe occupiedHeatingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, value);
+          (newValue, oldValue, context) => {
+            if (newValue === oldValue || context.fabric === undefined) return;
+            zigbeeDevice.log.debug(`Subscribe occupiedHeatingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, newValue);
             if (zigbeeDevice.propertyMap.has('current_heating_setpoint' + endpointSuffix))
-              zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { ['current_heating_setpoint' + endpointSuffix]: Math.round(value / 100) });
+              zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { ['current_heating_setpoint' + endpointSuffix]: Math.round(newValue / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_heating_setpoint' + endpointSuffix))
-              zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { ['occupied_heating_setpoint' + endpointSuffix]: Math.round(value / 100) });
+              zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { ['occupied_heating_setpoint' + endpointSuffix]: Math.round(newValue / 100) });
             // Added by me: Arye Levin
             if (!zigbeeDevice.propertyMap.has('current_cooling_setpoint' + endpointSuffix) && !zigbeeDevice.propertyMap.has('occupied_cooling_setpoint' + endpointSuffix) && zigbeeDevice.propertyMap.get('system_mode' + endpointSuffix)?.values?.includes('cool')/* && zigbeeDevice.bridgedDevice?.getAttribute(Thermostat.Cluster.id, 'systemMode', zigbeeDevice.log) === Thermostat.SystemMode.Cool*/)
-              zigbeeDevice.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'occupiedCoolingSetpoint', value, zigbeeDevice.log);
+              zigbeeDevice.bridgedDevice?.setAttribute(Thermostat.Cluster.id, 'occupiedCoolingSetpoint', newValue, zigbeeDevice.log);
             // End of Added by me: Arye Levin
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, zigbeeDevice.thermostatTimeoutTime);
+            }, zigbeeDevice.thermostatTimeoutTime).unref();
           },
           zigbeeDevice.log,
         );
@@ -2310,23 +2317,24 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.bridgedDevice.subscribeAttribute(
           ThermostatCluster.id,
           'occupiedCoolingSetpoint',
-          (value) => {
-            zigbeeDevice.log.debug(`Subscribe occupiedCoolingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, value);
+          (newValue, oldValue, context) => {
+            if (newValue === oldValue || context.fabric === undefined) return;
+            zigbeeDevice.log.debug(`Subscribe occupiedCoolingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, newValue);
             if (zigbeeDevice.propertyMap.has('current_cooling_setpoint' + endpointSuffix))
-              zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { ['current_heating_setpoint' + endpointSuffix]: Math.round(value / 100) });
+              zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { ['current_cooling_setpoint' + endpointSuffix]: Math.round(newValue / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_cooling_setpoint' + endpointSuffix))
-              zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { ['occupied_cooling_setpoint' + endpointSuffix]: Math.round(value / 100) });
+              zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { ['occupied_cooling_setpoint' + endpointSuffix]: Math.round(newValue / 100) });
             // Added by me: Arye Levin
             else if (!zigbeeDevice.propertyMap.has('current_cooling_setpoint' + endpointSuffix) && !zigbeeDevice.propertyMap.has('occupied_cooling_setpoint' + endpointSuffix) && zigbeeDevice.propertyMap.get('system_mode' + endpointSuffix)?.values?.includes('cool'))
               if (zigbeeDevice.propertyMap.has('current_heating_setpoint' + endpointSuffix))
-                zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { ['current_heating_setpoint' + endpointSuffix]: Math.round(value / 100) });
+                zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { ['current_heating_setpoint' + endpointSuffix]: Math.round(newValue / 100) });
               else if (zigbeeDevice.propertyMap.has('occupied_heating_setpoint' + endpointSuffix))
-                zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { ['occupied_heating_setpoint' + endpointSuffix]: Math.round(value / 100) });
+                zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { ['occupied_heating_setpoint' + endpointSuffix]: Math.round(newValue / 100) });
             // End of Added by me: Arye Levin
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, zigbeeDevice.thermostatTimeoutTime);
+            }, zigbeeDevice.thermostatTimeoutTime).unref();
           },
           zigbeeDevice.log,
         );

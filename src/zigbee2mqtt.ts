@@ -23,16 +23,16 @@
 
 /* eslint-disable jsdoc/reject-any-type */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
+import path from 'node:path';
 
-import { MqttClient, IClientOptions, connectAsync, ErrorWithReasonCode, IConnackPacket, IDisconnectPacket, IPublishPacket, Packet } from 'mqtt';
-import { AnsiLogger, TimestampFormat, rs, db, dn, gn, er, zb, hk, id, idn, ign, REVERSE, REVERSEOFF, LogLevel } from 'node-ansi-logger';
+import { connectAsync, ErrorWithReasonCode, IClientOptions, IConnackPacket, IDisconnectPacket, IPublishPacket, MqttClient, Packet } from 'mqtt';
+import { AnsiLogger, db, dn, er, gn, hk, id, idn, ign, LogLevel, REVERSE, REVERSEOFF, rs, TimestampFormat, zb } from 'node-ansi-logger';
 
-import { BridgeDevice, BridgeExtension, BridgeGroup, BridgeInfo, Topology } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
+import { BridgeDevice, BridgeExtension, BridgeGroup, BridgeInfo, Topology } from './zigbee2mqttTypes.js';
 
 interface PublishQueue {
   topic: string;
@@ -583,7 +583,7 @@ export class Zigbee2MQTT extends EventEmitter {
   private messageHandler(topic: string, payload: Buffer) {
     if (topic.startsWith(this.mqttTopic + '/bridge/state')) {
       const payloadString = payload.toString();
-      let data: Payload = {};
+      let data: Payload;
       if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
         data = this.tryJsonParse(payload.toString());
       } else {
@@ -753,7 +753,7 @@ export class Zigbee2MQTT extends EventEmitter {
       return;
     }
     const payloadString = payload.toString();
-    let data: Payload = {};
+    let data: Payload;
     if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
       data = this.tryJsonParse(payload.toString());
     } else {
@@ -784,7 +784,7 @@ export class Zigbee2MQTT extends EventEmitter {
       return;
     }
     const payloadString = payload.toString();
-    let data: Payload = {};
+    let data: Payload;
     if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
       data = this.tryJsonParse(payload.toString());
     } else {

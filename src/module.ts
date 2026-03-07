@@ -24,21 +24,22 @@
 import path from 'node:path';
 
 import { MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig, PlatformMatterbridge } from 'matterbridge';
-import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf, LogLevel } from 'matterbridge/logger';
-import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
+import { AnsiLogger, CYAN, db, debugStringify, dn, er, gn, LogLevel, nf, payloadStringify, rs, wr, zb } from 'matterbridge/logger';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
-import { deepCopy } from 'matterbridge/matter';
+import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
-import { Zigbee2MQTT } from './zigbee2mqtt.js';
-import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
+import { Zigbee2MQTT } from './zigbee2mqtt.js';
+import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
+
 // Added by me: Arye Levin
 import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCalendarSensors.js';
 import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.js';
 import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js';
 import { PlatformControls } from './platformControls.js';
 import { SwitchingController, SwitchingControllerSwitchLinkConfig, SwitchingControllerSwitchConfig } from './switchingController.js';
+import { deepCopy } from 'matterbridge/matter';
 
 export interface ALHomeLocationCoordinates {
   longitude: number;
@@ -198,10 +199,15 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.username = this.mqttUsername ?? '';
     config.password = this.mqttPassword ?? '';
     config.postfix = this.postfix;
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.postfixHostname !== undefined) delete config.postfixHostname;
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.deviceScenes !== undefined) delete config.deviceScenes;
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.groupScenes !== undefined) delete config.groupScenes;
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.scenesType === undefined) config.scenesType = 'outlet';
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.scenesPrefix === undefined) config.scenesPrefix = true;
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
@@ -606,7 +612,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }
     }, this.availabilityTimeout).unref();
 
-    /* istanbul ignore next if */
     /*
     if (this.config.injectPayloads && typeof this.config.injectPayloads === 'string') {
       this.injectTimer = setInterval(() => {
@@ -690,6 +695,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.debug(`Requesting update for ${group.friendly_name}`);
     const payload: Payload = {};
     payload['state'] = '';
+    // istanbul ignore else
     if (payload && Object.keys(payload).length > 0) {
       const topic = this.z2m.mqttTopic + '/' + group.friendly_name + '/get';
       await this.z2m.publish(topic, payloadStringify(payload), false);

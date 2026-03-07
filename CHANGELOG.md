@@ -26,6 +26,54 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
+## [3.0.8] - 2026-02-28
+
+### Dev Breaking Changes
+
+- [devContainer]: Add the new [dev container setup](https://matterbridge.io/reflector/MatterbridgeDevContainer.html).
+- [devContainer]: Add the new [reflector dev container setup](https://matterbridge.io/reflector/Reflector.html).
+- [devContainer]: Add the guide to [pair Matterbridge with Dev Container](https://matterbridge.io/README-DEV.html#how-to-pair-matterbridge-in-dev-containers)
+- [package]: Add `CONTRIBUTING.md`.
+- [package]: Add `STYLEGUIDE.md`.
+
+### Changed
+
+- [package]: Update dependencies.
+- [package]: Bump package to `automator` v.3.1.1.
+- [package]: Bump `eslint` to v.10.0.2.
+- [package]: Bump `typescript-eslint` to v.8.56.1.
+- [package]: Replace `eslint-plugin-import` with `eslint-plugin-simple-import-sort`.
+- [package]: Add `@eslint/json`.
+- [package]: Add `@eslint/markdown`.
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
+## [3.0.7] - 2026-02-20
+
+### Added
+
+- [docker]: Add an example of docker_compose.yml. You need to provide your own certificates.
+- [mosquitto]: Add an example of mosquitto configuration for ws:// wss:// mqtt:// mqtts:// mqtt+unix://. You need to provide your own certificates.
+- [transition]: Add transition to groups. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/147).
+- [transition]: Support decimal transition. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/150).
+- [test]: Improve test coverage.
+- [cover]: Add motor_state: 'opening', 'closing' and 'stopped'. Thanks Edgard Castro (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/148).
+
+### Changed
+
+- [package]: Update dependencies.
+- [package]: Bump package to `automator` v.3.0.8.
+- [package]: Bump `node-persist-manager` to v.2.0.1.
+- [package]: Bump `eslint` to v.10.0.1.
+- [package]: Bump `typescript-eslint` to v.8.56.0.
+- [eslint]: Use minimatch in ignores.
+
+### Fixed
+
+- [thermostat]: Fix remote updates detection. Thanks Sppedtech (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/151).
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
 ## [3.0.6] - 2026-02-07
 
 ### Changed
