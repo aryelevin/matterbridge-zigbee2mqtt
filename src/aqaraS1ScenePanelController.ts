@@ -1410,7 +1410,13 @@ export class AqaraS1ScenePanelController {
                     endpointToControl.triggerSwitchEvent(sceneExecutionActions.buttonAction);
                   }
 
-                  this.publishCommand(entityIeee, sceneExecutionActions);
+                  // Now convert numbers and bools to their types...
+                  const typedSceneExecutionActions: { [key: string]: string | number | boolean } = {};
+                  for (const endpoint in sceneExecutionActions) {
+                    typedSceneExecutionActions[endpoint] = this.convertStringToType(sceneExecutionActions[endpoint]);
+                  }
+
+                  this.publishCommand(entityIeee, typedSceneExecutionActions);
                 }
               }
             }
@@ -1559,6 +1565,28 @@ export class AqaraS1ScenePanelController {
       this.log.error('Unknown message from: ' + deviceIeeeAddress + ', Hex data: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum + ', commandCategory: 0x' + commandCategory?.toString(16) + ', commandType: 0x' + commandType?.toString(16) + ', commandAction: 0x' + commandAction?.toString(16));
     }
   }
+
+convertStringToType(value: string): string | number | boolean {
+  // 1. Try converting to a number
+  const numValue = Number(value);
+  // Check if it's a valid number and not NaN, while also ensuring the original 
+  // string isn't just an empty string which Number() converts to 0.
+  if (!isNaN(numValue) && /*value.trim() !== '' &&*/ String(numValue) === value) {
+    return numValue;
+  }
+
+  // 2. Try converting to a boolean for specific 'true'/'false' strings
+  // const lowerCaseValue = value.toLowerCase().trim();
+  if (value === 'true') {
+    return true;
+  }
+  if (value === 'false') {
+    return false;
+  }
+  
+  // 3. If neither, return the original string
+  return value;
+}
 
   generateNameCommand(name: string, device: string) {
     const nameSize = name.length;
