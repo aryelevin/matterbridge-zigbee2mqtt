@@ -120,7 +120,7 @@ export class AqaraS1ScenePanelController {
 
   // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
   // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
-  entityPropertyChanged(deviceIeee: string, separatedEndpoint: string | undefined = undefined, key: string, value: string | number | boolean, newPayload: Payload) {
+  entityPropertyChanged(deviceIeee: string, separatedEndpoint: string | undefined = undefined, key: string, value: string | number | boolean | object, newPayload: Payload) {
     const device = this.getDeviceEntity(deviceIeee, separatedEndpoint);
     const keyPropertyEndpoint = device?.getEndpointOfProperty(key);
     // If its a separated endpoint device, ignore any other endpoint properties (either they're undefined or not equal to the separated endpoint device [this] on the propertyMap which is used within getEndpointOfProperty() method).
@@ -622,6 +622,9 @@ export class AqaraS1ScenePanelController {
                 const value = payload[key];
                 if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastStates[deviceIeee][key]) {
                   this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
+                  this.entityPropertyChanged(deviceIeee || '', separatedDeviceEndpoint, key, value, payload);
+                } else if (typeof value === 'object' && !deepEqual(value, this.lastStates[deviceIeee][key])) {
+                  this.log.info('Value ' + key + ' changed from ' + JSON.stringify(this.lastStates[deviceIeee][key]) + ' to ' + JSON.stringify(value) + '.');
                   this.entityPropertyChanged(deviceIeee || '', separatedDeviceEndpoint, key, value, payload);
                 }
               }
@@ -1412,8 +1415,8 @@ export class AqaraS1ScenePanelController {
 
                   // Now convert numbers and bools to their types...
                   const typedSceneExecutionActions: { [key: string]: string | number | boolean } = {};
-                  for (const endpoint in sceneExecutionActions) {
-                    typedSceneExecutionActions[endpoint] = this.convertStringToType(sceneExecutionActions[endpoint]);
+                  for (const property in sceneExecutionActions) {
+                    typedSceneExecutionActions[property] = this.convertStringToType(sceneExecutionActions[property]);
                   }
 
                   this.publishCommand(entityIeee, typedSceneExecutionActions);
