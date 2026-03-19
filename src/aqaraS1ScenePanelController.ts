@@ -1051,7 +1051,7 @@ export class AqaraS1ScenePanelController {
         // State of device is reported and should set the controlled device to this state (Turn on or change position for example).
         if (commandCategory === 0x72 && commandAction === 0x01) {
           if (this.platform.platformControls.switchesEnabled) {
-            if (deviceResourceType === 'air_cond' && (stateParamInt32BE === 0x0e005520 || stateParamInt32BE === 0x0e005502)) {
+            if (deviceResourceType === 'air_cond' && (stateParamInt32BE === 0x0e020055 || stateParamInt32BE === 0x0e200055)) {
               // Updated Air conditioner device state
               const onOff = dataArray[dataStartIndex + 21] >= 0x10;
               const mode = dataArray[dataStartIndex + 21] - (onOff ? 0x10 : 0x0);
