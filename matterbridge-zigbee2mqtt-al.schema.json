@@ -289,9 +289,10 @@
           "default": "Ashkenazi"
         },
         "israel": {"description": "Sets if the system is in israel", "type": "boolean"},
+        "showEves": {"description": "Sets whether to show all events eves (Shabbat Eve, Pesach Eve etc)", "type": "boolean"},
         "offset": {"description": "Offset of the current time (Can be used to check and debug the system)", "type": "number"}
       },
-      "default": {"enabled": false, "candlelighting": 30, "havdalah": 45, "shminiAtzeretInSukkot": false, "sefiratHaOmerCustom": "Ashkenazi", "threeWeeksCustom": "Ashkenazi", "israel": true, "offset": 0}
+      "default": {"enabled": false, "candlelighting": 30, "havdalah": 45, "shminiAtzeretInSukkot": false, "sefiratHaOmerCustom": "Ashkenazi", "threeWeeksCustom": "Ashkenazi", "israel": true, "showEves": false, "offset": 0}
     },
     "addShabbatModeDummySwitchType": {
       "description": "Device type to use to expose shabbat mode if defined",

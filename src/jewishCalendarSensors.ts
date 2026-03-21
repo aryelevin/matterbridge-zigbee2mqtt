@@ -22,6 +22,7 @@ export interface JewishCalendarSensorsConfig {
   havdalah: number;
   sefiratHaOmerCustom: string;
   threeWeeksCustom: string;
+  showEves: boolean;
   offset: number;
 }
 
@@ -48,7 +49,7 @@ export class JewishCalendarSensors {
    * @param {ZigbeePlatform} platform - The platform.
    * @param {JewishCalendarSensorsConfig} jewishCalendarConfig - The config.
    */
-  constructor(platform: ZigbeePlatform, jewishCalendarConfig: JewishCalendarSensorsConfig) {
+  constructor(platform: ZigbeePlatform, jewishCalendarConfig: JewishCalendarSensorsConfig, deviceNameSuffix: string = '') {
     this.lat = platform.config.homeLocation.latitude; // parseFloat(platform.config.homeLocationCoords.latitude);
     this.long = platform.config.homeLocation.longitude; // parseFloat(platform.config.homeLocationCoords.longitude);
 
@@ -62,57 +63,57 @@ export class JewishCalendarSensors {
 
     this.services = {};
 
-    this.sensor = new MatterbridgeEndpoint([bridgedNode, modeSelect, powerSource], { id: 'Jewish Calendar' }, platform.config.debug);
+    this.sensor = new MatterbridgeEndpoint([bridgedNode, modeSelect, powerSource], { id: 'Jewish Calendar' + deviceNameSuffix }, platform.config.debug);
     this.sensor.createDefaultIdentifyClusterServer().createDefaultPowerSourceWiredClusterServer();
-    this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar', '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar 20EBN9901', 1144, '1.2.8');
+    this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar' + deviceNameSuffix, '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar' + deviceNameSuffix + ' 20EBN9901', 1144, '1.2.8');
     // this.sensor.createDefaultBooleanStateClusterServer(true);
     this.sensor.createDefaultModeSelectClusterServer(
-      'Test Sensor',
+      'Test Sensor' + deviceNameSuffix,
       [
         { label: 'Off', mode: 0, semanticTags: [] },
-        { label: 'Shabbat', mode: 1, semanticTags: [] },
-        { label: 'Yom Tov', mode: 2, semanticTags: [] },
-        { label: 'Kodesh', mode: 3, semanticTags: [] },
-        { label: 'Rosh Hashana', mode: 4, semanticTags: [] },
-        { label: 'Yom Kippur', mode: 5, semanticTags: [] },
-        { label: 'Sukkot', mode: 6, semanticTags: [] },
-        { label: 'Shemini Atzeret', mode: 7, semanticTags: [] },
-        { label: 'Pesach', mode: 8, semanticTags: [] },
-        { label: 'Shavuot', mode: 9, semanticTags: [] },
-        { label: 'Chanukah', mode: 10, semanticTags: [] },
-        { label: 'Three Weeks', mode: 11, semanticTags: [] },
-        { label: 'Sefirat HaOmer Mourning', mode: 12, semanticTags: [] },
-        { label: 'Sefirat HaOmer', mode: 13, semanticTags: [] },
-        { label: 'Mourning', mode: 14, semanticTags: [] },
-        { label: 'Purim', mode: 15, semanticTags: [] },
-        { label: 'Shushan Purim', mode: 16, semanticTags: [] },
-        { label: 'Purim Meshulash', mode: 17, semanticTags: [] },
-        { label: 'Shvihi Shel Pesach', mode: 18, semanticTags: [] },
-        { label: 'Leap Year', mode: 19, semanticTags: [] },
+        { label: 'Shabbat' + deviceNameSuffix, mode: 1, semanticTags: [] },
+        { label: 'Yom Tov' + deviceNameSuffix, mode: 2, semanticTags: [] },
+        { label: 'Kodesh' + deviceNameSuffix, mode: 3, semanticTags: [] },
+        { label: 'Rosh Hashana' + deviceNameSuffix, mode: 4, semanticTags: [] },
+        { label: 'Yom Kippur' + deviceNameSuffix, mode: 5, semanticTags: [] },
+        { label: 'Sukkot' + deviceNameSuffix, mode: 6, semanticTags: [] },
+        { label: 'Shemini Atzeret' + deviceNameSuffix, mode: 7, semanticTags: [] },
+        { label: 'Chanukah' + deviceNameSuffix, mode: 8, semanticTags: [] },
+        { label: 'Purim' + deviceNameSuffix, mode: 9, semanticTags: [] },
+        { label: 'Shushan Purim' + deviceNameSuffix, mode: 10, semanticTags: [] },
+        { label: 'Purim Meshulash' + deviceNameSuffix, mode: 11, semanticTags: [] },
+        { label: 'Pesach' + deviceNameSuffix, mode: 12, semanticTags: [] },
+        { label: 'Shvihi Shel Pesach' + deviceNameSuffix, mode: 13, semanticTags: [] },
+        { label: 'Shavuot' + deviceNameSuffix, mode: 14, semanticTags: [] },
+        { label: 'Three Weeks' + deviceNameSuffix, mode: 15, semanticTags: [] },
+        { label: 'Sefirat HaOmer Mourning' + deviceNameSuffix, mode: 16, semanticTags: [] },
+        { label: 'Sefirat HaOmer' + deviceNameSuffix, mode: 17, semanticTags: [] },
+        { label: 'Mourning' + deviceNameSuffix, mode: 18, semanticTags: [] },
+        { label: 'Leap Year' + deviceNameSuffix, mode: 19, semanticTags: [] },
       ],
       0,
       0,
     );
 
-    this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat', debug: platform.config.debug });
-    this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov', debug: platform.config.debug });
-    this.services.Kodesh = new JewishCalendarSensor(this.sensor, { name: 'Kodesh', debug: platform.config.debug }); // primary service
-    this.services.RoshHashana = new JewishCalendarSensor(this.sensor, { name: 'Rosh Hashana', debug: platform.config.debug });
-    this.services.YomKippur = new JewishCalendarSensor(this.sensor, { name: 'Yom Kippur', debug: platform.config.debug });
-    this.services.Sukkot = new JewishCalendarSensor(this.sensor, { name: 'Sukkot', debug: platform.config.debug });
-    this.services.SheminiAtzeret = new JewishCalendarSensor(this.sensor, { name: 'Shemini Atzeret', debug: platform.config.debug });
-    this.services.Pesach = new JewishCalendarSensor(this.sensor, { name: 'Pesach', debug: platform.config.debug });
-    this.services.Shavuot = new JewishCalendarSensor(this.sensor, { name: 'Shavuot', debug: platform.config.debug });
-    this.services.Chanukah = new JewishCalendarSensor(this.sensor, { name: 'Chanukah', debug: platform.config.debug });
-    this.services.ThreeWeeks = new JewishCalendarSensor(this.sensor, { name: 'Three Weeks', debug: platform.config.debug });
-    this.services.SefiratHaOmerMourning = new JewishCalendarSensor(this.sensor, { name: 'Sefirat HaOmer Mourning', debug: platform.config.debug });
-    this.services.SefiratHaOmer = new JewishCalendarSensor(this.sensor, { name: 'Sefirat HaOmer', debug: platform.config.debug });
-    this.services.Mourning = new JewishCalendarSensor(this.sensor, { name: 'Mourning', debug: platform.config.debug });
-    this.services.Purim = new JewishCalendarSensor(this.sensor, { name: 'Purim', debug: platform.config.debug });
-    this.services.ShushanPurim = new JewishCalendarSensor(this.sensor, { name: 'Shushan Purim', debug: platform.config.debug });
-    this.services.PurimMeshulash = new JewishCalendarSensor(this.sensor, { name: 'Purim Meshulash', debug: platform.config.debug });
-    this.services.ShvihiShelPesach = new JewishCalendarSensor(this.sensor, { name: 'Shvihi Shel Pesach', debug: platform.config.debug });
-    this.services.LeapYear = new JewishCalendarSensor(this.sensor, { name: 'Leap Year', debug: platform.config.debug });
+    this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.Kodesh = new JewishCalendarSensor(this.sensor, { name: 'Kodesh' + deviceNameSuffix, debug: platform.config.debug }); // primary service
+    this.services.RoshHashana = new JewishCalendarSensor(this.sensor, { name: 'Rosh Hashana' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.YomKippur = new JewishCalendarSensor(this.sensor, { name: 'Yom Kippur' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.Sukkot = new JewishCalendarSensor(this.sensor, { name: 'Sukkot' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.SheminiAtzeret = new JewishCalendarSensor(this.sensor, { name: 'Shemini Atzeret' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.Chanukah = new JewishCalendarSensor(this.sensor, { name: 'Chanukah' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.Purim = new JewishCalendarSensor(this.sensor, { name: 'Purim' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.ShushanPurim = new JewishCalendarSensor(this.sensor, { name: 'Shushan Purim' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.PurimMeshulash = new JewishCalendarSensor(this.sensor, { name: 'Purim Meshulash' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.Pesach = new JewishCalendarSensor(this.sensor, { name: 'Pesach' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.ShvihiShelPesach = new JewishCalendarSensor(this.sensor, { name: 'Shvihi Shel Pesach' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.Shavuot = new JewishCalendarSensor(this.sensor, { name: 'Shavuot' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.ThreeWeeks = new JewishCalendarSensor(this.sensor, { name: 'Three Weeks' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.SefiratHaOmerMourning = new JewishCalendarSensor(this.sensor, { name: 'Sefirat HaOmer Mourning' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.SefiratHaOmer = new JewishCalendarSensor(this.sensor, { name: 'Sefirat HaOmer' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.Mourning = new JewishCalendarSensor(this.sensor, { name: 'Mourning' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.LeapYear = new JewishCalendarSensor(this.sensor, { name: 'Leap Year' + deviceNameSuffix, debug: platform.config.debug });
 
     const sensorsByIndex: JewishCalendarSensor[] = [
       this.services.Shabbat,
@@ -122,17 +123,17 @@ export class JewishCalendarSensors {
       this.services.YomKippur,
       this.services.Sukkot,
       this.services.SheminiAtzeret,
-      this.services.Pesach,
-      this.services.Shavuot,
       this.services.Chanukah,
+      this.services.Purim,
+      this.services.ShushanPurim,
+      this.services.PurimMeshulash,
+      this.services.Pesach,
+      this.services.ShvihiShelPesach,
+      this.services.Shavuot,
       this.services.ThreeWeeks,
       this.services.SefiratHaOmerMourning,
       this.services.SefiratHaOmer,
       this.services.Mourning,
-      this.services.Purim,
-      this.services.ShushanPurim,
-      this.services.PurimMeshulash,
-      this.services.ShvihiShelPesach,
       this.services.LeapYear,
     ];
     let currentMode = 0;
@@ -177,17 +178,17 @@ export class JewishCalendarSensors {
     await this.services.YomKippur.update(this.isYomKippur());
     await this.services.Sukkot.update(this.isSukkot());
     await this.services.SheminiAtzeret.update(this.isSheminiAtzeret());
-    await this.services.Pesach.update(this.isPesach());
-    await this.services.Shavuot.update(this.isShavuot());
     await this.services.Chanukah.update(this.isChanukah());
+    await this.services.Purim.update(this.isPurim());
+    await this.services.ShushanPurim.update(this.isShushanPurim());
+    await this.services.PurimMeshulash.update(this.isPurimMeshulash());
+    await this.services.Pesach.update(this.isPesach());
+    await this.services.ShvihiShelPesach.update(this.isShvihiShelPesach());
+    await this.services.Shavuot.update(this.isShavuot());
     await this.services.ThreeWeeks.update(this.isThreeWeeks());
     await this.services.SefiratHaOmerMourning.update(this.isSefiratHaOmerMourning());
     await this.services.SefiratHaOmer.update(this.isSefiratHaOmer());
     await this.services.Mourning.update(this.isMourning());
-    await this.services.Purim.update(this.isPurim());
-    await this.services.ShushanPurim.update(this.isShushanPurim());
-    await this.services.PurimMeshulash.update(this.isPurimMeshulash());
-    await this.services.ShvihiShelPesach.update(this.isShvihiShelPesach());
     await this.services.LeapYear.update(this.isLeapYear());
   }
 

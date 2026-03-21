@@ -112,6 +112,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public platformControls: PlatformControls;
   public dummySwitchesAccessories: DummySwitch[] = [];
   public jewishCalendarSensors: JewishCalendarSensors | undefined;
+  public jewishCalendarEveSensors: JewishCalendarSensors | undefined;
   public shabbatModeDummySwitch: DummySwitch | undefined;
   public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController;
   public switchingController: SwitchingController;
@@ -492,6 +493,13 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (jewishCalendarConfig?.enabled === true) {
       this.jewishCalendarSensors = new JewishCalendarSensors(this, jewishCalendarConfig);
       await this.registerDevice(this.jewishCalendarSensors.sensor);
+
+      if (jewishCalendarConfig.showEves === true) {
+        const jewishCalendarConfigForEvesOffset = deepCopy(jewishCalendarConfig);
+        jewishCalendarConfigForEvesOffset.offset += (60 * 60 * 24);
+        this.jewishCalendarEveSensors = new JewishCalendarSensors(this, jewishCalendarConfigForEvesOffset, ' Eve');
+        await this.registerDevice(this.jewishCalendarEveSensors.sensor);
+      }
     }
 
     const dummySwitches = this.config.dummySwitches;
