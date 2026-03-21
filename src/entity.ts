@@ -32,6 +32,7 @@ import {
   colorTemperatureLight,
   colorTemperatureSwitch,
   CommandHandlerData,
+  CommandHandlerDataMap,
   contactSensor,
   coverDevice,
   DeviceTypeDefinition,
@@ -267,7 +268,7 @@ export class ZigbeeEntity extends EventEmitter {
       Object.entries(payload).forEach(([key, value]) => {
         // Skip null and undefined values
         if (value === undefined || value === null) return;
-        if (this.bridgedDevice === undefined || this.noUpdate) return;
+        if (this.bridgedDevice === undefined) return; // Typescript only check for undefined but we checked before
 
         // Modify voltage to battery_voltage
         if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') key = 'battery_voltage';
@@ -480,7 +481,7 @@ export class ZigbeeEntity extends EventEmitter {
    * @param {Payload} payload - The optional payload to add to the cached publish payload
    * @param {number} transitionTime - The optional transition time to add to the cached publish payload
    */
-  protected cachePublish(command: string = 'unknown', payload?: Payload, transitionTime?: number) {
+  protected cachePublish(command: string = 'unknown', payload?: Payload, transitionTime?: number | null) {
     if (command === 'moveToColorTemperature') {
       delete this.cachePayload['color'];
     } else if (command === 'moveToColor' || command === 'moveToHueSaturation' || command === 'moveToHue' || command === 'moveToSaturation') {
@@ -707,7 +708,7 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToLevelCommandHandler(data: CommandHandlerData): Promise<void> {
+  protected async moveToLevelCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevel']): Promise<void> {
     this.saveCommands('moveToLevel', data);
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') === data.request.level) {
       this.log.debug(`Command moveToLevel ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or level unchanged`);
@@ -730,7 +731,7 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToLevelWithOnOffCommandHandler(data: CommandHandlerData): Promise<void> {
+  protected async moveToLevelWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevelWithOnOff']): Promise<void> {
     this.saveCommands('moveToLevelWithOnOff', data);
     this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
@@ -787,7 +788,7 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToColorTemperatureCommandHandler(data: CommandHandlerData): Promise<void> {
+  protected async moveToColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColorTemperature']): Promise<void> {
     this.saveCommands('moveToColorTemperature', data);
     delete this.cachePayload['color'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (this.propertyMap.get('color_temp') && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') === data.request.colorTemperatureMireds)) {
@@ -807,7 +808,7 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToColorCommandHandler(data: CommandHandlerData): Promise<void> {
+  protected async moveToColorCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColor']): Promise<void> {
     this.saveCommands('moveToColor', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentXAndCurrentY && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentX') === data.request.colorX && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentY') === data.request.colorY)) {
@@ -821,7 +822,7 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToHueCommandHandler(data: CommandHandlerData): Promise<void> {
+  protected async moveToHueCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHue']): Promise<void> {
     this.saveCommands('moveToHue', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue)) {
@@ -835,7 +836,7 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToSaturationCommandHandler(data: CommandHandlerData): Promise<void> {
+  protected async moveToSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToSaturation']): Promise<void> {
     this.saveCommands('moveToSaturation', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
@@ -849,7 +850,7 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToHueAndSaturationCommandHandler(data: CommandHandlerData): Promise<void> {
+  protected async moveToHueAndSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHueAndSaturation']): Promise<void> {
     this.saveCommands('moveToHueAndSaturation', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
