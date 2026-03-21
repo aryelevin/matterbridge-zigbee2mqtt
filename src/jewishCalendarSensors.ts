@@ -142,7 +142,9 @@ export class JewishCalendarSensors {
       if (currentMode !== 0) {
         sensorsByIndex[currentMode - 1].testMode = false;
       }
-      sensorsByIndex[newMode - 1].testMode = true;
+      if (newMode !== 0) {
+        sensorsByIndex[newMode - 1].testMode = true;
+      }
       currentMode = newMode;
     });
 
