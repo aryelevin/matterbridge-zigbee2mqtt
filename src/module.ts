@@ -496,7 +496,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
       if (jewishCalendarConfig.showEves === true) {
         const jewishCalendarConfigForEvesOffset = deepCopy(jewishCalendarConfig);
-        jewishCalendarConfigForEvesOffset.offset += (60 * 60 * 24);
+        jewishCalendarConfigForEvesOffset.offset += (60 * 24);
         this.jewishCalendarEveSensors = new JewishCalendarSensors(this, jewishCalendarConfigForEvesOffset, ' Eve');
         await this.registerDevice(this.jewishCalendarEveSensors.sensor);
       }

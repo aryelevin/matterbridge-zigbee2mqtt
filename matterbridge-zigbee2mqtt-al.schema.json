@@ -204,7 +204,8 @@
       "default": false
     },
     "homeLocation": {
-      "description": "Sets the home location in Longitude and Latitude coordinates to allow jewish calendar and weather to function properly and according to this location.",
+      "title": "Home Location",
+      "description": "Sets the home location in Longitude and Latitude coordinates to allow jewish calendar and weather to function properly and according to the home location.",
       "type": "object",
       "properties": {
         "longitude": {"description": "The location longitude", "type": "number"},
@@ -213,6 +214,7 @@
       "default": {"longitude": 34.8376, "latitude": 32.08934}
     },
     "dummySwitches": {
+      "title": "Add Dummy Switches",
       "description": "Adds dummy entities based on a configuration",
       "type": "array",
       "uniqueItems": true,
@@ -280,6 +282,7 @@
       }
     },
     "jewishCalendarSensorConfig": {
+      "title": "Jewish Calendar Configuration",
       "description": "Configures jewish calendar contact sensors.",
       "type": "object",
       "properties": {
@@ -314,12 +317,13 @@
           "default": "Ashkenazi"
         },
         "israel": {"description": "Sets if the system is in israel", "type": "boolean"},
-        "showEves": {"description": "Sets whether to show all events eves (Shabbat Eve, Pesach Eve etc)", "type": "boolean"},
-        "offset": {"description": "Offset of the current time (Can be used to check and debug the system)", "type": "number"}
+        "showEves": {"description": "Sets whether to show all events eves (Shabbat Eve, Pesach Eve etc) by creating additional sensor with built in offset of a day forward", "type": "boolean"},
+        "offset": {"description": "Offset (in minutes) of the current time (Can be used to check and debug the system)", "type": "number"}
       },
       "default": {"enabled": false, "candlelighting": 30, "havdalah": 45, "shminiAtzeretInSukkot": false, "sefiratHaOmerCustom": "Ashkenazi", "threeWeeksCustom": "Ashkenazi", "israel": true, "showEves": false, "offset": 0}
     },
     "addShabbatModeDummySwitchType": {
+      "title": "Shabbat Mode Switch",
       "description": "Device type to use to expose shabbat mode if defined",
       "type": "string",
       "oneOf": [
@@ -343,6 +347,7 @@
       "default": "dimmer"
     },
     "aqaraS1ActionsConfigData": {
+      "title": "Aqara S1 Scene Panels Configuration",
       "description": "Configures an Aqara S1 Scene Panels controls",
       "type": "object",
       "selectFrom": "serial",
@@ -1135,6 +1140,7 @@
       }
     },
     "switchesLinks": {
+      "title": "Lights & Switches Links",
       "description": "Configures links between switches (alternates, lights etc)",
       "type": "array",
       "uniqueItems": true,
@@ -1168,6 +1174,7 @@
       }
     },
     "switchesOnStateCommands": {
+      "title": "Switches On Commands",
       "description": "Configures actions when enabling switches logic",
       "type": "object",
       "selectFrom": "serial",
@@ -1183,6 +1190,7 @@
       }
     },
     "switchesOffStateCommands": {
+      "title": "Switches Off Commands",
       "description": "Configures actions when enabling switches logic",
       "type": "object",
       "selectFrom": "serial",
@@ -1198,6 +1206,7 @@
       }
     },
     "switchesActions": {
+      "title": "Switches Actions",
       "description": "Configures actions when enabling switches logic",
       "type": "object",
       "selectFrom": "serial",
@@ -1254,6 +1263,7 @@
       }
     },
     "separateDeviceEndpoints": {
+      "title": "Separated Endpoints",
       "description": "Devices with multiple endpoints which will create separate Matter devices.",
       "type": "object",
       "uniqueItems": true,
