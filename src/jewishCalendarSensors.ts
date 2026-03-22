@@ -49,7 +49,7 @@ export class JewishCalendarSensors {
    * @param {ZigbeePlatform} platform - The platform.
    * @param {JewishCalendarSensorsConfig} jewishCalendarConfig - The config.
    */
-  constructor(platform: ZigbeePlatform, jewishCalendarConfig: JewishCalendarSensorsConfig, deviceNameSuffix: string = '') {
+  constructor(platform: ZigbeePlatform, jewishCalendarConfig: JewishCalendarSensorsConfig) {
     this.lat = platform.config.homeLocation.latitude; // parseFloat(platform.config.homeLocationCoords.latitude);
     this.long = platform.config.homeLocation.longitude; // parseFloat(platform.config.homeLocationCoords.longitude);
 
@@ -63,57 +63,92 @@ export class JewishCalendarSensors {
 
     this.services = {};
 
-    this.sensor = new MatterbridgeEndpoint([bridgedNode, modeSelect, powerSource], { id: 'Jewish Calendar' + deviceNameSuffix }, platform.config.debug);
+    this.sensor = new MatterbridgeEndpoint([bridgedNode, modeSelect, powerSource], { id: 'Jewish Calendar' }, platform.config.debug);
     this.sensor.createDefaultIdentifyClusterServer().createDefaultPowerSourceWiredClusterServer();
-    this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar' + deviceNameSuffix, '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar' + deviceNameSuffix + ' 20EBN9901', 1144, '1.2.8');
+    this.sensor.createDefaultBasicInformationClusterServer('Jewish Calendar', '0x88030475', 4874, 'AL Systems', 77, 'Jewish Calendar 20EBN9901', 1144, '1.2.8');
     // this.sensor.createDefaultBooleanStateClusterServer(true);
+    const testSensorItems = [
+      { label: 'Off', mode: 0, semanticTags: [] },
+      { label: 'Shabbat', mode: 1, semanticTags: [] },
+      { label: 'Yom Tov', mode: 2, semanticTags: [] },
+      { label: 'Kodesh', mode: 3, semanticTags: [] },
+      { label: 'Rosh Hashana', mode: 4, semanticTags: [] },
+      { label: 'Yom Kippur', mode: 5, semanticTags: [] },
+      { label: 'Sukkot', mode: 6, semanticTags: [] },
+      { label: 'Shemini Atzeret', mode: 7, semanticTags: [] },
+      { label: 'Chanukah', mode: 8, semanticTags: [] },
+      { label: 'Purim', mode: 9, semanticTags: [] },
+      { label: 'Shushan Purim', mode: 10, semanticTags: [] },
+      { label: 'Purim Meshulash', mode: 11, semanticTags: [] },
+      { label: 'Pesach', mode: 12, semanticTags: [] },
+      { label: 'Shvihi Shel Pesach', mode: 13, semanticTags: [] },
+      { label: 'Shavuot', mode: 14, semanticTags: [] },
+      { label: 'Three Weeks', mode: 15, semanticTags: [] },
+      { label: 'Sefirat HaOmer Mourning', mode: 16, semanticTags: [] },
+      { label: 'Sefirat HaOmer', mode: 17, semanticTags: [] },
+      { label: 'Mourning', mode: 18, semanticTags: [] },
+      { label: 'Leap Year', mode: 19, semanticTags: [] },
+    ];
+    if (this.config.showEves) {
+      testSensorItems.push(
+        { label: 'Shabbat Eve', mode: 20, semanticTags: [] },
+        { label: 'Yom Tov Eve', mode: 21, semanticTags: [] },
+        { label: 'Kodesh Eve', mode: 22, semanticTags: [] },
+        { label: 'Rosh Hashana Eve', mode: 23, semanticTags: [] },
+        { label: 'Yom Kippur Eve', mode: 24, semanticTags: [] },
+        { label: 'Sukkot Eve', mode: 25, semanticTags: [] },
+        { label: 'Shemini Atzeret Eve', mode: 26, semanticTags: [] },
+        { label: 'Chanukah Eve', mode: 27, semanticTags: [] },
+        { label: 'Purim Eve', mode: 28, semanticTags: [] },
+        { label: 'Shushan Purim Eve', mode: 29, semanticTags: [] },
+        { label: 'Purim Meshulash Eve', mode: 30, semanticTags: [] },
+        { label: 'Pesach Eve', mode: 31, semanticTags: [] },
+        { label: 'Shvihi Shel Pesach Eve', mode: 32, semanticTags: [] },
+        { label: 'Shavuot Eve', mode: 33, semanticTags: [] }
+      );
+    }
     this.sensor.createDefaultModeSelectClusterServer(
-      'Test Sensor' + deviceNameSuffix,
-      [
-        { label: 'Off', mode: 0, semanticTags: [] },
-        { label: 'Shabbat' + deviceNameSuffix, mode: 1, semanticTags: [] },
-        { label: 'Yom Tov' + deviceNameSuffix, mode: 2, semanticTags: [] },
-        { label: 'Kodesh' + deviceNameSuffix, mode: 3, semanticTags: [] },
-        { label: 'Rosh Hashana' + deviceNameSuffix, mode: 4, semanticTags: [] },
-        { label: 'Yom Kippur' + deviceNameSuffix, mode: 5, semanticTags: [] },
-        { label: 'Sukkot' + deviceNameSuffix, mode: 6, semanticTags: [] },
-        { label: 'Shemini Atzeret' + deviceNameSuffix, mode: 7, semanticTags: [] },
-        { label: 'Chanukah' + deviceNameSuffix, mode: 8, semanticTags: [] },
-        { label: 'Purim' + deviceNameSuffix, mode: 9, semanticTags: [] },
-        { label: 'Shushan Purim' + deviceNameSuffix, mode: 10, semanticTags: [] },
-        { label: 'Purim Meshulash' + deviceNameSuffix, mode: 11, semanticTags: [] },
-        { label: 'Pesach' + deviceNameSuffix, mode: 12, semanticTags: [] },
-        { label: 'Shvihi Shel Pesach' + deviceNameSuffix, mode: 13, semanticTags: [] },
-        { label: 'Shavuot' + deviceNameSuffix, mode: 14, semanticTags: [] },
-        { label: 'Three Weeks' + deviceNameSuffix, mode: 15, semanticTags: [] },
-        { label: 'Sefirat HaOmer Mourning' + deviceNameSuffix, mode: 16, semanticTags: [] },
-        { label: 'Sefirat HaOmer' + deviceNameSuffix, mode: 17, semanticTags: [] },
-        { label: 'Mourning' + deviceNameSuffix, mode: 18, semanticTags: [] },
-        { label: 'Leap Year' + deviceNameSuffix, mode: 19, semanticTags: [] },
-      ],
+      'Test Sensor',
+      testSensorItems,
       0,
       0,
     );
 
-    this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.Kodesh = new JewishCalendarSensor(this.sensor, { name: 'Kodesh' + deviceNameSuffix, debug: platform.config.debug }); // primary service
-    this.services.RoshHashana = new JewishCalendarSensor(this.sensor, { name: 'Rosh Hashana' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.YomKippur = new JewishCalendarSensor(this.sensor, { name: 'Yom Kippur' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.Sukkot = new JewishCalendarSensor(this.sensor, { name: 'Sukkot' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.SheminiAtzeret = new JewishCalendarSensor(this.sensor, { name: 'Shemini Atzeret' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.Chanukah = new JewishCalendarSensor(this.sensor, { name: 'Chanukah' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.Purim = new JewishCalendarSensor(this.sensor, { name: 'Purim' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.ShushanPurim = new JewishCalendarSensor(this.sensor, { name: 'Shushan Purim' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.PurimMeshulash = new JewishCalendarSensor(this.sensor, { name: 'Purim Meshulash' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.Pesach = new JewishCalendarSensor(this.sensor, { name: 'Pesach' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.ShvihiShelPesach = new JewishCalendarSensor(this.sensor, { name: 'Shvihi Shel Pesach' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.Shavuot = new JewishCalendarSensor(this.sensor, { name: 'Shavuot' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.ThreeWeeks = new JewishCalendarSensor(this.sensor, { name: 'Three Weeks' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.SefiratHaOmerMourning = new JewishCalendarSensor(this.sensor, { name: 'Sefirat HaOmer Mourning' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.SefiratHaOmer = new JewishCalendarSensor(this.sensor, { name: 'Sefirat HaOmer' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.Mourning = new JewishCalendarSensor(this.sensor, { name: 'Mourning' + deviceNameSuffix, debug: platform.config.debug });
-    this.services.LeapYear = new JewishCalendarSensor(this.sensor, { name: 'Leap Year' + deviceNameSuffix, debug: platform.config.debug });
+    this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat', debug: platform.config.debug });
+    this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov', debug: platform.config.debug });
+    this.services.Kodesh = new JewishCalendarSensor(this.sensor, { name: 'Kodesh', debug: platform.config.debug }); // primary service
+    this.services.RoshHashana = new JewishCalendarSensor(this.sensor, { name: 'Rosh Hashana', debug: platform.config.debug });
+    this.services.YomKippur = new JewishCalendarSensor(this.sensor, { name: 'Yom Kippur', debug: platform.config.debug });
+    this.services.Sukkot = new JewishCalendarSensor(this.sensor, { name: 'Sukkot', debug: platform.config.debug });
+    this.services.SheminiAtzeret = new JewishCalendarSensor(this.sensor, { name: 'Shemini Atzeret', debug: platform.config.debug });
+    this.services.Chanukah = new JewishCalendarSensor(this.sensor, { name: 'Chanukah', debug: platform.config.debug });
+    this.services.Purim = new JewishCalendarSensor(this.sensor, { name: 'Purim', debug: platform.config.debug });
+    this.services.ShushanPurim = new JewishCalendarSensor(this.sensor, { name: 'Shushan Purim', debug: platform.config.debug });
+    this.services.PurimMeshulash = new JewishCalendarSensor(this.sensor, { name: 'Purim Meshulash', debug: platform.config.debug });
+    this.services.Pesach = new JewishCalendarSensor(this.sensor, { name: 'Pesach', debug: platform.config.debug });
+    this.services.ShvihiShelPesach = new JewishCalendarSensor(this.sensor, { name: 'Shvihi Shel Pesach', debug: platform.config.debug });
+    this.services.Shavuot = new JewishCalendarSensor(this.sensor, { name: 'Shavuot', debug: platform.config.debug });
+    this.services.ThreeWeeks = new JewishCalendarSensor(this.sensor, { name: 'Three Weeks', debug: platform.config.debug });
+    this.services.SefiratHaOmerMourning = new JewishCalendarSensor(this.sensor, { name: 'Sefirat HaOmer Mourning', debug: platform.config.debug });
+    this.services.SefiratHaOmer = new JewishCalendarSensor(this.sensor, { name: 'Sefirat HaOmer', debug: platform.config.debug });
+    this.services.Mourning = new JewishCalendarSensor(this.sensor, { name: 'Mourning', debug: platform.config.debug });
+    this.services.LeapYear = new JewishCalendarSensor(this.sensor, { name: 'Leap Year', debug: platform.config.debug });
+    if (this.config.showEves) {
+      this.services.ShabbatEve = new JewishCalendarSensor(this.sensor, { name: 'Shabbat Eve', debug: platform.config.debug });
+      this.services.YomTovEve = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov Eve', debug: platform.config.debug });
+      this.services.KodeshEve = new JewishCalendarSensor(this.sensor, { name: 'Kodesh Eve', debug: platform.config.debug });
+      this.services.RoshHashanaEve = new JewishCalendarSensor(this.sensor, { name: 'Rosh Hashana Eve', debug: platform.config.debug });
+      this.services.YomKippurEve = new JewishCalendarSensor(this.sensor, { name: 'Yom Kippur Eve', debug: platform.config.debug });
+      this.services.SukkotEve = new JewishCalendarSensor(this.sensor, { name: 'Sukkot Eve', debug: platform.config.debug });
+      this.services.SheminiAtzeretEve = new JewishCalendarSensor(this.sensor, { name: 'Shemini Atzeret Eve', debug: platform.config.debug });
+      this.services.ChanukahEve = new JewishCalendarSensor(this.sensor, { name: 'Chanukah Eve', debug: platform.config.debug });
+      this.services.PurimEve = new JewishCalendarSensor(this.sensor, { name: 'Purim Eve', debug: platform.config.debug });
+      this.services.ShushanPurimEve = new JewishCalendarSensor(this.sensor, { name: 'Shushan Purim Eve', debug: platform.config.debug });
+      this.services.PurimMeshulashEve = new JewishCalendarSensor(this.sensor, { name: 'Purim Meshulash Eve', debug: platform.config.debug });
+      this.services.PesachEve = new JewishCalendarSensor(this.sensor, { name: 'Pesach Eve', debug: platform.config.debug });
+      this.services.ShvihiShelPesachEve = new JewishCalendarSensor(this.sensor, { name: 'Shvihi Shel Pesach Eve', debug: platform.config.debug });
+      this.services.ShavuotEve = new JewishCalendarSensor(this.sensor, { name: 'Shavuot Eve', debug: platform.config.debug });
+    }
 
     const sensorsByIndex: JewishCalendarSensor[] = [
       this.services.Shabbat,
@@ -136,6 +171,24 @@ export class JewishCalendarSensors {
       this.services.Mourning,
       this.services.LeapYear,
     ];
+    if (this.config.showEves) {
+      sensorsByIndex.push(
+        this.services.ShabbatEve,
+        this.services.YomTovEve,
+        this.services.KodeshEve,
+        this.services.RoshHashanaEve,
+        this.services.YomKippurEve,
+        this.services.SukkotEve,
+        this.services.SheminiAtzeretEve,
+        this.services.ChanukahEve,
+        this.services.PurimEve,
+        this.services.ShushanPurimEve,
+        this.services.PurimMeshulashEve,
+        this.services.PesachEve,
+        this.services.ShvihiShelPesachEve,
+        this.services.ShavuotEve
+      )
+    }
     let currentMode = 0;
     this.sensor.addCommandHandler('changeToMode', async ({ request: { newMode } }) => {
       this.sensor?.log.info(`Command changeToMode called request ${newMode}`);
@@ -192,11 +245,25 @@ export class JewishCalendarSensors {
     await this.services.SefiratHaOmer.update(this.isSefiratHaOmer());
     await this.services.Mourning.update(this.isMourning());
     await this.services.LeapYear.update(this.isLeapYear());
+    await this.services.ShabbatEve.update(this.isShabbatEve());
+    await this.services.YomTovEve.update(this.isYomTovEve());
+    await this.services.KodeshEve.update(this.isKodeshEve());
+    await this.services.RoshHashanaEve.update(this.isRoshHashanaEve());
+    await this.services.YomKippurEve.update(this.isYomKippurEve());
+    await this.services.SukkotEve.update(this.isSukkotEve());
+    await this.services.SheminiAtzeretEve.update(this.isSheminiAtzeretEve());
+    await this.services.ChanukahEve.update(this.isChanukahEve());
+    await this.services.PurimEve.update(this.isPurimEve());
+    await this.services.ShushanPurimEve.update(this.isShushanPurimEve());
+    await this.services.PurimMeshulashEve.update(this.isPurimMeshulashEve());
+    await this.services.PesachEve.update(this.isPesachEve());
+    await this.services.ShvihiShelPesachEve.update(this.isShvihiShelPesachEve());
+    await this.services.ShavuotEve.update(this.isShavuotEve());
   }
 
   updateJewishDay() {
     this.gDate = new Date();
-    if (typeof this.config.offset !== 'undefined' && this.config.offset != 0) {
+    if (typeof this.config.offset !== 'undefined' && this.config.offset !== 0) {
       this.sensor.log.debug('Shifting the time by ' + this.config.offset + ' minutes.');
       this.gDate = new Date(this.gDate.getTime() + this.config.offset * 60000);
     }
@@ -248,8 +315,18 @@ export class JewishCalendarSensors {
     }, 30000);
   }
 
+  isShabbatEve() {
+    const day = this.gDate.getDay();
+    const candletime = new Date(this.sunset);
+    candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
+
+    const havdalahtime = new Date(this.sunset);
+    havdalahtime.setMinutes(this.sunset.getMinutes() + this.config.havdalah);
+    return (4 == day && this.gDate > candletime) || (5 == day && this.gDate < havdalahtime);
+  }
+
   isShabbat() {
-    const day = this.gDate?.getDay();
+    const day = this.gDate.getDay();
     const candletime = new Date(this.sunset);
     candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
 
@@ -258,54 +335,140 @@ export class JewishCalendarSensors {
     return (5 == day && this.gDate > candletime) || (6 == day && this.gDate < havdalahtime);
   }
 
+  isRoshHashanaEve() {
+    if (this.hDate.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 28) {
+      const candletime = new Date(this.sunset);
+      candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
+      return this.gDate > candletime;
+    }
+    return false;
+  }
+
   isRoshHashana() {
     // Because of year wraps, if it's Elul 29, we check candle lighting, otherwise, use normal DateRange
-    if (this.hDate?.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 29) {
+    if (this.hDate.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 29) {
       const candletime = new Date(this.sunset);
       candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
       return this.gDate > candletime;
     }
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 0 }, { month: this.hebrewMonths.Tishri, date: 2 });
   }
+
+  isYomKippurEve() {
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 8 }, { month: this.hebrewMonths.Tishri, date: 9 });
+  }
+
   isYomKippur() {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 9 }, { month: this.hebrewMonths.Tishri, date: 10 });
   }
+
+  isSukkotEve() {
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 13 }, { month: this.hebrewMonths.Tishri, date: 14 });
+  }
+
   isSukkot() {
     const begin = { month: this.hebrewMonths.Tishri, date: 14 };
     const end = !this.config.israel && this.config.shminiAtzeretInSukkot ? { month: this.hebrewMonths.Tishri, date: 22 } : { month: this.hebrewMonths.Tishri, date: 21 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
-  _isSukkotYomTov() {
-    const begin = { month: this.hebrewMonths.Tishri, date: 14 };
-    const end = this.config.israel ? { month: this.hebrewMonths.Tishri, date: 15 } : { month: this.hebrewMonths.Tishri, date: 16 };
-    return this._inHebrewHolidayDateRange(begin, end);
+
+  isSheminiAtzeretEve() {
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 20 }, { month: this.hebrewMonths.Tishri, date: 21 });
   }
+
   isSheminiAtzeret() {
     const begin = { month: this.hebrewMonths.Tishri, date: 21 };
     const end = this.config.israel ? { month: this.hebrewMonths.Tishri, date: 22 } : { month: this.hebrewMonths.Tishri, date: 23 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
+
+  _isSukkotYomTov() {
+    const begin = { month: this.hebrewMonths.Tishri, date: 14 };
+    const end = this.config.israel ? { month: this.hebrewMonths.Tishri, date: 15 } : { month: this.hebrewMonths.Tishri, date: 16 };
+    return this._inHebrewHolidayDateRange(begin, end);
+  }
+
+  isChanukahEve() {
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Kislev, date: 23 }, { month: this.hebrewMonths.Kislev, date: 24 });
+  }
+
+  isChanukah() {
+    const ChanukahEnd = new HeDate(this.hDate.getFullYear(), 2, 32);
+
+    const begin = { month: this.hebrewMonths.Kislev, date: 24 };
+    const end = { month: ChanukahEnd.getMonth(), date: ChanukahEnd.getDate() };
+    return this._inHebrewHolidayDateRange(begin, end);
+  }
+
+  isPurimEve() {
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Adar2, date: 12 }, { month: this.hebrewMonths.Adar2, date: 13 });
+  }
+
+  isPurim() {
+    // Leap years can make Adar2's month number "bounce" so we check for it
+    const begin = { month: this.hebrewMonths.Adar2, date: 13 };
+    const end = { month: this.hebrewMonths.Adar2, date: 14 };
+    return this._inHebrewHolidayDateRange(begin, end);
+  }
+
+  isShushanPurimEve() {
+    const isPurimMeshulash = this.isPurimMeshulashYear() ? 1 : 0;
+    const begin = { month: this.hebrewMonths.Adar2, date: 13 + isPurimMeshulash };
+    const end = { month: this.hebrewMonths.Adar2, date: 14 + isPurimMeshulash };
+
+    return this._inHebrewHolidayDateRange(begin, end);
+  }
+
+  isShushanPurim() {
+    // Leap years can make Adar2's month number "bounce" so we check for it
+    const isPurimMeshulash = this.isPurimMeshulashYear() ? 1 : 0;
+    const begin = { month: this.hebrewMonths.Adar2, date: 14 + isPurimMeshulash };
+    const end = { month: this.hebrewMonths.Adar2, date: 15 + isPurimMeshulash };
+
+    return this._inHebrewHolidayDateRange(begin, end);
+  }
+
+  isPurimMeshulashYear() {
+    const shushanPurimDate = new HeDate(this.hDate.getFullYear(), this.hebrewMonths.Adar2, 15);
+    const isPurimMeshulash = shushanPurimDate.getDay() === 6;
+    return isPurimMeshulash;
+  }
+
+  isPurimMeshulashEve() {
+    return this.isPurimMeshulashYear() && this.isPurimEve();
+  }
+
+  isPurimMeshulash() {
+    // Leap years can make Adar2's month number "bounce" so we check for it
+    const begin = { month: this.hebrewMonths.Adar2, date: 13 };
+    const end = { month: this.hebrewMonths.Adar2, date: 16 };
+
+    return this.isPurimMeshulashYear() && this._inHebrewHolidayDateRange(begin, end);
+  }
+
+  isPesachEve() {
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Nisan, date: 13 }, { month: this.hebrewMonths.Nisan, date: 14 });
+  }
+
   isPesach() {
     const begin = { month: this.hebrewMonths.Nisan, date: 14 };
     const end = this.config.israel ? { month: this.hebrewMonths.Nisan, date: 21 } : { month: this.hebrewMonths.Nisan, date: 22 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
-  isThreeWeeks() {
-    let begin = null;
-    if (this.config.threeWeeksCustom == 'Ashkenazi') {
-      begin = { month: this.hebrewMonths.Tamuz, date: 16 }; // night before Erev 17th of Tamuz
-    } else if (this.config.threeWeeksCustom == 'Sephardic') {
-      begin = { month: this.hebrewMonths.Tamuz, date: 29 };
-    }
-    const Av9 = new HeDate(this.hDate.getFullYear(), this.hebrewMonths.Av, 9);
-    const endDate = Av9.getDay() == 6 ? 11 : 10; // Includes day after Fast.
-    const end = { month: this.hebrewMonths.Av, date: endDate };
-    return begin ? this._inHebrewHolidayDateRange(begin, end) : false;
+
+  isShvihiShelPesachEve() {
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Nisan, date: 19 }, { month: this.hebrewMonths.Nisan, date: 20 });
+  }
+
+  isShvihiShelPesach() {
+    // Leap years can make Nisan's month number "bounce" so we check for it
+    const begin = { month: this.hebrewMonths.Nisan, date: 20 };
+    const end = this.config.israel ? { month: this.hebrewMonths.Nisan, date: 21 } : { month: this.hebrewMonths.Nisan, date: 22 };
+    return this._inHebrewHolidayDateRange(begin, end);
   }
 
   _isPesachYomTov() {
     // Leap years can make Nisan's month number "bounce" so we check for it
-
     let begin = { month: this.hebrewMonths.Nisan, date: 14 };
     let end = this.config.israel ? { month: this.hebrewMonths.Nisan, date: 15 } : { month: this.hebrewMonths.Nisan, date: 16 };
     const firstDays = this._inHebrewHolidayDateRange(begin, end);
@@ -314,11 +477,13 @@ export class JewishCalendarSensors {
     const secondDays = this._inHebrewHolidayDateRange(begin, end);
     return firstDays || secondDays;
   }
+
   isSefiratHaOmer() {
     const begin = { month: this.hebrewMonths.Nisan, date: 15 };
     const end = { month: this.hebrewMonths.Sivan, date: 6 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
+
   isSefiratHaOmerMourning() {
     let begin = null;
     let end = null;
@@ -340,8 +505,9 @@ export class JewishCalendarSensors {
     }
     return false;
   }
-  isMourning() {
-    return this.isSefiratHaOmerMourning() || this.isThreeWeeks();
+
+  isShavuotEve() {
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Sivan, date: 4 }, { month: this.hebrewMonths.Sivan, date: 5 });
   }
 
   isShavuot() {
@@ -350,50 +516,42 @@ export class JewishCalendarSensors {
     const end = this.config.israel ? { month: this.hebrewMonths.Sivan, date: 6 } : { month: this.hebrewMonths.Sivan, date: 7 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
+
+  isThreeWeeks() {
+    let begin = null;
+    if (this.config.threeWeeksCustom == 'Ashkenazi') {
+      begin = { month: this.hebrewMonths.Tamuz, date: 16 }; // night before Erev 17th of Tamuz
+    } else if (this.config.threeWeeksCustom == 'Sephardic') {
+      begin = { month: this.hebrewMonths.Tamuz, date: 29 };
+    }
+    const Av9 = new HeDate(this.hDate.getFullYear(), this.hebrewMonths.Av, 9);
+    const endDate = Av9.getDay() == 6 ? 11 : 10; // Includes day after Fast.
+    const end = { month: this.hebrewMonths.Av, date: endDate };
+    return begin ? this._inHebrewHolidayDateRange(begin, end) : false;
+  }
+
+  isYomTovEve() {
+    const holidays = this.isRoshHashanaEve() || this.isYomKippurEve() || this.isSukkotEve() || this.isSheminiAtzeretEve() || this.isPesachEve() || this.isShvihiShelPesachEve() || this.isShavuotEve();
+    return holidays;
+  }
+
   isYomTov() {
     const holidays = this.isRoshHashana() || this.isYomKippur() || this._isSukkotYomTov() || this.isSheminiAtzeret() || this._isPesachYomTov() || this.isShavuot();
     return holidays;
   }
+
+  isKodeshEve() {
+    return this.isShabbatEve() || this.isYomTovEve();
+  }
+
   isKodesh() {
     return this.isShabbat() || this.isYomTov();
   }
 
-  isChanukah() {
-    const ChanukahEnd = new HeDate(this.hDate.getFullYear(), 2, 32);
+  isMourning() {
+    return this.isSefiratHaOmerMourning() || this.isThreeWeeks();
+  }
 
-    const begin = { month: this.hebrewMonths.Kislev, date: 24 };
-    const end = { month: ChanukahEnd.getMonth(), date: ChanukahEnd.getDate() };
-    return this._inHebrewHolidayDateRange(begin, end);
-  }
-  isPurim() {
-    // Leap years can make Adar2's month number "bounce" so we check for it
-    const begin = { month: this.hebrewMonths.Adar2, date: 13 };
-    const end = { month: this.hebrewMonths.Adar2, date: 14 };
-    return this._inHebrewHolidayDateRange(begin, end);
-  }
-  isShushanPurim() {
-    // Leap years can make Adar2's month number "bounce" so we check for it
-    const isPurimMeshulash = this.isPurimMeshulash() ? 1 : 0;
-    const begin = { month: this.hebrewMonths.Adar2, date: 14 + isPurimMeshulash };
-    const end = { month: this.hebrewMonths.Adar2, date: 15 + isPurimMeshulash };
-
-    return this._inHebrewHolidayDateRange(begin, end);
-  }
-  isPurimMeshulash() {
-    // Leap years can make Adar2's month number "bounce" so we check for it
-    const shushanPurimDate = new HeDate(this.hDate.getFullYear(), this.hebrewMonths.Adar2, 15);
-    const isPurimMeshulash = shushanPurimDate.getDay() === 6;
-    const begin = { month: this.hebrewMonths.Adar2, date: 13 };
-    const end = { month: this.hebrewMonths.Adar2, date: 16 };
-
-    return isPurimMeshulash && this._inHebrewHolidayDateRange(begin, end);
-  }
-  isShvihiShelPesach() {
-    // Leap years can make Nisan's month number "bounce" so we check for it
-    const begin = { month: this.hebrewMonths.Nisan, date: 20 };
-    const end = this.config.israel ? { month: this.hebrewMonths.Nisan, date: 21 } : { month: this.hebrewMonths.Nisan, date: 22 };
-    return this._inHebrewHolidayDateRange(begin, end);
-  }
   isLeapYear() {
     return this.hebrewMonths.Adar2 !== this.hebrewMonths.Adar1;
   }
