@@ -7,11 +7,11 @@
 // import { EventEmitter } from 'node:stream';
 // import { debug } from 'node:console';
 
-import { MatterbridgeEndpoint, bridgedNode, modeSelect, powerSource } from 'matterbridge';
+import { bridgedNode, MatterbridgeEndpoint, modeSelect, powerSource } from 'matterbridge';
 
-import { ZigbeePlatform } from './module.js';
-import { JewishCalendarSensor } from './jewishCalendarSensor.js';
 import { HeDate } from './heDate.js';
+import { JewishCalendarSensor } from './jewishCalendarSensor.js';
+import { ZigbeePlatform } from './module.js';
 import { SunCalc } from './suncalc.js';
 
 export interface JewishCalendarSensorsConfig {
@@ -104,15 +104,10 @@ export class JewishCalendarSensors {
         { label: 'Purim Meshulash Eve', mode: 30, semanticTags: [] },
         { label: 'Pesach Eve', mode: 31, semanticTags: [] },
         { label: 'Shvihi Shel Pesach Eve', mode: 32, semanticTags: [] },
-        { label: 'Shavuot Eve', mode: 33, semanticTags: [] }
+        { label: 'Shavuot Eve', mode: 33, semanticTags: [] },
       );
     }
-    this.sensor.createDefaultModeSelectClusterServer(
-      'Test Sensor',
-      testSensorItems,
-      0,
-      0,
-    );
+    this.sensor.createDefaultModeSelectClusterServer('Test Sensor', testSensorItems, 0, 0);
 
     this.services.Shabbat = new JewishCalendarSensor(this.sensor, { name: 'Shabbat', debug: platform.config.debug });
     this.services.YomTov = new JewishCalendarSensor(this.sensor, { name: 'Yom Tov', debug: platform.config.debug });
@@ -186,8 +181,8 @@ export class JewishCalendarSensors {
         this.services.PurimMeshulashEve,
         this.services.PesachEve,
         this.services.ShvihiShelPesachEve,
-        this.services.ShavuotEve
-      )
+        this.services.ShavuotEve,
+      );
     }
     let currentMode = 0;
     this.sensor.addCommandHandler('changeToMode', async ({ request: { newMode } }) => {
@@ -533,8 +528,15 @@ export class JewishCalendarSensors {
   }
 
   isYomTovEve() {
-    const holidays = this.isRoshHashanaEve() || this.isYomKippurEve() || this.isSukkotEve() || this.isSheminiAtzeretEve() || this.isPesachEve() || this.isShvihiShelPesachEve() || this.isShavuotEve();
-    return holidays;
+    const holidaysEve =
+      this.isRoshHashanaEve() ||
+      this.isYomKippurEve() ||
+      this.isSukkotEve() ||
+      this.isSheminiAtzeretEve() ||
+      this.isPesachEve() ||
+      this.isShvihiShelPesachEve() ||
+      this.isShavuotEve();
+    return holidaysEve;
   }
 
   isYomTov() {

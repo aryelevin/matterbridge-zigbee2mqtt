@@ -6,14 +6,14 @@
 // import * as path from 'node:path';
 // import { ClientRequest, IncomingMessage } from 'node:http';
 
-import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
 // import { MatterbridgeEndpoint } from 'matterbridge';
 import { ColorControl, LevelControl, OnOff /* , Thermostat, WindowCovering */ } from 'matterbridge/matter/clusters';
 // import { EndpointNumber } from 'matterbridge/matter';
 import { /* deepCopy,*/ deepEqual } from 'matterbridge/utils';
+import { AnsiLogger, LogLevel, TimestampFormat } from 'node-ansi-logger';
 
-import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
+import { ZigbeePlatform } from './module.js';
 // import { OnOff } from 'matterbridge/matter/clusters';
 import { Payload, PayloadValue } from './payloadTypes.js';
 

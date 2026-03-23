@@ -5,10 +5,10 @@
 
 // import EventEmitter from 'node:events';
 
-import { MatterbridgeEndpoint, contactSensor } from 'matterbridge';
-import { BooleanState } from 'matterbridge/matter/clusters';
+import { contactSensor, MatterbridgeEndpoint } from 'matterbridge';
 import { LocationTag } from 'matterbridge/matter';
 import { BasicInformationServer } from 'matterbridge/matter/behaviors';
+import { BooleanState } from 'matterbridge/matter/clusters';
 
 // import * as Push from '../pushover.js'
 

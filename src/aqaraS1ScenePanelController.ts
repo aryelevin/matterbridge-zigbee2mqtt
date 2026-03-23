@@ -1,18 +1,18 @@
 // import * as fs from 'node:fs';
 import * as https from 'node:https';
+
+import { MatterbridgeEndpoint } from 'matterbridge';
+import { BridgedDeviceBasicInformation, ColorControl, FanControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { deepCopy, deepEqual } from 'matterbridge/utils';
 // import * as http from 'node:http';
 // import * as url from 'node:url';
 // import * as qs from 'node:querystring';
 // import * as path from 'node:path';
 // import { ClientRequest, IncomingMessage } from 'node:http';
+import { AnsiLogger, LogLevel, TimestampFormat } from 'node-ansi-logger';
 
-import { AnsiLogger, TimestampFormat, LogLevel } from 'node-ansi-logger';
-import { MatterbridgeEndpoint } from 'matterbridge';
-import { BridgedDeviceBasicInformation, ColorControl, FanControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import { deepCopy, deepEqual } from 'matterbridge/utils';
-
-import { ZigbeePlatform } from './module.js';
 import { ZigbeeEntity } from './entity.js';
+import { ZigbeePlatform } from './module.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
 
 // import { xyToHsl } from 'matterbridge/utils';
@@ -1569,27 +1569,27 @@ export class AqaraS1ScenePanelController {
     }
   }
 
-convertStringToType(value: string): string | number | boolean {
-  // 1. Try converting to a number
-  const numValue = Number(value);
-  // Check if it's a valid number and not NaN, while also ensuring the original 
-  // string isn't just an empty string which Number() converts to 0.
-  if (!isNaN(numValue) && /*value.trim() !== '' &&*/ String(numValue) === value) {
-    return numValue;
-  }
+  convertStringToType(value: string): string | number | boolean {
+    // 1. Try converting to a number
+    const numValue = Number(value);
+    // Check if it's a valid number and not NaN, while also ensuring the original 
+    // string isn't just an empty string which Number() converts to 0.
+    if (!isNaN(numValue) && /* value.trim() !== '' && */ String(numValue) === value) {
+      return numValue;
+    }
 
-  // 2. Try converting to a boolean for specific 'true'/'false' strings
-  // const lowerCaseValue = value.toLowerCase().trim();
-  if (value === 'true') {
-    return true;
+    // 2. Try converting to a boolean for specific 'true'/'false' strings
+    // const lowerCaseValue = value.toLowerCase().trim();
+    if (value === 'true') {
+      return true;
+    }
+    if (value === 'false') {
+      return false;
+    }
+
+    // 3. If neither, return the original string
+    return value;
   }
-  if (value === 'false') {
-    return false;
-  }
-  
-  // 3. If neither, return the original string
-  return value;
-}
 
   generateNameCommand(name: string, device: string) {
     const nameSize = name.length;

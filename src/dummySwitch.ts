@@ -5,10 +5,10 @@
 
 // import * as fs from 'node:fs';
 
-import { bridgedNode, MatterbridgeEndpoint, onOffLight, dimmableLight, powerSource, onOffSwitch, onOffOutlet } from 'matterbridge';
+import { bridgedNode, dimmableLight, MatterbridgeEndpoint, onOffLight, onOffOutlet, onOffSwitch, powerSource } from 'matterbridge';
 import { OnOff } from 'matterbridge/matter/clusters';
-// import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
 
+// import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
 import { ZigbeePlatform } from './module.js';
 import { Pushover } from './pushover.js';
 
