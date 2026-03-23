@@ -245,20 +245,22 @@ export class JewishCalendarSensors {
     await this.services.SefiratHaOmer.update(this.isSefiratHaOmer());
     await this.services.Mourning.update(this.isMourning());
     await this.services.LeapYear.update(this.isLeapYear());
-    await this.services.ShabbatEve.update(this.isShabbatEve());
-    await this.services.YomTovEve.update(this.isYomTovEve());
-    await this.services.KodeshEve.update(this.isKodeshEve());
-    await this.services.RoshHashanaEve.update(this.isRoshHashanaEve());
-    await this.services.YomKippurEve.update(this.isYomKippurEve());
-    await this.services.SukkotEve.update(this.isSukkotEve());
-    await this.services.SheminiAtzeretEve.update(this.isSheminiAtzeretEve());
-    await this.services.ChanukahEve.update(this.isChanukahEve());
-    await this.services.PurimEve.update(this.isPurimEve());
-    await this.services.ShushanPurimEve.update(this.isShushanPurimEve());
-    await this.services.PurimMeshulashEve.update(this.isPurimMeshulashEve());
-    await this.services.PesachEve.update(this.isPesachEve());
-    await this.services.ShvihiShelPesachEve.update(this.isShvihiShelPesachEve());
-    await this.services.ShavuotEve.update(this.isShavuotEve());
+    if (this.config.showEves) {
+      await this.services.ShabbatEve.update(this.isShabbatEve());
+      await this.services.YomTovEve.update(this.isYomTovEve());
+      await this.services.KodeshEve.update(this.isKodeshEve());
+      await this.services.RoshHashanaEve.update(this.isRoshHashanaEve());
+      await this.services.YomKippurEve.update(this.isYomKippurEve());
+      await this.services.SukkotEve.update(this.isSukkotEve());
+      await this.services.SheminiAtzeretEve.update(this.isSheminiAtzeretEve());
+      await this.services.ChanukahEve.update(this.isChanukahEve());
+      await this.services.PurimEve.update(this.isPurimEve());
+      await this.services.ShushanPurimEve.update(this.isShushanPurimEve());
+      await this.services.PurimMeshulashEve.update(this.isPurimMeshulashEve());
+      await this.services.PesachEve.update(this.isPesachEve());
+      await this.services.ShvihiShelPesachEve.update(this.isShvihiShelPesachEve());
+      await this.services.ShavuotEve.update(this.isShavuotEve());
+    }
   }
 
   updateJewishDay() {
