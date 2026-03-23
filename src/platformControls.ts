@@ -5,7 +5,7 @@
 
 // import * as fs from 'node:fs';
 
-import { bridgedNode, MatterbridgeEndpoint, powerSource, onOffSwitch } from 'matterbridge';
+import { bridgedNode, MatterbridgeEndpoint, onOffSwitch, powerSource } from 'matterbridge';
 import { LocationTag } from 'matterbridge/matter';
 import { OnOff } from 'matterbridge/matter/clusters';
 // import { OnOffBaseServer } from 'matterbridge/matter/behaviors';

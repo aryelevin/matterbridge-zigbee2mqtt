@@ -25,22 +25,21 @@ import path from 'node:path';
 
 import { MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig, PlatformMatterbridge } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, dn, er, gn, LogLevel, nf, payloadStringify, rs, wr, zb } from 'matterbridge/logger';
+import { deepCopy } from 'matterbridge/matter'; // Added by me: Arye Levin
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
+import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js'; // Added by me: Arye Levin
+import { DummySwitch, DummySwitchConfig, DummySwitchType } from './dummySwitch.js'; // Added by me: Arye Levin
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
+import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCalendarSensors.js'; // Added by me: Arye Levin
 import { Payload } from './payloadTypes.js';
+import { PlatformControls } from './platformControls.js'; // Added by me: Arye Levin
+import { SwitchingController, SwitchingControllerSwitchConfig, SwitchingControllerSwitchLinkConfig } from './switchingController.js'; // Added by me: Arye Levin
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
 
 // Added by me: Arye Levin
-import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCalendarSensors.js';
-import { DummySwitch, DummySwitchType, DummySwitchConfig } from './dummySwitch.js';
-import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js';
-import { PlatformControls } from './platformControls.js';
-import { SwitchingController, SwitchingControllerSwitchLinkConfig, SwitchingControllerSwitchConfig } from './switchingController.js';
-import { deepCopy } from 'matterbridge/matter';
-
 export interface ALHomeLocationCoordinates {
   longitude: number;
   latitude: number;

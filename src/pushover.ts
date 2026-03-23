@@ -1,10 +1,10 @@
 import * as fs from 'node:fs';
-import * as https from 'node:https';
 import * as http from 'node:http';
-import * as url from 'node:url';
-import * as qs from 'node:querystring';
-import * as path from 'node:path';
 import { ClientRequest, IncomingMessage } from 'node:http';
+import * as https from 'node:https';
+import * as path from 'node:path';
+import * as qs from 'node:querystring';
+import * as url from 'node:url';
 // import { er } from 'node-ansi-logger';
 
 const pUrl = 'https://api.pushover.net/1/messages.json';
@@ -276,12 +276,11 @@ export class Pushover {
       if (this.debug) {
         console.log(res.statusCode);
       }
-      let err;
       let data = '';
       res.on('end', () => {
         this.errors(data, res);
         if (callback) {
-          callback(err, data, res);
+          callback(undefined, data, res);
         }
       });
 
