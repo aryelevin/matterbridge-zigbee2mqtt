@@ -173,7 +173,7 @@ export class AqaraS1ScenePanelController {
           if (device) this.sendStateToPanels(device, linkedPanels, '04010055', '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
         } else if (key.startsWith('brightness')) {
           if (device) this.sendStateToPanels(device, linkedPanels, '0e010055', '000000' + (Math.round((value as number) / 2.54)).toString(16).padStart(2, '0'), 'brightness');
-        } else if (key.startsWith('color_temp')) {
+        } else if (key.startsWith('color_temp') && !key.startsWith('color_temp_startup')) {
           if (device) this.sendStateToPanels(device, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
         } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
           const color = newPayload[key] as { [key: string]: number };
