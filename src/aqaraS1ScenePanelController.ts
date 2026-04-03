@@ -2,14 +2,14 @@
 import * as https from 'node:https';
 
 import { MatterbridgeEndpoint } from 'matterbridge';
-import { BridgedDeviceBasicInformation, ColorControl, FanControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import { deepCopy, deepEqual } from 'matterbridge/utils';
 // import * as http from 'node:http';
 // import * as url from 'node:url';
 // import * as qs from 'node:querystring';
 // import * as path from 'node:path';
 // import { ClientRequest, IncomingMessage } from 'node:http';
-import { AnsiLogger, LogLevel, TimestampFormat } from 'node-ansi-logger';
+import { AnsiLogger, LogLevel, TimestampFormat } from 'matterbridge/logger';
+import { BridgedDeviceBasicInformation, ColorControl, FanControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { deepCopy, deepEqual } from 'matterbridge/utils';
 
 import { ZigbeeEntity } from './entity.js';
 import { ZigbeePlatform } from './module.js';
