@@ -30,7 +30,7 @@ interface JewishCalendarSensorParams {
 
 export class JewishCalendarSensor {
   sensor: MatterbridgeEndpoint;
-  private sensorState: boolean = false;
+  private sensorState: boolean | undefined = undefined;
   private calendarState = false;
   _testMode: boolean = false;
 
