@@ -7,10 +7,10 @@
 // import { ClientRequest, IncomingMessage } from 'node:http';
 
 // import { MatterbridgeEndpoint } from 'matterbridge';
+import { AnsiLogger, LogLevel, TimestampFormat } from 'matterbridge/logger';
 import { ColorControl, LevelControl, OnOff /* , Thermostat, WindowCovering */ } from 'matterbridge/matter/clusters';
 // import { EndpointNumber } from 'matterbridge/matter';
 import { /* deepCopy,*/ deepEqual } from 'matterbridge/utils';
-import { AnsiLogger, LogLevel, TimestampFormat } from 'node-ansi-logger';
 
 import { ZigbeeEntity } from './entity.js';
 import { ZigbeePlatform } from './module.js';
