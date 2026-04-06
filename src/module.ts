@@ -409,11 +409,21 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.on('device_leave', async (friendly_name: string, ieee_address: string) => {
       this.log.info(`zigbee2MQTT sent device_leave device: ${friendly_name} ieee_address: ${ieee_address}`);
       // await this.unregisterZigbeeEntity(friendly_name);
+      const zigbeeDevice = this.zigbeeEntities.find((device) => device.device?.friendly_name === friendly_name);
+      if (zigbeeDevice) {
+        zigbeeDevice.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
+        zigbeeDevice.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+      }
     });
 
     this.z2m.on('device_remove', async (friendly_name: string, status: string, block: boolean, force: boolean) => {
       this.log.info(`zigbee2MQTT sent device_remove device: ${friendly_name} status: ${status} block: ${block} force: ${force}`);
       // if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
+      const zigbeeDevice = this.zigbeeEntities?.find((device) => device.device?.friendly_name === friendly_name);
+      if (zigbeeDevice?.bridgedDevice) {
+        zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
+        zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+      }
     });
 
     this.z2m.on('device_interview', async (friendly_name: string, ieee_address: string, status: string, supported: boolean) => {
@@ -565,7 +575,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.info(`Registering ${Object.values(devicesCacheCopy).length} cached devices`);
       for (const key in devicesCacheCopy) {
         const device = devicesCacheCopy[key];
-        await this.registerZigbeeDevice(device);
+        const zigbeeDevice = await this.registerZigbeeDevice(device);
+        if (zigbeeDevice?.bridgedDevice) {
+          zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
+          zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+        }
       }
       this.z2mDevicesRegistered = true;
     }
