@@ -407,12 +407,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('device_leave', async (friendly_name: string, ieee_address: string) => {
       this.log.info(`zigbee2MQTT sent device_leave device: ${friendly_name} ieee_address: ${ieee_address}`);
-      await this.unregisterZigbeeEntity(friendly_name);
+      // await this.unregisterZigbeeEntity(friendly_name);
     });
 
     this.z2m.on('device_remove', async (friendly_name: string, status: string, block: boolean, force: boolean) => {
       this.log.info(`zigbee2MQTT sent device_remove device: ${friendly_name} status: ${status} block: ${block} force: ${force}`);
-      if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
+      // if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
     });
 
     this.z2m.on('device_interview', async (friendly_name: string, ieee_address: string, status: string, supported: boolean) => {
