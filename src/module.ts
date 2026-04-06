@@ -115,6 +115,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public shabbatModeDummySwitch: DummySwitch | undefined;
   public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController;
   public switchingController: SwitchingController;
+  private devicesCache: { [key: string]: BridgeDevice } = {};
   // End of Added by me: Arye Levin
 
   // debug
@@ -421,7 +422,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         if (!this.validateDevice(friendly_name)) return;
         this.log.info(`Registering device: ${friendly_name}`);
         const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.friendly_name === friendly_name);
-        if (bridgedDevice) await this.registerZigbeeDevice(bridgedDevice);
+        if (bridgedDevice) {
+          await this.registerZigbeeDevice(bridgedDevice);
+          this.saveContext();
+        }
       }
     });
 
@@ -514,6 +518,14 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       });
       await this.registerDevice(this.shabbatModeDummySwitch.device);
     }
+
+    (async () => {
+      const hasContext = await this.context?.has('devicesCache');
+      if (!hasContext) {
+        await this.context?.set('devicesCache', {});
+      }
+      this.devicesCache = (await this.context?.get('devicesCache')) || {};
+    })();
     // End of Added by me: Arye Levin
 
     // Clear select device and entity since we have a bridge here and they will be recreated from the bridge
@@ -542,8 +554,17 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
 
     if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
+      const devicesCacheCopy = deepCopy(this.devicesCache);
       this.log.info(`Registering ${this.z2mBridgeDevices.length} devices`);
       for (const device of this.z2mBridgeDevices) {
+        await this.registerZigbeeDevice(device);
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete devicesCacheCopy[device.friendly_name];
+      }
+      this.saveContext();
+      this.log.info(`Registering ${Object.values(devicesCacheCopy).length} cached devices`);
+      for (const key in devicesCacheCopy) {
+        const device = devicesCacheCopy[key];
         await this.registerZigbeeDevice(device);
       }
       this.z2mDevicesRegistered = true;
@@ -703,6 +724,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   private async registerZigbeeDevice(deviceOrig: BridgeDevice): Promise<ZigbeeDevice | undefined> {
+    if (this.config.blackList.includes(deviceOrig.friendly_name)) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete this.devicesCache[deviceOrig.friendly_name];
+    } else {
+      this.devicesCache[deviceOrig.friendly_name] = deviceOrig;
+    }
     const device = deepCopy(deviceOrig);
     if (this.config.separateDeviceEndpoints?.[device.ieee_address]) {
       const endpoints = this.config.separateDeviceEndpoints[device.ieee_address];
@@ -819,4 +846,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (bridgedDevice.maybeNumber) await bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: available }, this.log);
     }
   }
+
+  private async saveContext() {
+    await this.context?.set('devicesCache', this.devicesCache);
+  }
+
 }
