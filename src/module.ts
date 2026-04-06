@@ -315,8 +315,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
       if (this.shouldStart) {
         if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
+          const devicesCacheCopy = deepCopy(this.devicesCache);
           for (const device of this.z2mBridgeDevices) {
             await this.registerZigbeeDevice(device);
+          }
+          this.saveContext();
+          this.log.info(`Registering ${Object.values(devicesCacheCopy).length} cached devices`);
+          for (const key in devicesCacheCopy) {
+            const device = devicesCacheCopy[key];
+            const zigbeeDevice = await this.registerZigbeeDevice(device);
+            if (zigbeeDevice?.bridgedDevice) {
+              zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
+              zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+            }
           }
           this.z2mDevicesRegistered = true;
         }
