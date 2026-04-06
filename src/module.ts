@@ -540,13 +540,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       await this.registerDevice(this.shabbatModeDummySwitch.device);
     }
 
-    (async () => {
-      const hasContext = await this.context?.has('devicesCache');
-      if (!hasContext) {
-        await this.context?.set('devicesCache', {});
-      }
-      this.devicesCache = (await this.context?.get('devicesCache')) || {};
-    })();
+    const hasContext = await this.context?.has('devicesCache');
+    if (!hasContext) {
+      await this.context?.set('devicesCache', {});
+    }
+    this.devicesCache = (await this.context?.get('devicesCache')) || {};
     // End of Added by me: Arye Levin
 
     // Clear select device and entity since we have a bridge here and they will be recreated from the bridge
