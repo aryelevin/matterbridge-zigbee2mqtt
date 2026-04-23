@@ -1,6 +1,6 @@
 {
   "title": "Matterbridge zigbee2mqtt plugin",
-  "description": "matterbridge-zigbee2mqtt v. 2.0.17 by https://github.com/Luligu",
+  "description": "matterbridge-zigbee2mqtt-al v. 3.0.10 by https://github.com/aryelevin",
   "type": "object",
   "required": ["host", "port", "topic"],
   "properties": {
@@ -208,19 +208,19 @@
       "description": "Sets the home location in Longitude and Latitude coordinates to allow jewish calendar and weather to function properly and according to the home location.",
       "type": "object",
       "properties": {
-        "longitude": {"description": "The location longitude", "type": "number"},
-        "latitude": {"description": "The location latitude", "type": "number"}
+        "longitude": { "description": "The location longitude", "type": "number" },
+        "latitude": { "description": "The location latitude", "type": "number" }
       },
-      "default": {"longitude": 34.8376, "latitude": 32.08934}
+      "default": { "longitude": 34.8376, "latitude": 32.08934 }
     },
     "dummySwitches": {
       "title": "Add Dummy Switches",
       "description": "Adds dummy entities based on a configuration",
       "type": "array",
       "uniqueItems": true,
-	    "items": {
+      "items": {
         "type": "object",
-	      "properties": {
+        "properties": {
           "name": {
             "description": "Name of the dummy switch",
             "type": "string"
@@ -286,22 +286,18 @@
       "description": "Configures jewish calendar contact sensors.",
       "type": "object",
       "properties": {
-        "enabled": {"description": "Enables the jewish calendar sensors", "type": "boolean"},
-        "candlelighting": {"description": "Minutes before sunset to trigger candlelighting sensor", "type": "number"},
-        "havdalah": {"description": "Minutes after sunset to trigger havdalah sensor", "type": "number"},
-        "shminiAtzeretInSukkot": {"description": "Sets if shmini atzeret is in sukkot", "type": "boolean"},
+        "enabled": { "description": "Enables the jewish calendar sensors", "type": "boolean" },
+        "candlelighting": { "description": "Minutes before sunset to trigger candlelighting sensor", "type": "number" },
+        "havdalah": { "description": "Minutes after sunset to trigger havdalah sensor", "type": "number" },
+        "shminiAtzeretInSukkot": { "description": "Sets if shmini atzeret is in sukkot", "type": "boolean" },
         "sefiratHaOmerCustom": {
           "description": "Custom month for sefirat haOmer counting",
           "type": "string",
           "oneOf": [
-            {"title": "Ashkenazi (Pessach to Lag Ba'Omer)",
-              "enum": ["Ashkenazi"]},
-            {"title": "Sephardic (Pessach to a day after Lag Ba'Omer)",
-              "enum": ["Sephardic"]},
-            {"title": "Iyar (Rosh Chodesh Iyar to 3 Sivan)",
-              "enum": ["Iyar"]},
-            {"title": "Iyar2 (After Rosh Chodesh Iyar to 5 Sivan)",
-              "enum": ["Iyar2"]}
+            { "title": "Ashkenazi (Pessach to Lag Ba'Omer)", "enum": ["Ashkenazi"] },
+            { "title": "Sephardic (Pessach to a day after Lag Ba'Omer)", "enum": ["Sephardic"] },
+            { "title": "Iyar (Rosh Chodesh Iyar to 3 Sivan)", "enum": ["Iyar"] },
+            { "title": "Iyar2 (After Rosh Chodesh Iyar to 5 Sivan)", "enum": ["Iyar2"] }
           ],
           "default": "Ashkenazi"
         },
@@ -309,18 +305,29 @@
           "description": "Custom for three weeks period (Calculates Nidcheh)",
           "type": "string",
           "oneOf": [
-            {"title": "Ashkenazi (17 Tamus to Tisha B'Av)",
-              "enum": ["Ashkenazi"]},
-            {"title": "Sephardic (1 B'Av to Tisha B'Av)",
-              "enum": ["Sephardic"]}
+            { "title": "Ashkenazi (17 Tamus to Tisha B'Av)", "enum": ["Ashkenazi"] },
+            { "title": "Sephardic (1 B'Av to Tisha B'Av)", "enum": ["Sephardic"] }
           ],
           "default": "Ashkenazi"
         },
-        "israel": {"description": "Sets if the system is in israel", "type": "boolean"},
-        "showEves": {"description": "Sets whether to show all events eves (Shabbat Eve, Pesach Eve etc) by creating additional sensor with built in offset of a day forward", "type": "boolean"},
-        "offset": {"description": "Offset (in minutes) of the current time (Can be used to check and debug the system)", "type": "number"}
+        "israel": { "description": "Sets if the system is in israel", "type": "boolean" },
+        "showEves": {
+          "description": "Sets whether to show all events eves (Shabbat Eve, Pesach Eve etc) by creating additional sensor with built in offset of a day forward",
+          "type": "boolean"
+        },
+        "offset": { "description": "Offset (in minutes) of the current time (Can be used to check and debug the system)", "type": "number" }
       },
-      "default": {"enabled": false, "candlelighting": 30, "havdalah": 45, "shminiAtzeretInSukkot": false, "sefiratHaOmerCustom": "Ashkenazi", "threeWeeksCustom": "Ashkenazi", "israel": true, "showEves": false, "offset": 0}
+      "default": {
+        "enabled": false,
+        "candlelighting": 30,
+        "havdalah": 45,
+        "shminiAtzeretInSukkot": false,
+        "sefiratHaOmerCustom": "Ashkenazi",
+        "threeWeeksCustom": "Ashkenazi",
+        "israel": true,
+        "showEves": false,
+        "offset": 0
+      }
     },
     "addShabbatModeDummySwitchType": {
       "title": "Shabbat Mode Switch",
@@ -885,7 +892,7 @@
                     "enum": [2]
                   }
                 ],
-                "default": 0
+                "default": 1
               },
               "execute": {
                 "description": "Execute",
@@ -931,7 +938,7 @@
                     "enum": [2]
                   }
                 ],
-                "default": 0
+                "default": 1
               },
               "execute": {
                 "description": "Execute",
@@ -977,7 +984,7 @@
                     "enum": [2]
                   }
                 ],
-                "default": 0
+                "default": 1
               },
               "execute": {
                 "description": "Execute",
@@ -1023,7 +1030,7 @@
                     "enum": [2]
                   }
                 ],
-                "default": 0
+                "default": 1
               },
               "execute": {
                 "description": "Execute",
@@ -1069,7 +1076,7 @@
                     "enum": [2]
                   }
                 ],
-                "default": 0
+                "default": 1
               },
               "execute": {
                 "description": "Execute",
@@ -1115,7 +1122,7 @@
                     "enum": [2]
                   }
                 ],
-                "default": 0
+                "default": 1
               },
               "execute": {
                 "description": "Execute",
@@ -1144,9 +1151,9 @@
       "description": "Configures links between switches (alternates, lights etc)",
       "type": "array",
       "uniqueItems": true,
-	    "items": {
+      "items": {
         "type": "object",
-	      "properties": {
+        "properties": {
           "enabled": {
             "description": "Enable the linkage",
             "type": "boolean",
@@ -1169,6 +1176,39 @@
             },
             "uniqueItems": true,
             "selectFrom": "serial"
+          },
+          "resetLight": {
+            "description": "Whether to reset lights with brightness and/or color when being turned on from a source switch.",
+            "type": "number",
+            "oneOf": [
+              {
+                "title": "Off",
+                "enum": [0]
+              },
+              {
+                "title": "Brightness",
+                "enum": [1]
+              },
+              {
+                "title": "Color Temperature",
+                "enum": [2]
+              },
+              {
+                "title": "Brightness & Color Temperature",
+                "enum": [3]
+              }
+            ],
+            "default": 0
+          },
+          "resetColorTemperature": {
+            "description": "If Reset Light is set to Color Temperature, set which color temperature to use.",
+            "type": "number",
+            "default": 363
+          },
+          "resetAlways": {
+            "description": "If Reset Light is set, this setting will make it reset even if the light is turned on after long time (5 seconds) since the last turn off action.",
+            "type": "boolean",
+            "default": false
           }
         }
       }
@@ -1180,13 +1220,13 @@
       "selectFrom": "serial",
       "uniqueItems": true,
       "additionalProperties": {
-          "description": "Attribute Name",
-          "type": "object",
-          "additionalProperties": {
-            "description": "Attribute Setting",
-            "type": "string"
-          },
-          "uniqueItems": true
+        "description": "Attribute Name",
+        "type": "object",
+        "additionalProperties": {
+          "description": "Attribute Setting",
+          "type": "string"
+        },
+        "uniqueItems": true
       }
     },
     "switchesOffStateCommands": {
@@ -1196,13 +1236,13 @@
       "selectFrom": "serial",
       "uniqueItems": true,
       "additionalProperties": {
-          "description": "Attribute Name",
-          "type": "object",
-          "additionalProperties": {
-            "description": "Attribute Setting",
-            "type": "string"
-          },
-          "uniqueItems": true
+        "description": "Attribute Name",
+        "type": "object",
+        "additionalProperties": {
+          "description": "Attribute Setting",
+          "type": "string"
+        },
+        "uniqueItems": true
       }
     },
     "switchesActions": {

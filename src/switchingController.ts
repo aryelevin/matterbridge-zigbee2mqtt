@@ -77,6 +77,9 @@ export interface SwitchingControllerSwitchLinkConfig {
   switches?: string[];
   enabled: boolean;
   linkedDevices?: string[]; // ["0x54abcd0987654321/l1_brightness", "0x541234567890abcd/l1_brightness"]
+  resetLight: number;
+  resetColorTemperature: number;
+  resetAlways: boolean;
 }
 
 const SwitchTypes = {
@@ -105,6 +108,7 @@ export class SwitchingController {
   switchesLinksConfig: SwitchingControllerSwitchLinkConfig[]; // {"0x541234567890abcd/l2_brightness": {enabled: true, linkedDevices: ["0x54abcd0987654321/brightness_l1", "0x541234567890abcd/brightness_l1"]}, "0x541234567890abcd/state_left": {enabled: true, linkedDevices: ["0x54abcd0987654321/state_l1", "0x541234567890abcd/state_l2"]}}
   switchesLinksSwitchesToDevices: { [key: string]: string[] };
   switchesLinksDevicesToSwitches: { [key: string]: string[] };
+  switchesLinksConfigsPerSwitch: { [key: string]: SwitchingControllerSwitchLinkConfig };
   switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }; // {'0x541234567890abcd': {'enabled': true, switchType: 2, 'linkedDevices': {'0x54abcd0987654321/l1': '', '0x54abcd0987654322/center': ''}}, '0x541234567890abcd/single': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/state_l1': 'ON', '0x54abcd0987654322/l3': 'toggle_on'}}, '0x541234567890abcd/hold': {'enabled': true, 'repeat': true, 'linkedDevices': {'0x54abcd0987654321/brightness_l1': 254, '0x54abcd0987654322/center': 'bri_up'}}, '0x541234567890abcd/double': {'enabled': true, 'repeat': false, 'linkedDevices': {'0x54abcd0987654321/characteristic': {state_left: ON}, '0x54abcd0987654322/l2': 'bri_up'}}}
   longPressTimeoutIDs: { [key: string]: NodeJS.Timeout } = {};
   lastStates: { [key: string]: Payload } = {};
@@ -116,6 +120,7 @@ export class SwitchingController {
     this.switchesLinksConfig = switchesLinksConfig;
     this.switchesLinksSwitchesToDevices = {};
     this.switchesLinksDevicesToSwitches = {};
+    this.switchesLinksConfigsPerSwitch = {};
     this.switchesActionsConfig = switchesActionsConfig;
 
     for (const linkConfig of this.switchesLinksConfig) {
@@ -123,6 +128,7 @@ export class SwitchingController {
         const sourceSwitches = linkConfig.switches || [];
         const linkedDevices = linkConfig.linkedDevices || [];
         for (const sourceSwitch of sourceSwitches) {
+          this.switchesLinksConfigsPerSwitch[sourceSwitch] = linkConfig;
           if (!this.switchesLinksSwitchesToDevices[sourceSwitch]) this.switchesLinksSwitchesToDevices[sourceSwitch] = [];
           this.switchesLinksSwitchesToDevices[sourceSwitch].push(...linkedDevices);
           this.switchesLinksSwitchesToDevices[sourceSwitch].push(...sourceSwitches);
@@ -340,6 +346,19 @@ export class SwitchingController {
               payloads[linkedDeviceIeee] = {};
             }
             payloads[linkedDeviceIeee][paramToControl] = value;
+            if (paramToControl.startsWith('state') && value === 'ON') {
+              const linkConfig = this.switchesLinksConfigsPerSwitch[deviceEndpointPath];
+              if (linkConfig.resetLight !== 0) {
+                if (linkConfig.resetAlways || Date.now() - this.linkedDevicesEndpointExecutionTimes[linkedDeviceIeee + '/' + paramToControl] <= 5000) { // TODO: check if its suffecient or we need something specific for this need...
+                  if (linkConfig.resetLight === 1 || linkConfig.resetLight === 3) {
+                    payloads[linkedDeviceIeee]['brightness'] = 100; // TODO: extract the endpoint name from the destination light state command...
+                  }
+                  if (linkConfig.resetLight === 2 || linkConfig.resetLight === 3) {
+                    payloads[linkedDeviceIeee]['color_temp'] = linkConfig.resetColorTemperature; // TODO: extract the endpoint name from the destination light state command...
+                  }
+                }
+              }
+            }
           }
         }
 
