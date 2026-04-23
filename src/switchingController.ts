@@ -355,10 +355,10 @@ export class SwitchingController {
                   if (linkConfig.resetLight === 1 || linkConfig.resetLight === 3) {
                     // Don't update whats not needed to be updated...
                     if (
-                      (linkedDeviceIeee === deviceIeee && newPayload['brightness' + endpointName] !== 100) ||
-                      (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.['brightness' + endpointName] !== 100)
+                      (linkedDeviceIeee === deviceIeee && newPayload['brightness' + endpointName] !== 254) ||
+                      (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.['brightness' + endpointName] !== 254)
                     ) {
-                      payloads[linkedDeviceIeee]['brightness' + endpointName] = 100;
+                      payloads[linkedDeviceIeee]['brightness' + endpointName] = 254;
                     }
                   }
                   if (linkConfig.resetLight === 2 || linkConfig.resetLight === 3) {
