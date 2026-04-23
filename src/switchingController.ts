@@ -364,8 +364,8 @@ export class SwitchingController {
                   if (linkConfig.resetLight === 2 || linkConfig.resetLight === 3) {
                     // Don't update whats not needed to be updated...
                     if (
-                      (linkedDeviceIeee === deviceIeee && newPayload['color_temp' + endpointName] !== 100) ||
-                      (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.['color_temp' + endpointName] !== 100)
+                      (linkedDeviceIeee === deviceIeee && newPayload['color_temp' + endpointName] !== linkConfig.resetColorTemperature) ||
+                      (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.['color_temp' + endpointName] !== linkConfig.resetColorTemperature)
                     ) {
                       payloads[linkedDeviceIeee]['color_temp' + endpointName] = linkConfig.resetColorTemperature; // TODO: extract the endpoint name from the destination light state command...
                     }
