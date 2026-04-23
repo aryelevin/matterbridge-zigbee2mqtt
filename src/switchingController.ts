@@ -351,14 +351,14 @@ export class SwitchingController {
               if (linkConfig.resetLight !== 0) {
                 if (linkConfig.resetAlways || Date.now() - this.linkedDevicesEndpointExecutionTimes[linkedDeviceIeee + '/' + paramToControl] <= 5000) { // TODO: check if its suffecient or we need something specific for this need...
                   const endpointNameParts = paramToControl.split('_');
-                  const endpointName = endpointNameParts.length ? '_' + endpointNameParts[1] : '';
+                  const endpointName = endpointNameParts.length > 1 ? '_' + endpointNameParts[1] : '';
                   if (linkConfig.resetLight === 1 || linkConfig.resetLight === 3) {
                     // Don't update whats not needed to be updated...
                     if (
                       (linkedDeviceIeee === deviceIeee && newPayload['brightness' + endpointName] !== 100) ||
                       (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.['brightness' + endpointName] !== 100)
                     ) {
-                      payloads[linkedDeviceIeee]['brightness' + endpointName] = 100; // TODO: extract the endpoint name from the destination light state command...
+                      payloads[linkedDeviceIeee]['brightness' + endpointName] = 100;
                     }
                   }
                   if (linkConfig.resetLight === 2 || linkConfig.resetLight === 3) {
@@ -367,7 +367,7 @@ export class SwitchingController {
                       (linkedDeviceIeee === deviceIeee && newPayload['color_temp' + endpointName] !== linkConfig.resetColorTemperature) ||
                       (linkedDeviceIeee !== deviceIeee && this.lastStates[linkedDeviceIeee]?.['color_temp' + endpointName] !== linkConfig.resetColorTemperature)
                     ) {
-                      payloads[linkedDeviceIeee]['color_temp' + endpointName] = linkConfig.resetColorTemperature; // TODO: extract the endpoint name from the destination light state command...
+                      payloads[linkedDeviceIeee]['color_temp' + endpointName] = linkConfig.resetColorTemperature;
                     }
                   }
                 }
