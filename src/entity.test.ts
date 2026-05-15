@@ -1,8 +1,8 @@
-// src/platform.test.ts
+// src/entity.test.ts
 
-const MATTER_PORT = 6001;
 const NAME = 'Entity';
-const HOMEDIR = path.join('jest', NAME);
+const MATTER_PORT = 6001;
+const MATTER_CREATE_ONLY = true;
 
 /* eslint-disable no-console */
 
@@ -13,7 +13,6 @@ import { featuresFor, invokeBehaviorCommand, invokeSubscribeHandler, Matterbridg
 import {
   addDevice,
   addMatterbridgePlatform,
-  aggregator,
   createMatterbridgeEnvironment,
   destroyMatterbridgeEnvironment,
   flushAsync,
@@ -28,8 +27,9 @@ import {
   stopMatterbridgeEnvironment,
 } from 'matterbridge/jestutils';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
-import { ColorControl, DoorLock, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
+import { Endpoint, ServerNode } from 'matterbridge/matter';
+import { ColorControl, DoorLock, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { getMacAddress } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
@@ -74,8 +74,10 @@ await setupTest(NAME, false);
 
 describe('Test Entity', () => {
   let platform: ZigbeePlatform;
+  let server: ServerNode<ServerNode.RootEndpoint>;
+  let aggregator: Endpoint<AggregatorEndpoint>;
 
-  const executeTrue: TypeFromPartialBitSchema<typeof LevelControl.Options> = { executeIfOff: true };
+  const executeTrue = { executeIfOff: true };
 
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
   const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
@@ -112,25 +114,23 @@ describe('Test Entity', () => {
 
   beforeAll(async () => {
     // Create Matterbridge environment
-    await createMatterbridgeEnvironment(NAME);
-    await startMatterbridgeEnvironment(MATTER_PORT);
+    await createMatterbridgeEnvironment();
+    [server, aggregator] = await startMatterbridgeEnvironment(MATTER_PORT, MATTER_CREATE_ONLY);
   });
 
   beforeEach(async () => {
     // Clears the call history before each test
     jest.clearAllMocks();
+  });
 
+  afterEach(async () => {
     // Reset debug state
     await setDebug(false);
   });
 
-  afterEach(async () => {
-    // await flushAsync();
-  });
-
   afterAll(async () => {
     // Destroy Matterbridge environment
-    await stopMatterbridgeEnvironment();
+    await stopMatterbridgeEnvironment(MATTER_CREATE_ONLY);
     await destroyMatterbridgeEnvironment();
 
     // Restore the original implementation of the AnsiLogger.log method
@@ -1052,6 +1052,7 @@ describe('Test Entity', () => {
 
       entity.destroy();
     });
+
     test('create a lock device', async () => {
       // await setDebug(true);
       const z2mDevice = lock;
@@ -1068,7 +1069,21 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "doorLock"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
-      expect(featuresFor(device, 'doorLock')).toEqual({});
+      expect(featuresFor(device, 'doorLock')).toEqual({
+        aliroBleuwb: false,
+        aliroProvisioning: false,
+        credentialOverTheAirAccess: false,
+        doorPositionSensor: false,
+        faceCredentials: false,
+        fingerCredentials: false,
+        holidaySchedules: false,
+        pinCredential: false,
+        rfidCredential: false,
+        unbolting: false,
+        user: false,
+        weekDayAccessSchedules: false,
+        yearDayAccessSchedules: false,
+      });
       // await setDebug(false);
 
       jest.clearAllMocks();
@@ -1078,25 +1093,19 @@ describe('Test Entity', () => {
 
       // Test commands from the controller
       jest.clearAllMocks();
-      await invokeBehaviorCommand(device, 'doorLock', 'lockDoor');
+      await device.invokeBehaviorCommand('doorLock', 'lockDoor', {});
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
-      expect(loggerDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`Command lockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
-        expect.anything(),
-      );
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command lockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
       expect(publishCommandSpy).toHaveBeenCalledWith('lockDoor', friendlyName, { state: 'LOCK' });
 
       jest.clearAllMocks();
-      await invokeBehaviorCommand(device, 'doorLock', 'unlockDoor');
+      await device.invokeBehaviorCommand('doorLock', 'unlockDoor', {});
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
-      expect(loggerDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`Command unlockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
-        expect.anything(),
-      );
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command unlockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
       expect(publishCommandSpy).toHaveBeenCalledWith('unlockDoor', friendlyName, { state: 'UNLOCK' });
     });
 
