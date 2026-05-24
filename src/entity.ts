@@ -96,8 +96,8 @@ import {
   WindowCoveringCluster,
 } from 'matterbridge/matter/clusters';
 import { ClusterId, getClusterNameById, Semtag, VendorId } from 'matterbridge/matter/types';
-import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 import * as color from 'matterbridge/utils';
+import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
@@ -2288,14 +2288,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     if (zigbeeDevice.bridgedDevice.hasClusterServer(DoorLockCluster.id)) {
-      zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', async ({ request: request }) => {
-        zigbeeDevice.log.debug(`Command lockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`, request);
-        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, zigbeeDevice.log);
+      zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', async () => {
+        zigbeeDevice.log.debug(`Command lockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         zigbeeDevice.publishCommand('lockDoor', device.friendly_name, { state: 'LOCK' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', async ({ request: request }) => {
-        zigbeeDevice.log.debug(`Command unlockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`, request);
-        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, zigbeeDevice.log);
+      zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', async () => {
+        zigbeeDevice.log.debug(`Command unlockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         zigbeeDevice.publishCommand('unlockDoor', device.friendly_name, { state: 'UNLOCK' });
       });
     }
