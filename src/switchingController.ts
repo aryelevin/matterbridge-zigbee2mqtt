@@ -156,7 +156,12 @@ export class SwitchingController {
   getDeviceEntity(ieee_address: string, separatedEndpointID?: string) {
     const entity = ieee_address.startsWith('group-')
       ? this.platform.zigbeeEntities?.find((entity) => entity.isGroup && entity.group?.id === Number(ieee_address.split('-')[1]))
-      : this.platform.zigbeeEntities?.find((entity) => entity.isDevice && entity.device?.ieee_address === ieee_address && (!separatedEndpointID || (separatedEndpointID && entity.bridgedDevice?.deviceName?.endsWith(separatedEndpointID))));
+      : this.platform.zigbeeEntities?.find(
+          (entity) =>
+            entity.isDevice &&
+            entity.device?.ieee_address === ieee_address &&
+            (!separatedEndpointID || (separatedEndpointID && entity.bridgedDevice?.deviceName?.endsWith(separatedEndpointID))),
+        );
     return entity;
   }
 
@@ -165,20 +170,25 @@ export class SwitchingController {
   }
 
   setSwitchingControllerConfiguration() {
-    const devicesToListenToEvents: { [key: string]: boolean } = {};
+    const devicesToListenToEvents: { [key: string]: string[] } = {};
     // for (const allEntitiesItem of this.platform.zigbeeEntities) {
     //   const sourceDevice = allEntitiesItem.device ? allEntitiesItem.device.ieee_address : allEntitiesItem.isGroup ? 'group-' + allEntitiesItem.group.id : allEntitiesItem.entityName;
     //   devicesToListenToEvents[sourceDevice.split('/')[0]] = false;
     // }
     for (const linkConfig of this.switchesLinksConfig) {
       for (const sourceSwitch of linkConfig.switches || []) {
-        devicesToListenToEvents[sourceSwitch.split('/')[0]] = true;
+        const sourceSwitchParts = sourceSwitch.split('/');
+        if (!devicesToListenToEvents[sourceSwitchParts[0]]) {
+          devicesToListenToEvents[sourceSwitchParts[0]] = [];
+        }
+        devicesToListenToEvents[sourceSwitchParts[0]].push(sourceSwitchParts[1]);
       }
     }
     for (const sourceDevice in this.switchesActionsConfig) {
-      devicesToListenToEvents[sourceDevice.split('/')[0]] = true;
+      devicesToListenToEvents[sourceDevice.split('/')[0]] = [];
     }
     for (const deviceIeee in devicesToListenToEvents) {
+      const params = devicesToListenToEvents[deviceIeee];
       if (!this.lastStates[deviceIeee]) {
         this.lastStates[deviceIeee] = {};
         const device = this.getDeviceEntity(deviceIeee);
@@ -193,7 +203,7 @@ export class SwitchingController {
                 (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') &&
                 (key === 'action' ||
                   (key === 'action_rotation_percent_speed' && (payload.action === 'rotation' || payload.action === 'start_rotating')) ||
-                  value !== this.lastStates[deviceIeee][key])
+                  (params.includes(key) && value !== this.lastStates[deviceIeee][key]))
               ) {
                 // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
                 // if (devicesToListenToEvents[deviceIeee] === true) {
@@ -231,7 +241,14 @@ export class SwitchingController {
   // When actionSourceIsFromMatter is true, oldValue can be undefined...
   // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
   // Make sure all calls to this method is after verified change of attribute value... (onOff changed from true to false etc..)
-  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number, actionSourceIsFromMatter: boolean): boolean {
+  deviceHasChangedMatterAttribute(
+    deviceIeee: string,
+    endpoint: string,
+    attribute: string,
+    value: boolean | number,
+    oldValue: boolean | number,
+    actionSourceIsFromMatter: boolean,
+  ): boolean {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
@@ -349,7 +366,8 @@ export class SwitchingController {
             if (paramToControl.startsWith('state') && value === 'ON') {
               const linkConfig = this.switchesLinksConfigsPerSwitch[deviceEndpointPath];
               if (linkConfig.resetLight !== 0) {
-                if (linkConfig.resetAlways || Date.now() - this.linkedDevicesEndpointExecutionTimes[linkedDeviceIeee + '/' + paramToControl] <= 5000) { // TODO: check if its suffecient or we need something specific for this need...
+                if (linkConfig.resetAlways || Date.now() - this.linkedDevicesEndpointExecutionTimes[linkedDeviceIeee + '/' + paramToControl] <= 5000) {
+                  // TODO: check if its suffecient or we need something specific for this need...
                   const endpointNameParts = paramToControl.split('_');
                   const endpointName = endpointNameParts.length > 1 ? '_' + endpointNameParts[1] : '';
                   if (linkConfig.resetLight === 1 || linkConfig.resetLight === 3) {
@@ -414,7 +432,8 @@ export class SwitchingController {
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed' + '_' + newPayload['action_rotation_button_state']];
     if (actionsConfig.enabled) {
       for (const linkedDevice in actionsConfig.linkedDevices) {
-        if (!linkedDevice.startsWith('http')) { // TODO: find the correct way on this new system...
+        if (!linkedDevice.startsWith('http')) {
+          // TODO: find the correct way on this new system...
           const actionToDo = actionsConfig.linkedDevices[linkedDevice];
           const pathComponents = linkedDevice.split('/');
           const entityIeee = pathComponents[0];
@@ -463,10 +482,8 @@ export class SwitchingController {
           // if (/* this.platform.state.remotes_on && */ actionToDo) {
           //   // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
           //   // jsonObject.action = actionToDo
-
           //   const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
           //   const data = JSON.stringify(jsonObject);
-
           //   const options = {
           //     hostname: actionToDo.host,
           //     port: actionToDo.port,
@@ -477,31 +494,24 @@ export class SwitchingController {
           //       'Content-Length': data.length,
           //     },
           //   };
-
           //   const repeatFunction = (delay: number, timeoutKey: string) => {
           //     this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
           //       this.log.info('Long press being on URL!!!');
-
           //       const req = http.request(options, (res) => {
           //         this.log.info(`statusCode: ${res.statusCode}`);
-
           //         if (res.statusCode === 200) {
           //           this.log.info('Command sent and received successfully');
           //         }
-
           //         res.on('data', d => {
           //           // process.stdout.write(d)
           //           this.log.info(d);
           //         });
           //       });
-
           //       req.on('error', (error) => {
           //         console.error(error);
           //       });
-
           //       req.write(data);
           //       req.end();
-
           //       // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
           //       repeatFunction(300, timeoutKey);
           //     }, delay);
@@ -536,11 +546,13 @@ export class SwitchingController {
           const keyForTimeoutAction = switchIeee + endpointToExecute;
           clearTimeout(this.longPressTimeoutIDs[keyForTimeoutAction]);
 
-          if (!endpointToExecute.startsWith('http')) { // TODO: find the correct way on this new system...
+          if (!endpointToExecute.startsWith('http')) {
+            // TODO: find the correct way on this new system...
             let continueRepeat = true;
             let actionToDo = endpointsToExecute[endpointToExecute] || ''; // The value: like 'ON' in case of state...
 
-            if (actionToDo === '') { // Its a switchType based action...
+            if (actionToDo === '') {
+              // Its a switchType based action...
               if (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons) {
                 continueRepeat = false;
               }
@@ -576,11 +588,14 @@ export class SwitchingController {
                 ) {
                   // Turn On with default settings (including CT)...
                   actionToDo = 'on_defaults';
-                } else if (switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle') { // Toggle power and if  it turns on, set to full brightness...
+                } else if (switchTypeInt === SwitchTypes.SwitchTypeIkeaTradfriFiveButtonsRound && buttonEvent === 'toggle') {
+                  // Toggle power and if it turns on, set to full brightness...
                   actionToDo = 'toggle_on_full_bri';
-                } else if (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_press') { // Turn On and if On already, set to full brightness...
+                } else if (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'on_press') {
+                  // Turn On and if On already, set to full brightness...
                   actionToDo = 'on_or_full_bri';
-                } else if (switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'on') { // Turn On at full brightness and if On already just increase the brightness...
+                } else if (switchTypeInt === SwitchTypes.SwitchTypeIkeaRodretOrStyrbar && buttonEvent === 'on') {
+                  // Turn On at full brightness and if On already just increase the brightness...
                   actionToDo = 'on_full_bri_or_bri_up';
                 } else if (
                   (switchTypeInt === SwitchTypes.SwitchTypeHueDimmerFourButtons && buttonEvent === 'up_press') ||
@@ -669,7 +684,8 @@ export class SwitchingController {
                       const newColorTemperatureState = Math.max(153, currentColorTemperature - 32);
                       this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
                       // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
-                      if (newColorTemperatureState === 153) { // TODO: take the min/max from the object itself...
+                      if (newColorTemperatureState === 153) {
+                        // TODO: take the min/max from the object itself...
                         continueRepeat = false;
                       }
                     } else {
@@ -681,7 +697,8 @@ export class SwitchingController {
                       const newColorTemperatureState = Math.min(500, currentColorTemperature + 32);
                       this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
                       // No need to set noUpdate to false since here its switches control and the trigger is not a lights which turned on or off etc but action of a button...
-                      if (newColorTemperatureState === 500) { // TODO: take the min/max from the object itself...
+                      if (newColorTemperatureState === 500) {
+                        // TODO: take the min/max from the object itself...
                         continueRepeat = false;
                       }
                     } else {
@@ -770,10 +787,8 @@ export class SwitchingController {
             // if (/* this.platform.state.remotes_on && */ actionToDo) {
             //   // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
             //   // jsonObject.action = actionToDo
-
             //   const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
             //   const data = JSON.stringify(jsonObject);
-
             //   const options = {
             //     hostname: actionToDo.host,
             //     port: actionToDo.port,
@@ -784,31 +799,24 @@ export class SwitchingController {
             //       'Content-Length': data.length,
             //     },
             //   };
-
             //   const repeatFunction = (delay: number, timeoutKey: string) => {
             //     this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
             //       this.log.info('Long press being on URL!!!');
-
             //       const req = http.request(options, (res) => {
             //         this.log.info(`statusCode: ${res.statusCode}`);
-
             //         if (res.statusCode === 200) {
             //           this.log.info('Command sent and received successfully');
             //         }
-
             //         res.on('data', d => {
             //           // process.stdout.write(d)
             //           this.log.info(d);
             //         });
             //       });
-
             //       req.on('error', (error) => {
             //         console.error(error);
             //       });
-
             //       req.write(data);
             //       req.end();
-
             //       // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
             //       repeatFunction(300, timeoutKey);
             //     }, delay);
