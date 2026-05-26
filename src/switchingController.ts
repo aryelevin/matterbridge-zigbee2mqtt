@@ -114,6 +114,7 @@ export class SwitchingController {
   lastStates: { [key: string]: Payload } = {};
   linkedDevicesEndpointExecutionTimes: { [key: string]: number } = {}; // {'0x541234567890abcd/brightness': 1678283828}
   linkedSwitchesEndpointExecutionTimes: { [key: string]: number } = {}; // {'0x54abcd0987654321/brightness': 1678283828}
+  linksLastExecutionTimes: { [key: string]: number } = {}; // {'0x54abcd0987654321/brightness': 1678283828}
 
   constructor(platform: ZigbeePlatform, switchesLinksConfig: SwitchingControllerSwitchLinkConfig[], switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }) {
     this.platform = platform;
@@ -298,8 +299,9 @@ export class SwitchingController {
         //     }
         //   }
         // });
-        const linkedDeviceLastExecutionTime = this.linkedDevicesEndpointExecutionTimes[deviceEndpoint];
-        if (!linkedDeviceLastExecutionTime || Date.now() - linkedDeviceLastExecutionTime >= 2000) {
+        const linkLastExecutionTime = this.linksLastExecutionTimes[deviceEndpoint];
+        if (!linkLastExecutionTime || Date.now() - linkLastExecutionTime >= 2000) {
+          this.log.info('Going to update switches of matter device to ' + z2mValue + ', last time controlled via switch ' + linkLastExecutionTime);
           for (const sourceSwitch of switchesToUpdate) {
             const sourceSwitchPathComponents = sourceSwitch.split('/');
             const sourceSwitchIeee = sourceSwitchPathComponents[0];
@@ -308,7 +310,8 @@ export class SwitchingController {
             // To avoid processing for no reason (can be after switchStateChanged() called for a source switch handling, which will lead to this deviceHasChangedMatterAttribute() method call after mqtt will report the new target device state from the switch action, can be avoided by this if statement or by adding matter attributes set on the switchStateChanged() method logic...)
             if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== z2mValue) {
               // Set now Date as last switch update time to avoid immedite action from the switch side itself after a change from matter side...
-              this.linkedSwitchesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = Date.now();
+              this.linkedSwitchesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = this.linksLastExecutionTimes[sourceSwitchIeee + '/' + paramToControl] =
+                Date.now();
               // Make sure to update the source switch state on the cache to avoid executing the switch incoming state confirmation MQTT message...
               if (this.lastStates[sourceSwitchIeee]) {
                 this.lastStates[sourceSwitchIeee][paramToControl] = z2mValue;
@@ -346,8 +349,8 @@ export class SwitchingController {
 
     const linkedDevices = this.switchesLinksSwitchesToDevices[deviceEndpointPath];
     if (linkedDevices?.length) {
-      const linkedSwitchLastExecutionTime = this.linkedSwitchesEndpointExecutionTimes[deviceEndpointPath];
-      if (!linkedSwitchLastExecutionTime || Date.now() - linkedSwitchLastExecutionTime >= 2000) {
+      const linkLastExecutionTime = this.linksLastExecutionTimes[deviceEndpointPath];
+      if (!linkLastExecutionTime || Date.now() - linkLastExecutionTime >= 2000) {
         const payloads: { [key: string]: { [key: string]: string | number | boolean } } = {};
         for (const linkedDevice of linkedDevices) {
           const linkedDevicePathComponents = linkedDevice.split('/');
@@ -399,10 +402,10 @@ export class SwitchingController {
           for (const endpoint in payload) {
             const value = payload[endpoint];
             this.publishCommand(entity, { [endpoint]: value });
-            this.linkedDevicesEndpointExecutionTimes[entity + '/' + endpoint] = Date.now();
+            this.linkedDevicesEndpointExecutionTimes[entity + '/' + endpoint] = this.linksLastExecutionTimes[entity + '/' + endpoint] = Date.now();
             if (this.lastStates[entity]) {
               this.lastStates[entity][endpoint] = value;
-              this.switchStateChanged(entity, endpoint, value, this.lastStates[entity]);
+              // this.switchStateChanged(entity, endpoint, value, this.lastStates[entity]); // If this is supported (chianed events), then in the else below (of if linkLastExecutionTime >= 2000) we have to check if this.lastStates[deviceIeee][key] !== value to avoid resetting back other source switches of the linkage.
               // // Check if there's linkes from this controlled entity to another (chained events), but make sure it isn't already in this payloads which will make it happen twice and will screw up the logic
               // const linkedDevices = this.switchesLinksConfigData[entity + '/' + endpoint];
               // if (linkedDevices.length) {
