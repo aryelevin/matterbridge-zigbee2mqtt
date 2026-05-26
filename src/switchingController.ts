@@ -301,7 +301,7 @@ export class SwitchingController {
         // });
         const linkLastExecutionTime = this.linksLastExecutionTimes[deviceEndpoint];
         if (!linkLastExecutionTime || Date.now() - linkLastExecutionTime >= 2000) {
-          this.log.info('Going to update switches of matter device to ' + z2mValue + ', last time controlled via switch ' + linkLastExecutionTime);
+          // this.log.info('Going to update switches of matter device to ' + z2mValue + ', last time controlled via switch ' + linkLastExecutionTime);
           for (const sourceSwitch of switchesToUpdate) {
             const sourceSwitchPathComponents = sourceSwitch.split('/');
             const sourceSwitchIeee = sourceSwitchPathComponents[0];
