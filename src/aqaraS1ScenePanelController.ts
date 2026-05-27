@@ -1218,7 +1218,15 @@ export class AqaraS1ScenePanelController {
         } else if (commandCategory === 0x71 && commandAction === 0x06) {
           // Panel asking for data...
           this.log.debug('Asked data for param: ' + stateParam);
-          if (stateParamInt32BE === 0x08001fa5) {
+          if (stateParamInt32BE === 0x0d020055) {
+            this.sendFeelPageDataToPanel(deviceIeeeAddress, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '', '0d020055', this.lastWeatherData.weathercode.toString(16).padStart(8, '0'));
+          } else if (stateParamInt32BE === 0x00040055) {
+            this.sendFeelPageDataToPanel(deviceIeeeAddress, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '', '00040055', this.getHexFromFloat32Bit(this.lastWeatherData.temperature));
+          } else if (stateParamInt32BE === 0x00050055) {
+            this.sendFeelPageDataToPanel(deviceIeeeAddress, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '', '00050055', this.getHexFromFloat32Bit(this.lastWeatherData.humidity));
+          } else if (stateParamInt32BE === 0x00060055) {
+            this.sendFeelPageDataToPanel(deviceIeeeAddress, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '', '00060055', this.getHexFromFloat32Bit(this.lastWeatherData.uvindex));
+          } else if (stateParamInt32BE === 0x08001fa5) {
             // Names
             if (this.aqaraS1ActionsConfigData[deviceIeeeAddress]) {
               // this.log(this.aqaraS1ActionsConfigData[deviceIeeeAddress])
