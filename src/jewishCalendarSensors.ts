@@ -20,6 +20,7 @@ export interface JewishCalendarSensorsConfig {
   shminiAtzeretInSukkot: boolean;
   candlelighting: number;
   havdalah: number;
+  useSunsetStart: boolean;
   sefiratHaOmerCustom: string;
   threeWeeksCustom: string;
   showEves: boolean;
@@ -286,7 +287,7 @@ export class JewishCalendarSensors {
       this.sensor.log.debug('Shifting the time by ' + this.config.offset + ' minutes.');
       this.gDate = new Date(this.gDate.getTime() + this.config.offset * 60000);
     }
-    this.sensor.log.debug('Test date is ' + this.gDate.toISOString());
+    // this.sensor.log.debug('Test date is ' + this.gDate.toISOString());
     this.hDate = new HeDate(this.gDate);
 
     // Extremely weird bug in Suncalc has it calculate the wrong times at edges of the day. Workaround is to always check at noon
@@ -297,7 +298,7 @@ export class JewishCalendarSensors {
     this.sensor.log.debug('updateJewishDay(): midday=' + midday.toISOString());
 
     const suntimes = SunCalc.getTimes(midday, this.lat, this.long);
-    this.sunset = suntimes.sunsetStart;
+    this.sunset = this.config.useSunsetStart ? suntimes.sunsetStart : suntimes.sunset;
 
     this.sensor.log.debug('Sunset Tonight: ' + this.sunset.toLocaleString());
 

@@ -878,5 +878,4 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private async saveContext() {
     await this.context?.set('devicesCache', this.devicesCache);
   }
-
 }
