@@ -254,6 +254,7 @@ export class SwitchingController {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
       const deviceEndpoint = deviceIeee + '/' + changedPropertyName + endpoint;
+      this.lastStates[deviceIeee][changedPropertyName] = z2mValue;
 
       const switchesToUpdate = this.switchesLinksDevicesToSwitches[deviceEndpoint];
       if (switchesToUpdate?.length) {
@@ -357,7 +358,7 @@ export class SwitchingController {
           const linkedDeviceIeee = linkedDevicePathComponents[0];
           const paramToControl = linkedDevicePathComponents[1];
           this.log.info(
-            'deviceIeee: ' + deviceIeee  + ', linkedDeviceIeee ' + linkedDeviceIeee + ', lastStates[linkedDeviceIeee] ' + JSON.stringify(this.lastStates[linkedDeviceIeee]) + ', newPayload[paramToControl] ' + JSON.stringify(newPayload[paramToControl]) + ', value ' + value + '.',
+            'deviceIeee: ' + deviceIeee  + ', linkedDeviceIeee: ' + linkedDeviceIeee + ', lastStates[linkedDeviceIeee]: ' + JSON.stringify(this.lastStates[linkedDeviceIeee]) + ', newPayload[paramToControl]: ' + JSON.stringify(newPayload[paramToControl]) + ', value: ' + value + '.',
           );
           // Don't update whats not needed to be updated...
           if (
