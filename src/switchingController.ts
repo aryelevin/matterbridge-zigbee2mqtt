@@ -356,7 +356,9 @@ export class SwitchingController {
           const linkedDevicePathComponents = linkedDevice.split('/');
           const linkedDeviceIeee = linkedDevicePathComponents[0];
           const paramToControl = linkedDevicePathComponents[1];
-
+          this.log.info(
+            'deviceIeee: ' + deviceIeee  + ', linkedDeviceIeee ' + linkedDeviceIeee + ', lastStates[linkedDeviceIeee] ' + JSON.stringify(this.lastStates[linkedDeviceIeee]) + ', newPayload[paramToControl] ' + JSON.stringify(newPayload[paramToControl]) + ', value ' + value + '.',
+          );
           // Don't update whats not needed to be updated...
           if (
             (linkedDeviceIeee === deviceIeee && newPayload[paramToControl] !== value) ||
