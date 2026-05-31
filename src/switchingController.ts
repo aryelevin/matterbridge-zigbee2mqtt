@@ -254,7 +254,7 @@ export class SwitchingController {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
       const deviceEndpoint = deviceIeee + '/' + changedPropertyName + endpoint;
-      this.lastStates[deviceIeee][changedPropertyName] = z2mValue;
+      this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
       const switchesToUpdate = this.switchesLinksDevicesToSwitches[deviceEndpoint];
       if (switchesToUpdate?.length) {
