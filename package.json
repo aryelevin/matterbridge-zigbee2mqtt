@@ -25,6 +25,7 @@
     "type": "buymeacoffee",
     "url": "https://www.buymeacoffee.com/luligugithub"
   },
+  "private": "true",
   "keywords": [
     "matterbridge",
     "homebridge",
