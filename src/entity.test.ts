@@ -728,9 +728,9 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement", "fixedLabel"]);
       expect(device.getChildEndpoints()).toHaveLength(3); // 2 channels + root
-      const ch1 = device.getChildEndpointByName('l1');
+      const ch1 = device.getChildEndpointById('l1');
       expect(ch1).toBeInstanceOf(MatterbridgeEndpoint);
-      const ch2 = device.getChildEndpointByName('l2');
+      const ch2 = device.getChildEndpointById('l2');
       expect(ch2).toBeInstanceOf(MatterbridgeEndpoint);
       if (!ch1 || !ch2) throw new Error('Child endpoints not found');
       // prettier-ignore
@@ -1125,17 +1125,31 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "thermostat", "identify"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
-      expect(featuresFor(device, 'Thermostat')).toEqual({
-        autoMode: true,
-        cooling: true,
-        heating: true,
-        localTemperatureNotExposed: false,
-        matterScheduleConfiguration: false,
-        occupancy: false,
-        presets: false,
-        scheduleConfiguration: false,
-        setback: false,
-      });
+      // Matterbridge 3.7.10 is the last Matter 1.4.2 release
+      expect(featuresFor(device, 'Thermostat')).toEqual(
+        matterbridge.matterbridgeVersion === '3.7.10'
+          ? {
+              autoMode: true,
+              cooling: true,
+              heating: true,
+              localTemperatureNotExposed: false,
+              matterScheduleConfiguration: false,
+              occupancy: false,
+              presets: false,
+              scheduleConfiguration: false,
+              setback: false,
+            }
+          : {
+              autoMode: true,
+              cooling: true,
+              heating: true,
+              localTemperatureNotExposed: false,
+              matterScheduleConfiguration: false,
+              occupancy: false,
+              presets: false,
+              setback: false,
+            },
+      );
       // await setDebug(false);
 
       jest.clearAllMocks();
