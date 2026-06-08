@@ -76,6 +76,6 @@ export class JewishCalendarSensor {
 
   public set testMode(value: boolean) {
     this._testMode = value;
-    this.updateState();
+    void this.updateState();
   }
 }

@@ -192,7 +192,7 @@ export class JewishCalendarSensors {
       );
     }
     let currentMode = 0;
-    this.sensor.addCommandHandler('changeToMode', async ({ request: { newMode } }) => {
+    this.sensor.addCommandHandler('changeToMode', ({ request: { newMode } }) => {
       this.sensor?.log.info(`Command changeToMode called request ${newMode}`);
       if (currentMode !== 0) {
         sensorsByIndex[currentMode - 1].testMode = false;
@@ -327,7 +327,7 @@ export class JewishCalendarSensors {
     this.updateJewishDay();
     // }
 
-    this.updateSensors();
+    void this.updateSensors();
     // setTimeout(this.updateLoop.bind(this), 30000);
 
     setTimeout(() => {

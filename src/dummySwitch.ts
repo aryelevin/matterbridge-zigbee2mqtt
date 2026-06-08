@@ -79,10 +79,10 @@ export class DummySwitch {
       // this.dimmer = await this.addDevice(this.dimmer);
 
       // The cluster attributes are set by MatterbridgeLevelControlServer
-      this.device.addCommandHandler('moveToLevel', async ({ request: { level } }) => {
+      this.device.addCommandHandler('moveToLevel', ({ request: { level } }) => {
         this.device.log.debug(`Command moveToLevel called request: ${level}`);
       });
-      this.device.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level } }) => {
+      this.device.addCommandHandler('moveToLevelWithOnOff', ({ request: { level } }) => {
         this.device.log.debug(`Command moveToLevelWithOnOff called request: ${level}`);
       });
     } else if (this.config.type === 'light') {
@@ -102,19 +102,19 @@ export class DummySwitch {
     this.device.createDefaultIdentifyClusterServer().createDefaultGroupsClusterServer().createDefaultOnOffClusterServer().createDefaultPowerSourceWiredClusterServer();
 
     // The cluster attributes are set by MatterbridgeOnOffServer
-    this.device.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
+    this.device.addCommandHandler('identify', ({ request: { identifyTime } }) => {
       this.device.log.info(`Command identify called identifyTime:${identifyTime}`);
     });
-    this.device.addCommandHandler('on', async () => {
+    this.device.addCommandHandler('on', () => {
       this.device.log.info('Command on called');
       this.onOffDidSet(true);
 
       // setTimeout(() => {
-      //   // this.device.triggerEvent(OnOff.Cluster.id, 'onOff$Changed', { stateValue: false }, this.device.log);
+      //   // this.device.triggerEvent(OnOff.id, 'onOff$Changed', { stateValue: false }, this.device.log);
       //   this.device.setStateOf(OnOffBaseServer, { onOff: false });
       // }, 1000);
     });
-    this.device.addCommandHandler('off', async () => {
+    this.device.addCommandHandler('off', () => {
       this.device.log.info('Command off called');
       this.onOffDidSet(false);
     });
@@ -146,7 +146,7 @@ export class DummySwitch {
       }
       const afterDelayValue = !value;
       this.timer = setTimeout(() => {
-        this.setOnOff(afterDelayValue);
+        void this.setOnOff(afterDelayValue);
       }, delay);
 
       if (this.config.notification) {
@@ -190,11 +190,11 @@ export class DummySwitch {
   }
 
   async setOnOff(value: boolean) {
-    await this.device.setAttribute(OnOff.Cluster.id, 'onOff', value, this.device.log);
+    await this.device.setAttribute(OnOff.id, 'onOff', value, this.device.log);
     this.onOffDidSet(value);
   }
 
   async updateOnOff(value: boolean) {
-    await this.device.setAttribute(OnOff.Cluster.id, 'onOff', value, this.device.log);
+    await this.device.setAttribute(OnOff.id, 'onOff', value, this.device.log);
   }
 }

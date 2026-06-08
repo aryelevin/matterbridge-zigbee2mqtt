@@ -332,14 +332,14 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
                     const zigbeeDevice = await this.registerZigbeeDevice(device);
                     registeredDevicesMap[device.friendly_name] = device;
                     if (zigbeeDevice?.bridgedDevice) {
-                      zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
-                      zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+                      await zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
+                      await zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
                     }
                   }
                 }
               }
               this.devicesCache = registeredDevicesMap;
-              this.saveContext();
+              await this.saveContext();
               this.z2mDevicesRegistered = true;
             }
           }
@@ -451,8 +451,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           // await this.unregisterZigbeeEntity(friendly_name);
           const zigbeeDevice = this.zigbeeEntities.find((device) => device.device?.friendly_name === friendly_name);
           if (zigbeeDevice) {
-            zigbeeDevice.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
-            zigbeeDevice.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+            await zigbeeDevice.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
+            await zigbeeDevice.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
           }
         })(),
         this.log,
@@ -467,8 +467,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           // if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
           const zigbeeDevice = this.zigbeeEntities?.find((device) => device.device?.friendly_name === friendly_name);
           if (zigbeeDevice?.bridgedDevice) {
-            zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
-            zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+            await zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
+            await zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
           }
         })(),
         this.log,
@@ -487,7 +487,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
             if (bridgedDevice) {
               await this.registerZigbeeDevice(bridgedDevice);
               this.devicesCache[bridgedDevice.friendly_name] = bridgedDevice;
-              this.saveContext();
+              await this.saveContext();
             }
           }
         })(),
@@ -668,14 +668,14 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
             const zigbeeDevice = await this.registerZigbeeDevice(device);
             registeredDevicesMap[device.friendly_name] = device;
             if (zigbeeDevice?.bridgedDevice) {
-              zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
-              zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+              await zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
+              await zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
             }
           }
         }
       }
       this.devicesCache = registeredDevicesMap;
-      this.saveContext();
+      await this.saveContext();
       this.z2mDevicesRegistered = true;
     }
 
@@ -689,7 +689,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     // Added by me: Arye Levin
     this.platformControls.setPlatformControlsConfiguration();
-    this.aqaraS1ScenePanelConroller.setAqaraS1PanelsConfiguration();
+    await this.aqaraS1ScenePanelConroller.setAqaraS1PanelsConfiguration();
     this.aqaraS1ScenePanelConroller.updateWeather();
     this.switchingController.setSwitchingControllerConfiguration();
     // End of Added by me: Arye Levin

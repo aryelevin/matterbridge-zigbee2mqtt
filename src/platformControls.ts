@@ -57,7 +57,7 @@ export class PlatformControls {
   }
 
   setPlatformControlsConfiguration() {
-    this.switchesEnabled = this.switchesEnabledEndpoint.getAttribute(OnOff.Cluster.id, 'onOff', this.switchesEnabledEndpoint.log);
+    this.switchesEnabled = this.switchesEnabledEndpoint.getAttribute(OnOff.id, 'onOff', this.switchesEnabledEndpoint.log);
   }
 
   private switchesOnOffDidSet(value: boolean) {
@@ -86,7 +86,7 @@ export class PlatformControls {
   }
 
   async setSwitchesOnOff(value: boolean) {
-    await this.switchesEnabledEndpoint.setAttribute(OnOff.Cluster.id, 'onOff', value, this.switchesEnabledEndpoint.log);
+    await this.switchesEnabledEndpoint.setAttribute(OnOff.id, 'onOff', value, this.switchesEnabledEndpoint.log);
     this.switchesOnOffDidSet(value);
   }
 }

@@ -72,7 +72,6 @@ import {
   ElectricalEnergyMeasurement,
   ElectricalPowerMeasurement,
   FanControl,
-  FanControlCluster,
   FormaldehydeConcentrationMeasurement,
   Identify,
   IlluminanceMeasurement,
@@ -2432,8 +2431,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
           'fanMode',
           (newValue: FanControl.FanMode, oldValue: FanControl.FanMode, context) => {
             if (newValue === oldValue) return;
-            zigbeeDevice.log.info(`Fan mode changed from ${fanModeLookup[oldValue]} to ${fanModeLookup[newValue]} context: ${context.offline === true ? 'offline' : 'online'}`);
-            // if (context.offline === true) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
+            zigbeeDevice.log.info(`Fan mode changed from ${fanModeLookup[oldValue]} to ${fanModeLookup[newValue]} context: ${context.fabric === undefined ? 'offline' : 'online'}`);
+            // if (context.fabric === undefined) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
             if (zigbeeDevice.propertyMap.has('fan_mode' + endpointSuffix) && newValue !== FanControl.FanMode.Off)
               zigbeeDevice.publishCommand('FanMode', device.friendly_name, { ['fan_mode' + endpointSuffix]: ['off', 'low', 'medium', 'high', 'on', 'auto'][newValue] || 'auto' });
             zigbeeDevice.noUpdate = true;
@@ -2488,8 +2487,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
             const dataPoints = [10, 33, 66, 100];
 
-            zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.offline === true ? 'offline' : 'online'}`);
-            // if (context.offline === true) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
+            zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.fabric === undefined ? 'offline' : 'online'}`);
+            // if (context.fabric === undefined) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
             if (isValidNumber(newValue, 0, 100)) {
               const fixedValue = roundToNearestPoint(newValue, dataPoints);
               if (fixedValue === oldValue) return;

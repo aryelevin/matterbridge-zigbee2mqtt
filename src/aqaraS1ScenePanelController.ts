@@ -119,8 +119,8 @@ export class AqaraS1ScenePanelController {
     this.log.debug('aqaraS1ActionsConfigData contents: ' + JSON.stringify(this.aqaraS1ActionsConfigData));
   }
 
-  async saveContext() {
-    await this.platform.context?.set('aqaraS1ExecutedConfigurationsData', this.aqaraS1ExecutedConfigurationsData);
+  saveContext() {
+    void this.platform.context?.set('aqaraS1ExecutedConfigurationsData', this.aqaraS1ExecutedConfigurationsData);
   }
 
   // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state

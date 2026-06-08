@@ -92,6 +92,7 @@ describe('TestPlatform', () => {
     scenesPrefix: false,
     postfix: 'JEST',
     debug: true,
+    homeLocation: { longitude: 0, latitude: 0 },
     unregisterOnShutdown: false,
   };
 
