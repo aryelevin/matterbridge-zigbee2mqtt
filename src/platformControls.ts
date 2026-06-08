@@ -1,4 +1,4 @@
-// matterbridge-zigbee2mqtt/src/DummySwitch.js
+// matterbridge-zigbee2mqtt-al/src/DummySwitch.js
 // Copyright © 2025 Arye Levin. All rights reserved.
 //
 // Matterbridge plugin for Zigbee2MQTT.

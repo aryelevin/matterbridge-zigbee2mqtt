@@ -1,3 +1,8 @@
+// matterbridge-zigbee2mqtt-al/src/switchingController.js
+// Copyright © 2025 Arye Levin. All rights reserved.
+//
+// Matterbridge plugin for Zigbee2MQTT.
+
 // import * as fs from 'node:fs';
 // import * as https from 'node:https';
 // import * as http from 'node:http';

@@ -1,3 +1,8 @@
+// matterbridge-zigbee2mqtt-al/src/aqaraS1ScenePanelController.js
+// Copyright © 2025 Arye Levin. All rights reserved.
+//
+// Matterbridge plugin for Zigbee2MQTT.
+
 // import * as fs from 'node:fs';
 import * as https from 'node:https';
 
@@ -157,14 +162,28 @@ export class AqaraS1ScenePanelController {
             ? newPayload['system_mode' + endpointSuffix]
             : ['', 'auto', '', 'cool', 'heat', '', '', 'fan_only'][device?.bridgedDevice?.getAttribute(Thermostat.Cluster.id, 'systemMode')];
           const fanMode = newPayload['fan_mode' + endpointSuffix];
-          const targetTemperature = newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] || 255;
+          const targetTemperature =
+            newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] || 255;
           const currentTemperature = newPayload['local_temperature' + endpointSuffix];
           const internalThermostat = this.aqaraS1ActionsConfigData[linkedPanels[0].split('/')[1]]?.ac?.internal_thermostat;
-          if (device) this.sendStateToPanels(device, linkedPanels, internalThermostat ? '0e020055' : '0e200055', (onOff === true ? '1' : '0') + (systemMode === 'heat' ? '0' : systemMode === 'cool' ? '1' : '2') + (fanMode === 'low' ? '0' : fanMode === 'medium' ? '1' : fanMode === 'high' ? '2' : '3') + (internalThermostat ? '0' : 'f') + targetTemperature.toString(16).padStart(2, '0') + (internalThermostat ? ((Math.round(currentTemperature as number || 255) + 0) * 4).toString(16).padStart(2, '0') : '00'), '');
+          if (device)
+            this.sendStateToPanels(
+              device,
+              linkedPanels,
+              internalThermostat ? '0e020055' : '0e200055',
+              (onOff === true ? '1' : '0') +
+                (systemMode === 'heat' ? '0' : systemMode === 'cool' ? '1' : '2') +
+                (fanMode === 'low' ? '0' : fanMode === 'medium' ? '1' : fanMode === 'high' ? '2' : '3') +
+                (internalThermostat ? '0' : 'f') +
+                targetTemperature.toString(16).padStart(2, '0') +
+                (internalThermostat ? ((Math.round((currentTemperature as number) || 255) + 0) * 4).toString(16).padStart(2, '0') : '00'),
+              '',
+            );
         }
       } else if (linkedPanelDeviceType.startsWith('curtain')) {
         if (key.startsWith('state')) {
-          if (device) this.sendStateToPanels(device, linkedPanels, '0e020055', '000000' + (value === 'OPEN' ? 1 : value === 'CLOSE' ? 0 : 2).toString(16).padStart(2, '0'), 'state');
+          if (device)
+            this.sendStateToPanels(device, linkedPanels, '0e020055', '000000' + (value === 'OPEN' ? 1 : value === 'CLOSE' ? 0 : 2).toString(16).padStart(2, '0'), 'state');
         } else if (key.startsWith('position')) {
           if (device) this.sendStateToPanels(device, linkedPanels, '01010055', this.getHexFromFloat32Bit(value as number), 'position');
         }
@@ -172,14 +191,36 @@ export class AqaraS1ScenePanelController {
         if (key.startsWith('state')) {
           if (device) this.sendStateToPanels(device, linkedPanels, '04010055', '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
         } else if (key.startsWith('brightness')) {
-          if (device) this.sendStateToPanels(device, linkedPanels, '0e010055', '000000' + (Math.round((value as number) / 2.54)).toString(16).padStart(2, '0'), 'brightness');
+          if (device)
+            this.sendStateToPanels(
+              device,
+              linkedPanels,
+              '0e010055',
+              '000000' +
+                Math.round((value as number) / 2.54)
+                  .toString(16)
+                  .padStart(2, '0'),
+              'brightness',
+            );
         } else if (key.startsWith('color_temp') && !key.startsWith('color_temp_startup')) {
           if (device) this.sendStateToPanels(device, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
         } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
           const color = newPayload[key] as { [key: string]: number };
           const colorX = color?.x;
           const colorY = color?.y;
-          if (device) this.sendStateToPanels(device, linkedPanels, '0e080055', Math.round(colorX * 65535).toString(16).padStart(4, '0') + Math.round(colorY * 65535).toString(16).padStart(4, '0'), 'color');
+          if (device)
+            this.sendStateToPanels(
+              device,
+              linkedPanels,
+              '0e080055',
+              Math.round(colorX * 65535)
+                .toString(16)
+                .padStart(4, '0') +
+                Math.round(colorY * 65535)
+                  .toString(16)
+                  .padStart(4, '0'),
+              'color',
+            );
         }
       }
     }
@@ -188,7 +229,12 @@ export class AqaraS1ScenePanelController {
   getDeviceEntity(ieee_address: string, separatedEndpointID?: string) {
     const entity = ieee_address.startsWith('group-')
       ? this.platform.zigbeeEntities?.find((entity) => entity.isGroup && entity.group?.id === Number(ieee_address.split('-')[1]))
-      : this.platform.zigbeeEntities?.find((entity) => entity.isDevice && entity.device?.ieee_address === ieee_address && (!separatedEndpointID || (separatedEndpointID && entity.bridgedDevice?.deviceName?.endsWith(separatedEndpointID))));
+      : this.platform.zigbeeEntities?.find(
+          (entity) =>
+            entity.isDevice &&
+            entity.device?.ieee_address === ieee_address &&
+            (!separatedEndpointID || (separatedEndpointID && entity.bridgedDevice?.deviceName?.endsWith(separatedEndpointID))),
+        );
     return entity;
   }
 
@@ -201,7 +247,15 @@ export class AqaraS1ScenePanelController {
     if (this.allPanels.length) {
       const casigningcert = /* this._configJson.caFile ? fs.readFileSync(this._configJson.caFile) : */ undefined;
       // https.get('https://api.open-meteo.com/v1/forecast?latitude=32.08934&longitude=34.83760&hourly=relativehumidity_2m,uv_index&current_weather=true&forecast_days=1', casigningcert ? {ca: casigningcert} : {}, res => {
-      https.get('https://api.open-meteo.com/v1/forecast?latitude=' + this.platform.config.homeLocation.latitude + '&longitude=' + this.platform.config.homeLocation.longitude + '&hourly=relativehumidity_2m,uv_index&current_weather=true&forecast_days=1', casigningcert ? { ca: casigningcert } : {}, (res) => {
+      https
+        .get(
+          'https://api.open-meteo.com/v1/forecast?latitude=' +
+            this.platform.config.homeLocation.latitude +
+            '&longitude=' +
+            this.platform.config.homeLocation.longitude +
+            '&hourly=relativehumidity_2m,uv_index&current_weather=true&forecast_days=1',
+          casigningcert ? { ca: casigningcert } : {},
+          (res) => {
             const data: Uint8Array[] = [];
             const headerDate = res.headers && res.headers.date ? res.headers.date : 'no response date';
             this.log.debug('Status Code:', res.statusCode);
@@ -257,17 +311,37 @@ export class AqaraS1ScenePanelController {
                     for (let index = 0; index < this.allPanels.length; index++) {
                       const panelIeeeAddresss = this.allPanels[index];
                       if (weathercode !== this.lastWeatherData.weathercode) {
-                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2), '0d020055', weathercode.toString(16).padStart(8, '0'));
+                        this.sendFeelPageDataToPanel(
+                          panelIeeeAddresss,
+                          this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2),
+                          '0d020055',
+                          weathercode.toString(16).padStart(8, '0'),
+                        );
                       }
                       // TODO: Send temperature and humidity only if no temperature sensor is configured on the panel configuration...
                       if (temperature !== this.lastWeatherData.temperature) {
-                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2), '00040055', this.getHexFromFloat32Bit(temperature));
+                        this.sendFeelPageDataToPanel(
+                          panelIeeeAddresss,
+                          this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2),
+                          '00040055',
+                          this.getHexFromFloat32Bit(temperature),
+                        );
                       }
                       if (humidity !== this.lastWeatherData.humidity) {
-                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2), '00050055', this.getHexFromFloat32Bit(humidity));
+                        this.sendFeelPageDataToPanel(
+                          panelIeeeAddresss,
+                          this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2),
+                          '00050055',
+                          this.getHexFromFloat32Bit(humidity),
+                        );
                       }
                       if (uvindex !== this.lastWeatherData.uvindex) {
-                        this.sendFeelPageDataToPanel(panelIeeeAddresss, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2), '00060055', this.getHexFromFloat32Bit(uvindex));
+                        this.sendFeelPageDataToPanel(
+                          panelIeeeAddresss,
+                          this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2),
+                          '00060055',
+                          this.getHexFromFloat32Bit(uvindex),
+                        );
                       }
                     }
                     this.lastWeatherData.weathercode = weathercode;
@@ -300,7 +374,12 @@ export class AqaraS1ScenePanelController {
 
   toHexStringFromCharacterString = (charStr: string) => this.toHexStringFromBytes(charStr.split('')?.map((c) => c.charCodeAt(0)) || []);
 
-  toCharacterStringFromBytes = (bytes: number[]) => bytes.map((v) => { return String.fromCharCode(v); }).join('');
+  toCharacterStringFromBytes = (bytes: number[]) =>
+    bytes
+      .map((v) => {
+        return String.fromCharCode(v);
+      })
+      .join('');
 
   getInt8 = (uint8Data: number) => (uint8Data << 24) >> 24;
 
@@ -408,10 +487,24 @@ export class AqaraS1ScenePanelController {
     const onOff = acEndpoint.getAttribute(OnOff.Cluster.id, 'onOff');
     const systemMode = acEndpoint.getAttribute(Thermostat.Cluster.id, 'systemMode'); // Thermostat.SystemMode.Heat, Thermostat.SystemMode.Cool, Thermostat.SystemMode.Auto
     const fanMode = acEndpoint.getAttribute(FanControl.Cluster.id, 'fanMode');
-    const targetTemperature = acEndpoint.getAttribute(Thermostat.Cluster.id, systemMode === Thermostat.SystemMode.Cool ? 'occupiedCoolingSetpoint' : systemMode === Thermostat.SystemMode.Heat ? 'occupiedHeatingSetpoint' : '') || 255;
+    const targetTemperature =
+      acEndpoint.getAttribute(
+        Thermostat.Cluster.id,
+        systemMode === Thermostat.SystemMode.Cool ? 'occupiedCoolingSetpoint' : systemMode === Thermostat.SystemMode.Heat ? 'occupiedHeatingSetpoint' : '',
+      ) || 255;
     const currentTemperature = acEndpoint.getAttribute(Thermostat.Cluster.id, 'localTemperature');
     const internalThermostat = this.aqaraS1ActionsConfigData[deviceIeeeAddress]?.ac?.internal_thermostat;
-    this.sendStateToPanel(deviceIeeeAddress, '6169725f636f6e64', internalThermostat ? '0e020055' : '0e200055', (onOff === true ? '1' : '0') + (systemMode === Thermostat.SystemMode.Heat ? '0' : systemMode === Thermostat.SystemMode.Cool ? '1' : '2') + (fanMode === FanControl.FanMode.Low ? '0' : fanMode === FanControl.FanMode.Medium ? '1' : fanMode === FanControl.FanMode.High ? '2' : '3') + (internalThermostat ? '0' : 'f') + targetTemperature.toString(16).padStart(2, '0') + (internalThermostat ? ((Math.round(currentTemperature) + 0) * 4).toString(16).padStart(2, '0') : '00'));
+    this.sendStateToPanel(
+      deviceIeeeAddress,
+      '6169725f636f6e64',
+      internalThermostat ? '0e020055' : '0e200055',
+      (onOff === true ? '1' : '0') +
+        (systemMode === Thermostat.SystemMode.Heat ? '0' : systemMode === Thermostat.SystemMode.Cool ? '1' : '2') +
+        (fanMode === FanControl.FanMode.Low ? '0' : fanMode === FanControl.FanMode.Medium ? '1' : fanMode === FanControl.FanMode.High ? '2' : '3') +
+        (internalThermostat ? '0' : 'f') +
+        targetTemperature.toString(16).padStart(2, '0') +
+        (internalThermostat ? ((Math.round(currentTemperature) + 0) * 4).toString(16).padStart(2, '0') : '00'),
+    );
   }
 
   sendCoverPositionToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
@@ -422,7 +515,9 @@ export class AqaraS1ScenePanelController {
 
   sendCoverMovementStateToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
     const movementMatterState = coverEndpoint.getAttribute(WindowCovering.Cluster.id, 'operationalStatus').global;
-    const movementState = '000000' + (movementMatterState === WindowCovering.MovementStatus.Opening ? 1 : movementMatterState === WindowCovering.MovementStatus.Closing ? 0 : 2).toString(16).padStart(2, '0'); // TODO: Check the correct parameters...
+    const movementState =
+      '000000' +
+      (movementMatterState === WindowCovering.MovementStatus.Opening ? 1 : movementMatterState === WindowCovering.MovementStatus.Closing ? 0 : 2).toString(16).padStart(2, '0'); // TODO: Check the correct parameters...
     this.log.info('Movement State: ' + movementState);
     this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '0e020055', movementState);
   }
@@ -453,7 +548,17 @@ export class AqaraS1ScenePanelController {
 
     // const xy = hsvToXy(this.values.hue, this.values.saturation, this.capabilities.gamut)
     // this.log('Color X: ' + xy[0] + ', Color Y: ' + xy[1])
-    this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e080055', Math.round(colorX * 65535).toString(16).padStart(4, '0') + Math.round(colorY * 65535).toString(16).padStart(4, '0'));
+    this.sendLightDataToPanel(
+      panelIeeeAddress,
+      lightNo,
+      '0e080055',
+      Math.round(colorX * 65535)
+        .toString(16)
+        .padStart(4, '0') +
+        Math.round(colorY * 65535)
+          .toString(16)
+          .padStart(4, '0'),
+    );
   }
 
   sendStateToPanels(originalEntity: ZigbeeEntity, panelsToUpdate: string[], parameter: string, content: string, valueToCheck: string, secondValueToCheck?: string) {
@@ -575,7 +680,8 @@ export class AqaraS1ScenePanelController {
     if (this.aqaraS1ActionsConfigData) {
       const panels = Object.keys(this.aqaraS1ActionsConfigData);
       for (const panelIeee of panels) {
-        if (this.allPanels.indexOf(panelIeee) < 0) { // To avoid duplicates in case of re-running the configuration
+        if (this.allPanels.indexOf(panelIeee) < 0) {
+          // To avoid duplicates in case of re-running the configuration
           this.allPanels.push(panelIeee);
           if (!this.lastCommunications[panelIeee]) {
             this.lastCommunications[panelIeee] = '';
@@ -644,6 +750,77 @@ export class AqaraS1ScenePanelController {
       this.log.debug('panelsToEndpoints: ' + JSON.stringify(this.panelsToEndpoints));
       this.log.debug('endpointsToPanels: ' + JSON.stringify(this.endpointsToPanels));
 
+      // Now subscribe to general events to handle panels startup (after power cycle for example) weather updates and removals to remove context data (configured state of the removed panel)
+      // This is for weather data
+      this.platform.z2m.on('device_announce', (friendly_name: string, ieee_address: string) => {
+        this.log.info(`zigbee2MQTT sent device_announce device: ${friendly_name} ieee_address: ${ieee_address}`);
+        // Here nothing to do, we wait device_interview
+        if (this.allPanels.indexOf(ieee_address) >= 0) {
+          // TODO: Check configuration if external temperature sensor is configured, if so, then don't send weather data...
+          this.sendFeelPageDataToPanel(
+            ieee_address,
+            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+            '0d020055',
+            this.lastWeatherData.weathercode.toString(16).padStart(8, '0'),
+          );
+          this.sendFeelPageDataToPanel(
+            ieee_address,
+            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+            '00040055',
+            this.getHexFromFloat32Bit(this.lastWeatherData.temperature),
+          );
+          this.sendFeelPageDataToPanel(
+            ieee_address,
+            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+            '00050055',
+            this.getHexFromFloat32Bit(this.lastWeatherData.humidity),
+          );
+          this.sendFeelPageDataToPanel(
+            ieee_address,
+            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+            '00060055',
+            this.getHexFromFloat32Bit(this.lastWeatherData.uvindex),
+          );
+        }
+      });
+
+      // This is device removal and context deletion
+      this.platform.z2m.on('device_leave', (friendly_name: string, ieee_address: string) => {
+        this.log.info(`zigbee2MQTT sent device_leave device: ${friendly_name} ieee_address: ${ieee_address}`);
+        // // await this.unregisterZigbeeEntity(friendly_name);
+        // const zigbeeDevice = this.zigbeeEntities.find((device) => device.device?.friendly_name === friendly_name);
+        // if (zigbeeDevice) {
+        //   zigbeeDevice.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
+        //   zigbeeDevice.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+        // }
+      });
+
+      // This is device removal and context deletion
+      this.platform.z2m.on('device_remove', (friendly_name: string, status: string, block: boolean, force: boolean) => {
+        this.log.info(`zigbee2MQTT sent device_remove device: ${friendly_name} status: ${status} block: ${block} force: ${force}`);
+        // // if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
+        // const zigbeeDevice = this.zigbeeEntities?.find((device) => device.device?.friendly_name === friendly_name);
+        // if (zigbeeDevice?.bridgedDevice) {
+        //   zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
+        //   zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+        // }
+      });
+
+      // TODO: This is for checking if there is configuration to do, then call the configurator...
+      this.platform.z2m.on('device_interview', (friendly_name: string, ieee_address: string, status: string, supported: boolean) => {
+        this.log.info(`zigbee2MQTT sent device_interview device: ${friendly_name} ieee_address: ${ieee_address} status: ${status} supported: ${supported}`);
+        if (status === 'successful' && supported) {
+          // if (!this.validateDevice(friendly_name)) return;
+          // this.log.info(`Registering device: ${friendly_name}`);
+          // const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.friendly_name === friendly_name);
+          // if (bridgedDevice) {
+          //   await this.registerZigbeeDevice(bridgedDevice);
+          //   this.devicesCache[bridgedDevice.friendly_name] = bridgedDevice;
+          //   this.saveContext();
+          // }
+        }
+      });
+
       // Now, go and set online/offline for all possible devices to know if they're set on the panel, and add/remove them on the reponse.
       // if (!this.aqaraS1ExecutedConfigurationsData) {
       //   this.aqaraS1ExecutedConfigurationsData = {};
@@ -666,7 +843,18 @@ export class AqaraS1ScenePanelController {
         '6169725f636f6e64', // air_cond
         '74656d70736e7372', // tempsnsr
       ]; // array of devices serial which is configured when setup is done
-      const devicesControl: AqaraS1ScenePanelConfigKey[] = ['light_1', 'light_2', 'light_3', 'light_4', 'light_5', 'curtain_1', 'curtain_2', 'curtain_3', 'ac', 'temperature_sensor']; // array of config names
+      const devicesControl: AqaraS1ScenePanelConfigKey[] = [
+        'light_1',
+        'light_2',
+        'light_3',
+        'light_4',
+        'light_5',
+        'curtain_1',
+        'curtain_2',
+        'curtain_3',
+        'ac',
+        'temperature_sensor',
+      ]; // array of config names
       // | Temp Sensor | AC Page | Curtain 1 | Curtain 2 | Curtain 3 | Light 1 | Light 2 | Light 3 | Light 4 | Light 5 |
       // | ----------- | ------- | --------- | --------- | --------- | ------- | ------- | ------- | ------- | ------- |
       // | 01-02       | 03-08   | 09-0e     | 0f-14     | 15-1a     | 1b-20   | 21-26   | 27-2c   | 2d-32   | 33-38   |
@@ -742,59 +930,215 @@ export class AqaraS1ScenePanelController {
                 // TODO: Check that the config haven't changed in a new config (Need to check how this is possible to be done... Maybe try to set CT/Color and see what is the response...)
                 // Configuration itself consists: cmd header (as in all commands), slot prefix, slot, panel serial, controlled device serial, function id, configuration data size, some type (unknown yet), configuration commands set size (how many configuration commands is consisting the device control), some data (unknown yet), device number (to set which "page" this device is presented at), a suffix with 2 bytes (unknown yet).
                 const commandsData = [];
-                if (i <= 4) { // Lights
+                if (i <= 4) {
+                  // Lights
                   const lightConfig = deviceConfig as AqaraS1ScenePanelLightConfig;
                   // On/Off, general type...
-                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '04010055' + '260a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac0000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '3' + (lightConfig.type === 'color' ? '2' : '3') + '00');
+                  commandsData.push(
+                    slotPrefix +
+                      slots[0].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '04010055' +
+                      '260a0' +
+                      (lightConfig.type === 'dimmable' ? '4' : '5') +
+                      '08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac0000000000015' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                      '3' +
+                      (lightConfig.type === 'color' ? '2' : '3') +
+                      '00',
+                  );
                   // Brightness
-                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '0e010055' + '170a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '0ac1c1b6c8b0d9b7d6b1c8000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0' + (lightConfig.type === 'color' ? '2' : '4') + '00');
+                  commandsData.push(
+                    slotPrefix +
+                      slots[1].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '0e010055' +
+                      '170a0' +
+                      (lightConfig.type === 'dimmable' ? '4' : '5') +
+                      '0ac1c1b6c8b0d9b7d6b1c8000000000000015' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                      '0' +
+                      (lightConfig.type === 'color' ? '2' : '4') +
+                      '00',
+                  );
                   // Name
-                  commandsData.push(slotPrefix + slots[4].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa5' + '140a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '08c9e8b1b8c3fbb3c60000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0' + (lightConfig.type === 'color' ? 'a' : 'b') + '00');
+                  commandsData.push(
+                    slotPrefix +
+                      slots[4].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '08001fa5' +
+                      '140a0' +
+                      (lightConfig.type === 'dimmable' ? '4' : '5') +
+                      '08c9e8b1b8c3fbb3c60000000000015' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                      '0' +
+                      (lightConfig.type === 'color' ? 'a' : 'b') +
+                      '00',
+                  );
                   // Online/Offline
-                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '080007fd' + '160a0' + (lightConfig.type === 'dimmable' ? '4' : '5') + '0ac9e8b1b8d4dacfdfc0eb0000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '3' + (lightConfig.type === 'color' ? 'c' : 'd') + '00');
+                  commandsData.push(
+                    slotPrefix +
+                      slots[5].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '080007fd' +
+                      '160a0' +
+                      (lightConfig.type === 'dimmable' ? '4' : '5') +
+                      '0ac9e8b1b8d4dacfdfc0eb0000000000015' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                      '3' +
+                      (lightConfig.type === 'color' ? 'c' : 'd') +
+                      '00',
+                  );
                   if (lightConfig.type === 'ct') {
                     // Color Temperature
-                    commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '0e020055' + '130a0506c9abcec2d6b5000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0300');
+                    commandsData.push(
+                      slotPrefix +
+                        slots[2].toString(16).padStart(2, '0') +
+                        panelMACAddress +
+                        deviceSerial +
+                        '0e020055' +
+                        '130a0506c9abcec2d6b5000000000000015' +
+                        (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                        '0300',
+                    );
                   } else if (lightConfig.type === 'color') {
                     // Color
-                    commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '0e080055' + '130a0506d1d5c9ab7879000000000000015' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) + '0100');
+                    commandsData.push(
+                      slotPrefix +
+                        slots[3].toString(16).padStart(2, '0') +
+                        panelMACAddress +
+                        deviceSerial +
+                        '0e080055' +
+                        '130a0506d1d5c9ab7879000000000000015' +
+                        (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                        '0100',
+                    );
                   }
-                } else if (i <= 7) { // Curtains
+                } else if (i <= 7) {
+                  // Curtains
                   const curtainConfig = deviceConfig as AqaraS1ScenePanelCurtainConfig;
                   // Opening/Closing/Stopped
                   // 38aa713244 0a65 02412f 64767f57 09 54ef4410000513ea 54ef44100005c83d 0e020055 150a0508b4b0c1b1d7b4ccac000000000000014 6 3300
-                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '0e020055' + '150a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '08b4b0c1b1d7b4ccac000000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3' + (curtainConfig.type === 'curtain' ? '2' : '3') + '00');
+                  commandsData.push(
+                    slotPrefix +
+                      slots[0].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '0e020055' +
+                      '150a0' +
+                      (curtainConfig.type === 'curtain' ? '4' : '5') +
+                      '08b4b0c1b1d7b4ccac000000000000014' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      '3' +
+                      (curtainConfig.type === 'curtain' ? '2' : '3') +
+                      '00',
+                  );
                   // Position
                   // 3caa713644 0665 024133 64767f57 0a 54ef4410000513ea 54ef44100005c83d 01010055 190a050000010ab4b0c1b1b4f2bfaab0d90000000000014 6 0d00
-                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '01010055' + '190a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '0000010ab4b0c1b1b4f2bfaab0d90000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '0' + (curtainConfig.type === 'curtain' ? 'c' : 'd') + '00');
+                  commandsData.push(
+                    slotPrefix +
+                      slots[1].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '01010055' +
+                      '190a0' +
+                      (curtainConfig.type === 'curtain' ? '4' : '5') +
+                      '0000010ab4b0c1b1b4f2bfaab0d90000000000014' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      '0' +
+                      (curtainConfig.type === 'curtain' ? 'c' : 'd') +
+                      '00',
+                  );
                   // Online/Offline
                   // 39aa713344 0767 024130 64767f57 0b 54ef4410000513ea 54ef44100005c83d 080007fd 160a050ac9e8b1b8d4dacfdfc0eb0000000000014 6 3e00
-                  commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '080007fd' + '160a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '0ac9e8b1b8d4dacfdfc0eb0000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3' + (curtainConfig.type === 'curtain' ? 'c' : 'e') + '00');
+                  commandsData.push(
+                    slotPrefix +
+                      slots[2].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '080007fd' +
+                      '160a0' +
+                      (curtainConfig.type === 'curtain' ? '4' : '5') +
+                      '0ac9e8b1b8d4dacfdfc0eb0000000000014' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      '3' +
+                      (curtainConfig.type === 'curtain' ? 'c' : 'e') +
+                      '00',
+                  );
                   // Name
                   // 37aa713144 0868 02412e 64767f57 0c 54ef4410000513ea 54ef44100005c83d 08001fa5 140a0508c9e8b1b8c3fbb3c60000000000014 6 0b00
-                  commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa5' + '140a0' + (curtainConfig.type === 'curtain' ? '4' : '5') + '08c9e8b1b8c3fbb3c60000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '0' + (curtainConfig.type === 'curtain' ? 'a' : 'b') + '00');
+                  commandsData.push(
+                    slotPrefix +
+                      slots[3].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '08001fa5' +
+                      '140a0' +
+                      (curtainConfig.type === 'curtain' ? '4' : '5') +
+                      '08c9e8b1b8c3fbb3c60000000000014' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      '0' +
+                      (curtainConfig.type === 'curtain' ? 'a' : 'b') +
+                      '00',
+                  );
                   // ??? Was on setup of roller shade...
                   // 3caa713644 0962 024133 64767f57 0e 54ef4410000513ea 54ef44100005c83d 00010055 190a050000010ab4b0c1b1d4cbd0d0cab10000000000014 6 3f00
-                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00010055' + '190a050000010ab4b0c1b1d4cbd0d0cab10000000000014' + (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) + '3f00');
-                } else if (i === 8) { // AC
+                  commandsData.push(
+                    slotPrefix +
+                      slots[5].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      '00010055' +
+                      '190a050000010ab4b0c1b1d4cbd0d0cab10000000000014' +
+                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      '3f00',
+                  );
+                } else if (i === 8) {
+                  // AC
                   const acConfig = deviceConfig as AqaraS1ScenePanelACConfig;
                   // On/Off, general type...
-                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + (acConfig.internal_thermostat ? '0e020055' : '0e200055') + (acConfig.internal_thermostat ? '150a0608bfd8d6c6d7b4ccac000000000000012e0000' : '1708060abfd5b5f7d1b9cbf5d7b4000000000000012e0000'));
+                  commandsData.push(
+                    slotPrefix +
+                      slots[0].toString(16).padStart(2, '0') +
+                      panelMACAddress +
+                      deviceSerial +
+                      (acConfig.internal_thermostat ? '0e020055' : '0e200055') +
+                      (acConfig.internal_thermostat ? '150a0608bfd8d6c6d7b4ccac000000000000012e0000' : '1708060abfd5b5f7d1b9cbf5d7b4000000000000012e0000'),
+                  );
                   // Online/Offline
-                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '080007fd' + '1608060ac9e8b1b8d4dacfdfc0eb0000000000012e6400');
+                  commandsData.push(
+                    slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '080007fd' + '1608060ac9e8b1b8d4dacfdfc0eb0000000000012e6400',
+                  );
                   // Name
-                  commandsData.push(slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa5' + '14080608c9e8b1b8c3fbb3c60000000000012e1300');
+                  commandsData.push(
+                    slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa5' + '14080608c9e8b1b8c3fbb3c60000000000012e1300',
+                  );
                   // Modes
-                  commandsData.push(slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa7' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1000');
+                  commandsData.push(
+                    slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa7' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1000',
+                  );
                   // Fan Modes
-                  commandsData.push(slotPrefix + slots[4].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa8' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1100');
+                  commandsData.push(
+                    slotPrefix + slots[4].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa8' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1100',
+                  );
                   // Temperatures Ranges
-                  commandsData.push(slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa9' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e0100');
-                } else if (i === 9) { // Temperature Sensor
+                  commandsData.push(
+                    slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa9' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e0100',
+                  );
+                } else if (i === 9) {
+                  // Temperature Sensor
                   // Temperature
-                  commandsData.push(slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00010055' + '1908023e00640a74656d706572617475720000000000012c0600');
+                  commandsData.push(
+                    slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00010055' + '1908023e00640a74656d706572617475720000000000012c0600',
+                  );
                   // Humidity
-                  commandsData.push(slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00020055' + '1708021d00640868756d69646974790000000000012c0900');
+                  commandsData.push(
+                    slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00020055' + '1708021d00640868756d69646974790000000000012c0900',
+                  );
                 }
                 if (!parsedData[i] || JSON.stringify(parsedData[i]) !== JSON.stringify(commandsData)) {
                   const commandsToExecute = [];
@@ -882,7 +1226,12 @@ export class AqaraS1ScenePanelController {
             if (sceneConfig?.enabled) {
               // numberOfConfiguredScenes++
               // TODO: trim the name to the max of what possible on the panel...
-              configuredScenesData += (sceneIDs[index] + sceneSerials[index] + sceneConfig.icon.toString(16).padStart(2, '0') + sceneConfig.name.length.toString(16).padStart(2, '0') + this.toHexStringFromCharacterString(sceneConfig.name));
+              configuredScenesData +=
+                sceneIDs[index] +
+                sceneSerials[index] +
+                sceneConfig.icon.toString(16).padStart(2, '0') +
+                sceneConfig.name.length.toString(16).padStart(2, '0') +
+                this.toHexStringFromCharacterString(sceneConfig.name);
             } else {
               unusedSceneIDs += sceneIDs[index];
             }
@@ -935,15 +1284,21 @@ export class AqaraS1ScenePanelController {
       // cancel the timeout...
       clearTimeout(this.lastCommandTimeout);
       // advance the command index and if a device is fully configured, save its data.
-      const currentConfiguredDeviceCommandsArray = this.configurationCommandsToExecute.length ? this.configurationCommandsToExecute[this.configurationCommandsToExecute.length - 1] : undefined;
+      const currentConfiguredDeviceCommandsArray = this.configurationCommandsToExecute.length
+        ? this.configurationCommandsToExecute[this.configurationCommandsToExecute.length - 1]
+        : undefined;
       if (currentConfiguredDeviceCommandsArray !== undefined) {
-        if (currentConfiguredDeviceCommandsArray.meta.index + 1 === currentConfiguredDeviceCommandsArray.commandsToExecute.length || currentConfiguredDeviceCommandsArray.meta.failureCount >= 3) {
+        if (
+          currentConfiguredDeviceCommandsArray.meta.index + 1 === currentConfiguredDeviceCommandsArray.commandsToExecute.length ||
+          currentConfiguredDeviceCommandsArray.meta.failureCount >= 3
+        ) {
           if (currentConfiguredDeviceCommandsArray.meta.failureCount < 3) {
             const deviceIndex = currentConfiguredDeviceCommandsArray.meta.deviceIndex;
             this.log.info('Finished configuration for deviceIndex ' + deviceIndex + ', Saving the sent commands in the context.');
             const parsedData = this.aqaraS1ExecutedConfigurationsData?.[currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss];
             if (parsedData) {
-              if (currentConfiguredDeviceCommandsArray.commandsToExecute[0].endsWith('000000000000000000000000')) { // Its a removed configuration...
+              if (currentConfiguredDeviceCommandsArray.commandsToExecute[0].endsWith('000000000000000000000000')) {
+                // Its a removed configuration...
                 // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
                 delete parsedData[deviceIndex];
                 // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
@@ -998,7 +1353,7 @@ export class AqaraS1ScenePanelController {
           // In case the timed out command is a multiple parts command (type 46), go back to the first part in the commands set...
           if (currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index][7] === '6') {
             const currentCommandPartNo = parseInt(currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index].substring(12, 14), 16);
-            currentConfiguredDeviceCommandsArray.meta.index -= (currentCommandPartNo - 1);
+            currentConfiguredDeviceCommandsArray.meta.index -= currentCommandPartNo - 1;
           }
           this.configurationCommandTimeout();
         }
@@ -1017,17 +1372,34 @@ export class AqaraS1ScenePanelController {
     const commandCategory = dataArray[dataStartIndex + 1]; // (71=to device, 72=from device and 73=is for all scenes transactions [config and usage])
     const commandType = dataArray[dataStartIndex + 3]; // 84=Attribute report of states, 24=ACK for commands, 44 commands for device (shouldn't happen here), 46=multi-part commands for device (also shouldn't happen here), c6=Multipart commands ACKs...
 
-    const integrityByteIndex = commandType === 0xc6 ? (dataStartIndex + 7) : (dataStartIndex + 5);
+    const integrityByteIndex = commandType === 0xc6 ? dataStartIndex + 7 : dataStartIndex + 5;
     let commandActionByteIndex = dataStartIndex + 6;
 
-    let sum = dataArray[dataStartIndex] + dataArray[dataStartIndex + 1] + dataArray[dataStartIndex + 2] + dataArray[dataStartIndex + 3] + dataArray[dataStartIndex + 4] + this.getInt8(dataArray[integrityByteIndex]);
+    let sum =
+      dataArray[dataStartIndex] +
+      dataArray[dataStartIndex + 1] +
+      dataArray[dataStartIndex + 2] +
+      dataArray[dataStartIndex + 3] +
+      dataArray[dataStartIndex + 4] +
+      this.getInt8(dataArray[integrityByteIndex]);
     if (commandType === 0xc6) {
-      sum += (dataArray[dataStartIndex + 5] + dataArray[dataStartIndex + 6]);
+      sum += dataArray[dataStartIndex + 5] + dataArray[dataStartIndex + 6];
       commandActionByteIndex = dataStartIndex + 8;
     }
     const commandAction = dataArray[commandActionByteIndex]; // 1=state report/scenes config, 2=configs, 3=scenes activation, 4=removals, 5=set state/states ACKs, 6=state request
 
-    this.log.debug('Data hex: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum);
+    this.log.debug(
+      'Data hex: ' +
+        data +
+        ', Data array: ' +
+        dataArray +
+        ', Integrity: ' +
+        dataArray[integrityByteIndex] +
+        ', Signed integrity: ' +
+        this.getInt8(dataArray[integrityByteIndex]) +
+        ', Sum: ' +
+        sum,
+    );
 
     if (sum === 512 || sum === 256 || sum === 768) {
       if (commandType === 0x84) {
@@ -1045,7 +1417,20 @@ export class AqaraS1ScenePanelController {
         ];
         const stateParam = [dataArray[dataStartIndex + 17], dataArray[dataStartIndex + 18], dataArray[dataStartIndex + 19], dataArray[dataStartIndex + 20]];
 
-        this.log.debug('commandCategory: 0x' + commandCategory.toString(16) + ', commandType: 0x' + commandType.toString(16) + ', commandAction: 0x' + commandAction.toString(16) + ', paramsSize: 0x' + paramsSize.toString(16) + ', deviceSerial: ' + deviceSerial + ', stateParam: ' + stateParam);
+        this.log.debug(
+          'commandCategory: 0x' +
+            commandCategory.toString(16) +
+            ', commandType: 0x' +
+            commandType.toString(16) +
+            ', commandAction: 0x' +
+            commandAction.toString(16) +
+            ', paramsSize: 0x' +
+            paramsSize.toString(16) +
+            ', deviceSerial: ' +
+            deviceSerial +
+            ', stateParam: ' +
+            stateParam,
+        );
 
         const deviceResourceType = this.toCharacterStringFromBytes(deviceSerial);
         const deviceSerialStr = this.toHexStringFromBytes(deviceSerial);
@@ -1113,7 +1498,12 @@ export class AqaraS1ScenePanelController {
                 // Position
                 // const positionCoverion = {'0000': 0, '3f80': 1, '4000': 2, '4040': 3, '4080': 4, '40a0': 5, '40c0': 6, '40e0': 7, '4100': 8, '4110': 9, '4120': 10,'4130': 11,'4140': 12,'4150': 13,'4160': 14,'4170': 15,'4180': 16,'4188': 17,'4190': 18,'4198': 19,'41a0': 20,'41a8': 21,'41b0': 22,'41b8': 23,'41c0': 24,'41c8': 25,'41d0': 26,'41d8': 27,'41e0': 28,'41e8': 29,'41f0': 30,'41f8': 31,'4200': 32,'4204': 33,'4208': 34,'420c': 35,'4210': 36,'4214': 37,'4218': 38,'421c': 39,'4220': 40,'4224': 41,'4228': 42,'422c': 43,'4230': 44,'4234': 45,'4238': 46,'423c': 47,'4240': 48,'4244': 49,'4248': 50,'424c': 51,'4250': 52,'4254': 53,'4258': 54,'425c': 55,'4260': 56,'4264': 57,'4268': 58,'426c': 59,'4270': 60,'4274': 61,'4278': 62,'427c': 63,'4280': 64,'4282': 65,'4284': 66,'4286': 67,'4288': 68,'428a': 69,'428c': 70,'428e': 71,'4290': 72,'4292': 73,'4294': 74,'4296': 75,'4298': 76,'429a': 77,'429c': 78,'429e': 79,'42a0': 80,'42a2': 81,'42a4': 82,'42a6': 83,'42a8': 84,'42aa': 85,'42ac': 86,'42ae': 87,'42b0': 88,'42b2': 89,'42b4': 90,'42b6': 91,'42b8': 92,'42ba': 93,'42bc': 94,'42be': 95,'42c0': 96,'42c2': 97,'42c4': 98,'42c6': 99,'42c8': 100}
                 // const position = this.getAqaraIntFromHex((((dataArray[dataStartIndex + 21] & 0xFF) << 8) | (dataArray[dataStartIndex + 22] & 0xFF))) // positionCoverion[dataArray[dataStartIndex + 21].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 22].toString(16).padStart(2, '0')]
-                const position = this.getFloatFromHex32Bit(dataArray[dataStartIndex + 21].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 22].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'));
+                const position = this.getFloatFromHex32Bit(
+                  dataArray[dataStartIndex + 21].toString(16).padStart(2, '0') +
+                    dataArray[dataStartIndex + 22].toString(16).padStart(2, '0') +
+                    dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') +
+                    dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'),
+                );
                 this.log.info('Position: ' + position);
 
                 const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
@@ -1219,18 +1609,44 @@ export class AqaraS1ScenePanelController {
           // Panel asking for data...
           this.log.debug('Asked data for param: ' + stateParam);
           if (stateParamInt32BE === 0x0d020055) {
-            this.sendFeelPageDataToPanel(deviceIeeeAddress, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '', '0d020055', this.lastWeatherData.weathercode.toString(16).padStart(8, '0'));
+            this.sendFeelPageDataToPanel(
+              deviceIeeeAddress,
+              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+              '0d020055',
+              this.lastWeatherData.weathercode.toString(16).padStart(8, '0'),
+            );
           } else if (stateParamInt32BE === 0x00040055) {
-            this.sendFeelPageDataToPanel(deviceIeeeAddress, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '', '00040055', this.getHexFromFloat32Bit(this.lastWeatherData.temperature));
+            this.sendFeelPageDataToPanel(
+              deviceIeeeAddress,
+              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+              '00040055',
+              this.getHexFromFloat32Bit(this.lastWeatherData.temperature),
+            );
           } else if (stateParamInt32BE === 0x00050055) {
-            this.sendFeelPageDataToPanel(deviceIeeeAddress, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '', '00050055', this.getHexFromFloat32Bit(this.lastWeatherData.humidity));
+            this.sendFeelPageDataToPanel(
+              deviceIeeeAddress,
+              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+              '00050055',
+              this.getHexFromFloat32Bit(this.lastWeatherData.humidity),
+            );
           } else if (stateParamInt32BE === 0x00060055) {
-            this.sendFeelPageDataToPanel(deviceIeeeAddress, this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '', '00060055', this.getHexFromFloat32Bit(this.lastWeatherData.uvindex));
+            this.sendFeelPageDataToPanel(
+              deviceIeeeAddress,
+              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+              '00060055',
+              this.getHexFromFloat32Bit(this.lastWeatherData.uvindex),
+            );
           } else if (stateParamInt32BE === 0x08001fa5) {
             // Names
             if (this.aqaraS1ActionsConfigData[deviceIeeeAddress]) {
               // this.log(this.aqaraS1ActionsConfigData[deviceIeeeAddress])
-              const panelControlledDeviceConfig: AqaraS1ScenePanelConfigKey = (deviceResourceType.startsWith('lights/') ? 'light_' + deviceResourceType.charAt(deviceResourceType.length - 1) : deviceResourceType.startsWith('curtain') ? 'curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1) : 'ac') as AqaraS1ScenePanelConfigKey;
+              const panelControlledDeviceConfig: AqaraS1ScenePanelConfigKey = (
+                deviceResourceType.startsWith('lights/')
+                  ? 'light_' + deviceResourceType.charAt(deviceResourceType.length - 1)
+                  : deviceResourceType.startsWith('curtain')
+                    ? 'curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)
+                    : 'ac'
+              ) as AqaraS1ScenePanelConfigKey;
               let name = panelControlledDeviceConfig as string;
               // this.log(panelControlledDeviceConfig)
               const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress][panelControlledDeviceConfig];
@@ -1308,19 +1724,24 @@ export class AqaraS1ScenePanelController {
 
               let tempRangesStr = '';
               if (deviceConfig?.modes.includes('heat') && deviceConfig.temperature_ranges?.heat) {
-                tempRangesStr += '00' + deviceConfig.temperature_ranges.heat.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.heat.highest.toString(16).padStart(2, '0');
+                tempRangesStr +=
+                  '00' + deviceConfig.temperature_ranges.heat.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.heat.highest.toString(16).padStart(2, '0');
               }
               if (deviceConfig?.modes.includes('cool') && deviceConfig.temperature_ranges?.cool) {
-                tempRangesStr += '01' + deviceConfig.temperature_ranges.cool.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.cool.highest.toString(16).padStart(2, '0');
+                tempRangesStr +=
+                  '01' + deviceConfig.temperature_ranges.cool.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.cool.highest.toString(16).padStart(2, '0');
               }
               if (deviceConfig?.modes.includes('auto') && deviceConfig.temperature_ranges?.auto) {
-                tempRangesStr += '02' + deviceConfig.temperature_ranges.auto.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.auto.highest.toString(16).padStart(2, '0');
+                tempRangesStr +=
+                  '02' + deviceConfig.temperature_ranges.auto.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.auto.highest.toString(16).padStart(2, '0');
               }
               if (deviceConfig?.modes.includes('fan') && deviceConfig.temperature_ranges?.fan) {
-                tempRangesStr += '03' + deviceConfig.temperature_ranges.fan.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.fan.highest.toString(16).padStart(2, '0');
+                tempRangesStr +=
+                  '03' + deviceConfig.temperature_ranges.fan.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.fan.highest.toString(16).padStart(2, '0');
               }
               if (deviceConfig?.modes.includes('dry') && deviceConfig.temperature_ranges?.dry) {
-                tempRangesStr += '04' + deviceConfig.temperature_ranges.dry.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.dry.highest.toString(16).padStart(2, '0');
+                tempRangesStr +=
+                  '04' + deviceConfig.temperature_ranges.dry.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.dry.highest.toString(16).padStart(2, '0');
               }
               this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '08001fa9', (tempRangesStr.length / 2).toString(16).padStart(2, '0') + tempRangesStr);
             } else {
@@ -1383,7 +1804,8 @@ export class AqaraS1ScenePanelController {
               }
             }
           }
-        } else if (commandCategory === 0x71 && commandAction === 0x07) { // TODO: check what it is, it seems to be ACKs for completed lights configuration commmands somehow, not sure yet... Also, it seems it waiiting to some response from the coordinator, IDK what i should send yet...
+        } else if (commandCategory === 0x71 && commandAction === 0x07) {
+          // TODO: check what it is, it seems to be ACKs for completed lights configuration commmands somehow, not sure yet... Also, it seems it waiiting to some response from the coordinator, IDK what i should send yet...
           // Seems to be an error configuration setup report (basically resending the commands fixes it...)
           // Might be i can just ignore it and let my timeout technique to resend the data...
           this.log.info('Light configuration notification received... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
@@ -1437,12 +1859,34 @@ export class AqaraS1ScenePanelController {
             this.log.info('Scene Activated... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
           }
         } else {
-          this.log.error('Unknown message from: ' + deviceIeeeAddress + ', Hex data: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum + ', commandCategory: 0x' + commandCategory.toString(16) + ', commandType: 0x' + commandType.toString(16) + ', commandAction: 0x' + commandAction.toString(16) + ', paramsSize: 0x' + paramsSize.toString(16));
+          this.log.error(
+            'Unknown message from: ' +
+              deviceIeeeAddress +
+              ', Hex data: ' +
+              data +
+              ', Data array: ' +
+              dataArray +
+              ', Integrity: ' +
+              dataArray[integrityByteIndex] +
+              ', Signed integrity: ' +
+              this.getInt8(dataArray[integrityByteIndex]) +
+              ', Sum: ' +
+              sum +
+              ', commandCategory: 0x' +
+              commandCategory.toString(16) +
+              ', commandType: 0x' +
+              commandType.toString(16) +
+              ', commandAction: 0x' +
+              commandAction.toString(16) +
+              ', paramsSize: 0x' +
+              paramsSize.toString(16),
+          );
         }
       } else if (commandType === 0x24) {
         const paramsSize = dataArray[dataStartIndex + 8];
 
-        if (commandCategory === 0x71 && commandAction === 0x02) { // ACKs for configuration commmands...
+        if (commandCategory === 0x71 && commandAction === 0x02) {
+          // ACKs for configuration commmands...
           if (this.configurationCommandsToExecute.length) {
             const configuredSlotID = this.toHexStringFromBytes([
               dataArray[dataStartIndex + 10],
@@ -1494,16 +1938,36 @@ export class AqaraS1ScenePanelController {
             dataArray[dataStartIndex + 17],
           ];
 
-          this.log.debug('commandCategory: 0x' + commandCategory.toString(16) + ', commandType: 0x' + commandType.toString(16) + ', commandAction: 0x' + commandAction.toString(16) + ', paramsSize: 0x' + paramsSize.toString(16) + ', deviceSerial: ' + deviceSerial);
+          this.log.debug(
+            'commandCategory: 0x' +
+              commandCategory.toString(16) +
+              ', commandType: 0x' +
+              commandType.toString(16) +
+              ', commandAction: 0x' +
+              commandAction.toString(16) +
+              ', paramsSize: 0x' +
+              paramsSize.toString(16) +
+              ', deviceSerial: ' +
+              deviceSerial,
+          );
 
           const deviceResourceType = this.toCharacterStringFromBytes(deviceSerial);
           // const deviceSerialStr = this.toHexStringFromBytes(deviceSerial)
 
-          if (dataArray[dataStartIndex + 9] === 0x01) { // A device is missing... (We sent a state to unconfigured device. For example, we sent a light on/off state for light_1 while it isn't configured on the panel, so, we should (re)configure it...
+          if (dataArray[dataStartIndex + 9] === 0x01) {
+            // A device is missing... (We sent a state to unconfigured device. For example, we sent a light on/off state for light_1 while it isn't configured on the panel, so, we should (re)configure it...
             //
           } else if (dataArray[dataStartIndex + 9] === 0x00) {
             this.log.info('State update ACK, Param: 0x' + dataArray[dataStartIndex + 18] + '.');
-            if (!this.aqaraS1ActionsConfigData[deviceIeeeAddress] || (deviceResourceType.startsWith('lights/') && !this.aqaraS1ActionsConfigData[deviceIeeeAddress][('light_' + deviceResourceType.charAt(deviceResourceType.length - 1) as AqaraS1ScenePanelConfigKey)]) || (deviceResourceType.startsWith('curtain') && !this.aqaraS1ActionsConfigData[deviceIeeeAddress][('curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)) as AqaraS1ScenePanelConfigKey]) || (deviceResourceType === 'air_cond' && !this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac)) { // A device is configured on the panel, but shouldn't be there (removed from config...), so, we should remove its configuration...
+            if (
+              !this.aqaraS1ActionsConfigData[deviceIeeeAddress] ||
+              (deviceResourceType.startsWith('lights/') &&
+                !this.aqaraS1ActionsConfigData[deviceIeeeAddress][('light_' + deviceResourceType.charAt(deviceResourceType.length - 1)) as AqaraS1ScenePanelConfigKey]) ||
+              (deviceResourceType.startsWith('curtain') &&
+                !this.aqaraS1ActionsConfigData[deviceIeeeAddress][('curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)) as AqaraS1ScenePanelConfigKey]) ||
+              (deviceResourceType === 'air_cond' && !this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac)
+            ) {
+              // A device is configured on the panel, but shouldn't be there (removed from config...), so, we should remove its configuration...
               //
             }
           }
@@ -1520,19 +1984,54 @@ export class AqaraS1ScenePanelController {
             dataArray[dataStartIndex + 17],
           ];
 
-          this.log.debug('commandCategory: 0x' + commandCategory.toString(16) + ', commandType: 0x' + commandType.toString(16) + ', commandAction: 0x' + commandAction.toString(16) + ', paramsSize: 0x' + paramsSize.toString(16) + ', deviceSerial: ' + deviceSerial);
+          this.log.debug(
+            'commandCategory: 0x' +
+              commandCategory.toString(16) +
+              ', commandType: 0x' +
+              commandType.toString(16) +
+              ', commandAction: 0x' +
+              commandAction.toString(16) +
+              ', paramsSize: 0x' +
+              paramsSize.toString(16) +
+              ', deviceSerial: ' +
+              deviceSerial,
+          );
 
           // deviceSerial should be === this.id for non temperature sensor weather updates...
           if (dataArray[dataStartIndex + 9] === 0x01) {
             // A device is missing...
           } else if (dataArray[dataStartIndex + 9] === 0x00) {
             this.log.info('Weather data update ACK, Param: 0x' + dataArray[dataStartIndex + 18] + '.');
-            if (!this.aqaraS1ActionsConfigData[deviceIeeeAddress] || ((dataArray[dataStartIndex + 18] === 0x01 || dataArray[dataStartIndex + 18] === 0x02) && !this.aqaraS1ActionsConfigData[deviceIeeeAddress].temperature_sensor)) {
+            if (
+              !this.aqaraS1ActionsConfigData[deviceIeeeAddress] ||
+              ((dataArray[dataStartIndex + 18] === 0x01 || dataArray[dataStartIndex + 18] === 0x02) && !this.aqaraS1ActionsConfigData[deviceIeeeAddress].temperature_sensor)
+            ) {
               // A device is set on the device, but shouldn't be there (removed from config...)
             }
           }
         } else {
-          this.log.error('Unknown message from: ' + deviceIeeeAddress + ', Hex data: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum + ', commandCategory: 0x' + commandCategory.toString(16) + ', commandType: 0x' + commandType.toString(16) + ', commandAction: 0x' + commandAction.toString(16) + ', paramsSize: 0x' + paramsSize.toString(16));
+          this.log.error(
+            'Unknown message from: ' +
+              deviceIeeeAddress +
+              ', Hex data: ' +
+              data +
+              ', Data array: ' +
+              dataArray +
+              ', Integrity: ' +
+              dataArray[integrityByteIndex] +
+              ', Signed integrity: ' +
+              this.getInt8(dataArray[integrityByteIndex]) +
+              ', Sum: ' +
+              sum +
+              ', commandCategory: 0x' +
+              commandCategory.toString(16) +
+              ', commandType: 0x' +
+              commandType.toString(16) +
+              ', commandAction: 0x' +
+              commandAction.toString(16) +
+              ', paramsSize: 0x' +
+              paramsSize.toString(16),
+          );
         }
       } else if (commandType === 0xc6) {
         if (commandCategory === 0x71 && commandAction === 0x02) {
@@ -1567,20 +2066,77 @@ export class AqaraS1ScenePanelController {
             // We should receive now commandType === 0x24 && commandCategory === 0x73 && commandAction === 0x01 above...
           }
         } else {
-          this.log.error('Unknown message from: ' + deviceIeeeAddress + ', Hex data: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum + ', commandCategory: 0x' + commandCategory.toString(16) + ', commandType: 0x' + commandType.toString(16) + ', commandAction: 0x' + commandAction.toString(16));
+          this.log.error(
+            'Unknown message from: ' +
+              deviceIeeeAddress +
+              ', Hex data: ' +
+              data +
+              ', Data array: ' +
+              dataArray +
+              ', Integrity: ' +
+              dataArray[integrityByteIndex] +
+              ', Signed integrity: ' +
+              this.getInt8(dataArray[integrityByteIndex]) +
+              ', Sum: ' +
+              sum +
+              ', commandCategory: 0x' +
+              commandCategory.toString(16) +
+              ', commandType: 0x' +
+              commandType.toString(16) +
+              ', commandAction: 0x' +
+              commandAction.toString(16),
+          );
         }
       } else {
-        this.log.error('Unknown message from: ' + deviceIeeeAddress + ', Hex data: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum + ', commandCategory: 0x' + commandCategory.toString(16) + ', commandType: 0x' + commandType.toString(16) + ', commandAction: 0x' + commandAction.toString(16));
+        this.log.error(
+          'Unknown message from: ' +
+            deviceIeeeAddress +
+            ', Hex data: ' +
+            data +
+            ', Data array: ' +
+            dataArray +
+            ', Integrity: ' +
+            dataArray[integrityByteIndex] +
+            ', Signed integrity: ' +
+            this.getInt8(dataArray[integrityByteIndex]) +
+            ', Sum: ' +
+            sum +
+            ', commandCategory: 0x' +
+            commandCategory.toString(16) +
+            ', commandType: 0x' +
+            commandType.toString(16) +
+            ', commandAction: 0x' +
+            commandAction.toString(16),
+        );
       }
     } else {
-      this.log.error('Unknown message from: ' + deviceIeeeAddress + ', Hex data: ' + data + ', Data array: ' + dataArray + ', Integrity: ' + dataArray[integrityByteIndex] + ', Signed integrity: ' + this.getInt8(dataArray[integrityByteIndex]) + ', Sum: ' + sum + ', commandCategory: 0x' + commandCategory?.toString(16) + ', commandType: 0x' + commandType?.toString(16) + ', commandAction: 0x' + commandAction?.toString(16));
+      this.log.error(
+        'Unknown message from: ' +
+          deviceIeeeAddress +
+          ', Hex data: ' +
+          data +
+          ', Data array: ' +
+          dataArray +
+          ', Integrity: ' +
+          dataArray[integrityByteIndex] +
+          ', Signed integrity: ' +
+          this.getInt8(dataArray[integrityByteIndex]) +
+          ', Sum: ' +
+          sum +
+          ', commandCategory: 0x' +
+          commandCategory?.toString(16) +
+          ', commandType: 0x' +
+          commandType?.toString(16) +
+          ', commandAction: 0x' +
+          commandAction?.toString(16),
+      );
     }
   }
 
   convertStringToType(value: string): string | number | boolean {
     // 1. Try converting to a number
     const numValue = Number(value);
-    // Check if it's a valid number and not NaN, while also ensuring the original 
+    // Check if it's a valid number and not NaN, while also ensuring the original
     // string isn't just an empty string which Number() converts to 0.
     if (!isNaN(numValue) && /* value.trim() !== '' && */ String(numValue) === value) {
       return numValue;
@@ -1609,7 +2165,8 @@ export class AqaraS1ScenePanelController {
     return dataToSend;
   }
 
-  generateAqaraS1ScenePanelCommands(cmdAction: string, data: string, cmdCatergory: string = '71') { // To device
+  generateAqaraS1ScenePanelCommands(cmdAction: string, data: string, cmdCatergory: string = '71') {
+    // To device
     const commandsToExecute = [];
     const cmdDataType = '41'; // Octed String
     const dataSize = data.length / 2;
@@ -1618,7 +2175,17 @@ export class AqaraS1ScenePanelController {
       const cmdType = '44'; // Single ZCL Command
       const commandSize = dataSize + 3;
       const integrity = 512 - (parseInt('aa', 16) + parseInt(cmdCatergory, 16) + commandSize + parseInt(cmdType, 16) + parseInt(counter, 16));
-      const dataToSend = 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + this.getUInt8(integrity).toString(16).padStart(2, '0') + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + data;
+      const dataToSend =
+        'aa' +
+        cmdCatergory +
+        commandSize.toString(16).padStart(2, '0') +
+        cmdType +
+        counter +
+        this.getUInt8(integrity).toString(16).padStart(2, '0') +
+        cmdAction +
+        cmdDataType +
+        dataSize.toString(16).padStart(2, '0') +
+        data;
       commandsToExecute.push(dataToSend);
     } else {
       const cmdType = '46'; // Multiple ZCL Commands
@@ -1627,14 +2194,21 @@ export class AqaraS1ScenePanelController {
 
       const firstCommandPartDataSize = 53;
       const restCommandPartsDataSize = 56;
+
       while (generatedCommandPartsDataIndex < dataSize) {
-        let stringEndPos = 0;
+        // 1. Determine the size of the current chunk
+        let currentChunkSize = Math.min(restCommandPartsDataSize, dataSize - generatedCommandPartsDataIndex);
         if (partsData.length === 0) {
-          stringEndPos = generatedCommandPartsDataIndex + firstCommandPartDataSize;
-        } else {
-          stringEndPos = generatedCommandPartsDataIndex + Math.min(restCommandPartsDataSize, (dataSize - generatedCommandPartsDataIndex));
+          currentChunkSize = firstCommandPartDataSize;
         }
+
+        // 2. Calculate the end position
+        const stringEndPos = generatedCommandPartsDataIndex + currentChunkSize;
+
+        // 3. Slice and push the data
         partsData.push(data.substring(generatedCommandPartsDataIndex * 2, stringEndPos * 2));
+
+        // 4. Advance the index directly using the end position
         generatedCommandPartsDataIndex = stringEndPos;
       }
 
@@ -1642,8 +2216,24 @@ export class AqaraS1ScenePanelController {
         const partData = partsData[index];
         const partDataSize = partData.length / 2;
         const commandSize = partDataSize + (index === 0 ? 3 : 0); // The first command contains the cmdType, dataType and dataSize.
-        const integrity = 512 - (parseInt('aa', 16) + parseInt(cmdCatergory, 16) + commandSize + parseInt(cmdType, 16) + parseInt(counter, 16) + parseInt('' + partsData.length, 16) + parseInt('' + (index + 1), 16));
-        const dataPrefix = 'aa' + cmdCatergory + commandSize.toString(16).padStart(2, '0') + cmdType + counter + partsData.length.toString(16).padStart(2, '0') + (index + 1).toString(16).padStart(2, '0') + this.getUInt8(integrity).toString(16).padStart(2, '0');
+        const integrity =
+          512 -
+          (parseInt('aa', 16) +
+            parseInt(cmdCatergory, 16) +
+            commandSize +
+            parseInt(cmdType, 16) +
+            parseInt(counter, 16) +
+            parseInt('' + partsData.length, 16) +
+            parseInt('' + (index + 1), 16));
+        const dataPrefix =
+          'aa' +
+          cmdCatergory +
+          commandSize.toString(16).padStart(2, '0') +
+          cmdType +
+          counter +
+          partsData.length.toString(16).padStart(2, '0') +
+          (index + 1).toString(16).padStart(2, '0') +
+          this.getUInt8(integrity).toString(16).padStart(2, '0');
         if (index === 0) {
           const dataToSend = dataPrefix + cmdAction + cmdDataType + dataSize.toString(16).padStart(2, '0') + partData;
           commandsToExecute.push(dataToSend);

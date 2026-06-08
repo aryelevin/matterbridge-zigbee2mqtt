@@ -1,4 +1,4 @@
-// matterbridge-zigbee2mqtt/src/JewishCalendarSensor.js
+// matterbridge-zigbee2mqtt-al/src/jewishCalendarSensor.js
 // Copyright © 2025 Arye Levin. All rights reserved.
 //
 // Matterbridge plugin for Zigbee2MQTT.
