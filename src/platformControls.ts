@@ -43,14 +43,14 @@ export class PlatformControls {
     this.switchesEnabledEndpoint.createDefaultIdentifyClusterServer().createDefaultGroupsClusterServer().createDefaultOnOffClusterServer();
 
     // The cluster attributes are set by MatterbridgeOnOffServer
-    this.switchesEnabledEndpoint.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
+    this.switchesEnabledEndpoint.addCommandHandler('identify', ({ request: { identifyTime } }) => {
       this.switchesEnabledEndpoint.log.info(`Enable Switches Command identify called identifyTime:${identifyTime}`);
     });
-    this.switchesEnabledEndpoint.addCommandHandler('on', async () => {
+    this.switchesEnabledEndpoint.addCommandHandler('on', () => {
       this.switchesEnabledEndpoint.log.info('Enable Switches Command on called');
       this.switchesOnOffDidSet(true);
     });
-    this.switchesEnabledEndpoint.addCommandHandler('off', async () => {
+    this.switchesEnabledEndpoint.addCommandHandler('off', () => {
       this.switchesEnabledEndpoint.log.info('Enable Switches Command off called');
       this.switchesOnOffDidSet(false);
     });
