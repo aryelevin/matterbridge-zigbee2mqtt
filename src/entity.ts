@@ -282,7 +282,7 @@ export class ZigbeeEntity extends EventEmitter {
         }
 
         if (key === 'system_mode' && this.propertyMap.get('system_mode')?.type === 'ac' && !('state' in payload)) {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, OnOff.Cluster.id, 'onOff', value !== 'off');
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, OnOff.id, 'onOff', value !== 'off');
         }
 
         // Lookup the property in the propertyMap and ZigbeeToMatter table
@@ -740,7 +740,7 @@ export class ZigbeeEntity extends EventEmitter {
       isChildEndpoint ? endpoint : '',
       'currentLevel',
       data.request.level,
-      data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') will also works...
+      data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.id, 'currentLevel') will also works...
       true,
     )) { return; }
     // End of Added by me: Arye Levin
@@ -796,7 +796,7 @@ export class ZigbeeEntity extends EventEmitter {
         isChildEndpoint ? endpoint : '',
         'currentLevel',
         data.request.level,
-        data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') will also works...
+        data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.id, 'currentLevel') will also works...
         true,
       )) { return; }
       // End of Added by me: Arye Levin
@@ -2150,12 +2150,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
       }
     }
 
-    if (mainEndpoint.clusterServersIds.includes(FanControl.Cluster.id)) {
+    if (mainEndpoint.clusterServersIds.includes(FanControl.id)) {
       const fan_mode = zigbeeDevice.propertyMap.get('fan_mode' + endpointSuffix);
       const fan_mode_values = fan_mode?.values;
       if (fan_mode_values?.includes('auto')) {
         zigbeeDevice.bridgedDevice.createMultiSpeedFanControlClusterServer(FanControl.FanMode.Auto, FanControl.FanModeSequence.OffLowMedHighAuto, 0, 0, 4, 0, 0);
-        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(FanControl.Cluster.id), 1);
+        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(FanControl.id), 1);
       }
     }
 
@@ -2424,7 +2424,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         );
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(FanControlCluster.id)) {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(FanControl.id)) {
       const fanModeLookup = ['Off', 'Low', 'Medium', 'High', 'On', 'Auto', 'Smart'];
       if (zigbeeDevice.bridgedDevice.hasAttributeServer(FanControl.id, 'fanMode'))
         void zigbeeDevice.bridgedDevice.subscribeAttribute(

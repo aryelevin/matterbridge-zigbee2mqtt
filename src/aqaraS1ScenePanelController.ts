@@ -14,7 +14,7 @@ import { MatterbridgeEndpoint } from 'matterbridge';
 // import { ClientRequest, IncomingMessage } from 'node:http';
 import { AnsiLogger, LogLevel, TimestampFormat } from 'matterbridge/logger';
 import { BridgedDeviceBasicInformation, ColorControl, FanControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import { deepCopy, deepEqual } from 'matterbridge/utils';
+import { deepCopy, deepEqual, fireAndForget } from 'matterbridge/utils';
 
 import { ZigbeeEntity } from './entity.js';
 import { ZigbeePlatform } from './module.js';
@@ -160,7 +160,7 @@ export class AqaraS1ScenePanelController {
           const onOff = newPayload['state' + endpointSuffix] ? newPayload['state' + endpointSuffix] === 'ON' : newPayload['system_mode' + endpointSuffix] !== 'off';
           const systemMode = newPayload['state' + endpointSuffix]
             ? newPayload['system_mode' + endpointSuffix]
-            : ['', 'auto', '', 'cool', 'heat', '', '', 'fan_only'][device?.bridgedDevice?.getAttribute(Thermostat.Cluster.id, 'systemMode')];
+            : ['', 'auto', '', 'cool', 'heat', '', '', 'fan_only'][device?.bridgedDevice?.getAttribute(Thermostat.id, 'systemMode')];
           const fanMode = newPayload['fan_mode' + endpointSuffix];
           const targetTemperature =
             newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] || 255;
@@ -484,15 +484,15 @@ export class AqaraS1ScenePanelController {
   }
 
   sendACStateToPanel(deviceIeeeAddress: string, acEndpoint: MatterbridgeEndpoint) {
-    const onOff = acEndpoint.getAttribute(OnOff.Cluster.id, 'onOff');
-    const systemMode = acEndpoint.getAttribute(Thermostat.Cluster.id, 'systemMode'); // Thermostat.SystemMode.Heat, Thermostat.SystemMode.Cool, Thermostat.SystemMode.Auto
-    const fanMode = acEndpoint.getAttribute(FanControl.Cluster.id, 'fanMode');
+    const onOff = acEndpoint.getAttribute(OnOff.id, 'onOff');
+    const systemMode = acEndpoint.getAttribute(Thermostat.id, 'systemMode'); // Thermostat.SystemMode.Heat, Thermostat.SystemMode.Cool, Thermostat.SystemMode.Auto
+    const fanMode = acEndpoint.getAttribute(FanControl.id, 'fanMode');
     const targetTemperature =
       acEndpoint.getAttribute(
-        Thermostat.Cluster.id,
+        Thermostat.id,
         systemMode === Thermostat.SystemMode.Cool ? 'occupiedCoolingSetpoint' : systemMode === Thermostat.SystemMode.Heat ? 'occupiedHeatingSetpoint' : '',
       ) || 255;
-    const currentTemperature = acEndpoint.getAttribute(Thermostat.Cluster.id, 'localTemperature');
+    const currentTemperature = acEndpoint.getAttribute(Thermostat.id, 'localTemperature');
     const internalThermostat = this.aqaraS1ActionsConfigData[deviceIeeeAddress]?.ac?.internal_thermostat;
     this.sendStateToPanel(
       deviceIeeeAddress,
@@ -508,13 +508,13 @@ export class AqaraS1ScenePanelController {
   }
 
   sendCoverPositionToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
-    const position = coverEndpoint.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths');
+    const position = coverEndpoint.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths');
     this.log.info('Position: ' + position);
     this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '01010055', this.getHexFromFloat32Bit(position / 100));
   }
 
   sendCoverMovementStateToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
-    const movementMatterState = coverEndpoint.getAttribute(WindowCovering.Cluster.id, 'operationalStatus').global;
+    const movementMatterState = coverEndpoint.getAttribute(WindowCovering.id, 'operationalStatus').global;
     const movementState =
       '000000' +
       (movementMatterState === WindowCovering.MovementStatus.Opening ? 1 : movementMatterState === WindowCovering.MovementStatus.Closing ? 0 : 2).toString(16).padStart(2, '0'); // TODO: Check the correct parameters...
@@ -523,26 +523,26 @@ export class AqaraS1ScenePanelController {
   }
 
   sendLightOnOffStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
-    const onOff = lightEndpoint.getAttribute(OnOff.Cluster.id, 'onOff');
+    const onOff = lightEndpoint.getAttribute(OnOff.id, 'onOff');
     this.log.info('On/Off: ' + onOff);
     this.sendLightDataToPanel(panelIeeeAddress, lightNo, '04010055', '000000' + (onOff ? 1 : 0).toString(16).padStart(2, '0'));
   }
 
   sendLightBrightnessStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
-    const brightness = Math.round((lightEndpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255);
+    const brightness = Math.round((lightEndpoint.getAttribute(LevelControl.id, 'currentLevel') / 254) * 255);
     this.log.info('Brightness: ' + brightness);
     this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e010055', '000000' + brightness.toString(16).padStart(2, '0'));
   }
 
   sendLightColorTemperatureStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
-    const colorTemperature = lightEndpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds');
+    const colorTemperature = lightEndpoint.getAttribute(ColorControl.id, 'colorTemperatureMireds');
     this.log.info('Color Temperature: ' + colorTemperature);
     this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e020055', '0000' + colorTemperature.toString(16).padStart(4, '0'));
   }
 
   sendLightColorStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
-    const colorX = lightEndpoint.getAttribute(ColorControl.Cluster.id, 'currentX');
-    const colorY = lightEndpoint.getAttribute(ColorControl.Cluster.id, 'currentY');
+    const colorX = lightEndpoint.getAttribute(ColorControl.id, 'currentX');
+    const colorY = lightEndpoint.getAttribute(ColorControl.id, 'currentY');
     this.log.info('Color X: ' + colorX + ', Color Y: ' + colorY);
     // this.log.info('Color Hue: ' + this.values.hue + ', Color Saturation: ' + this.values.saturation);
 
@@ -790,8 +790,8 @@ export class AqaraS1ScenePanelController {
         // // await this.unregisterZigbeeEntity(friendly_name);
         // const zigbeeDevice = this.zigbeeEntities.find((device) => device.device?.friendly_name === friendly_name);
         // if (zigbeeDevice) {
-        //   zigbeeDevice.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
-        //   zigbeeDevice.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+        //   zigbeeDevice.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
+        //   zigbeeDevice.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
         // }
       });
 
@@ -801,8 +801,8 @@ export class AqaraS1ScenePanelController {
         // // if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
         // const zigbeeDevice = this.zigbeeEntities?.find((device) => device.device?.friendly_name === friendly_name);
         // if (zigbeeDevice?.bridgedDevice) {
-        //   zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
-        //   zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+        //   zigbeeDevice.bridgedDevice.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
+        //   zigbeeDevice.bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
         // }
       });
 
@@ -1323,7 +1323,7 @@ export class AqaraS1ScenePanelController {
       const device = this.getDeviceEntity(currentConfiguredDeviceCommandsArray.meta.panelIeeeAddresss);
 
       // Check that the resource is reachable...
-      if (device?.bridgedDevice?.getAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable') !== true) {
+      if (device?.bridgedDevice?.getAttribute(BridgedDeviceBasicInformation.id, 'reachable') !== true) {
         this.log.error('Configuration cannot being sent to unreachable accessories, skipping...');
         this.lastCommandTimeout = undefined;
         this.configurationCommandsToExecute.pop();
@@ -1839,8 +1839,12 @@ export class AqaraS1ScenePanelController {
                     sceneExecutionActions?.buttonAction === 'Press' ||
                     sceneExecutionActions?.buttonAction === 'Release'
                   ) {
-                    // TODO: Test if it functions properly.
-                    endpointToControl.triggerSwitchEvent(sceneExecutionActions.buttonAction);
+                    fireAndForget(
+                      // TODO: Test if it functions properly.
+                      endpointToControl.triggerSwitchEvent(sceneExecutionActions.buttonAction, this.log),
+                      this.log,
+                      `Error triggering switch event ${sceneExecutionActions.buttonAction} on ${endpointToControl.deviceName}`,
+                    );
                   }
 
                   // Now convert numbers and bools to their types...
@@ -1855,8 +1859,16 @@ export class AqaraS1ScenePanelController {
             }
 
             // const buttonService = panelSensor.buttonServices[sceneNo];
-            panelDevice?.bridgedDevice?.getChildEndpointById('switch_' + sceneNo)?.triggerSwitchEvent('Single'); // issue a single press event...
-            this.log.info('Scene Activated... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
+            const panelDeviceEndpoint = panelDevice?.bridgedDevice?.getChildEndpointById('switch_' + sceneNo);
+            if (panelDeviceEndpoint) {
+              fireAndForget(
+                // TODO: Test if it functions properly.
+                panelDeviceEndpoint.triggerSwitchEvent('Single'), // issue a single press event...
+                this.log,
+                `Error triggering switch event Single on ${panelDeviceEndpoint.deviceName}`,
+              );
+              this.log.info('Scene Activated... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
+            }
           }
         } else {
           this.log.error(

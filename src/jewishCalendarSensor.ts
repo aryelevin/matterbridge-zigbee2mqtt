@@ -69,8 +69,8 @@ export class JewishCalendarSensor {
     const newValue = !contact;
     if (this.sensorState !== newValue) {
       this.sensorState = newValue;
-      await this.sensor.updateAttribute(BooleanState.Cluster.id, 'stateValue', newValue, this.sensor.log);
-      await this.sensor.triggerEvent(BooleanState.Cluster.id, 'stateChange', { stateValue: newValue }, this.sensor.log);
+      await this.sensor.updateAttribute(BooleanState.id, 'stateValue', newValue, this.sensor.log);
+      await this.sensor.triggerEvent(BooleanState.id, 'stateChange', { stateValue: newValue }, this.sensor.log);
     }
   }
 
