@@ -21,6 +21,9 @@
  * limitations under the License.
  */
 
+// TODO: Remove when require Matterbridge 3.8.1 or later
+/* eslint-disable @typescript-eslint/no-deprecated */
+
 import EventEmitter from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -1223,6 +1226,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
       // Create a virtual device for the empty group to use in automations
       zigbeeGroup.log.debug(`Group: ${gn}${group.friendly_name}${rs}${db} is a ${CYAN}virtual${db} group`);
       zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([onOffSwitch, bridgedNode, powerSource], { id: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
+      zigbeeGroup.bridgedDevice.createDefaultOnOffClusterServer();
       isSwitch = true;
       zigbeeGroup.propertyMap.set('state', { name: 'state', type: 'switch', endpoint: '' });
     } else {
@@ -1311,6 +1315,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
       }
       if (!deviceType) return zigbeeGroup;
       zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([deviceType, bridgedNode, powerSource], { id: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
+      if (deviceType.code === onOffSwitch.code) zigbeeGroup.bridgedDevice.createDefaultOnOffClusterServer();
     }
 
     if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
@@ -1327,7 +1332,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     zigbeeGroup.addBridgedDeviceBasicInformation();
     zigbeeGroup.addPowerSource();
-    zigbeeGroup.bridgedDevice.addRequiredClusterServers();
+    zigbeeGroup.bridgedDevice.addRequiredClusters();
 
     // Verify the device
     if (!zigbeeGroup.bridgedDevice || !zigbeeGroup.verifyMutableDevice(zigbeeGroup.bridgedDevice)) return zigbeeGroup;

@@ -17,8 +17,10 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Tishri', 'Heshvan', 'Kislev', 'Tevet', 'Shevat', 'Adar I', 'Adar II', 'Nisan', 'Iyar', 'Sivan', 'Tamuz', 'Av', 'Elul', 'Adar'];
 
 /**
- * src - Array || Argument object
- * dest - Array
+ *
+ * @param {[Array, object]} src - array or Argument object
+ * @param {Array} dest - Array
+ * @returns {Array} The dest array
  */
 const defaults = function (src: unknown[], dest: unknown[]) {
   let i = 0;
@@ -80,6 +82,10 @@ const stringify = function (daysSinceEpoch: number) {
 /**
  * months - till the beginnig of current year
  * leap - Boolean
+ *
+ * @param {number} months -
+ * @param {boolean} leap -
+ * @returns {number} -
  */
 const getNextYearInDays = function (months: number, leap: boolean) {
   const yearLength = 12 + Number(leap);
@@ -92,6 +98,10 @@ const getNextYearInDays = function (months: number, leap: boolean) {
  *   (1)  both have 30 days
  *   (0)  Heshvan has 29 days, Kislev has 30 days
  *   (-1) both have 29 days
+ *
+ * @param {number} daysSinceEpoch -
+ * @param {number} nextYearInDays -
+ * @returns {number} -
  */
 const getYearMode = function (daysSinceEpoch: number, nextYearInDays: number) {
   const yearLength = nextYearInDays - daysSinceEpoch;
@@ -105,20 +115,23 @@ const isLeap = function (year: number) {
 
 /**
     TODO: improve
-   * The following 2 converters are based on an idea introduced by Rabby
-   * Avraham Bar Hiyya in his Sefer Ha`Ibur, in second article, chapter 5
-   *	 link: http://www.daat.ac.il/daat/vl/haibur2/haibur201.pdf
-   * The main idea is as follow:
-   *   Moon's cycle (of 19 sun years) begins 3 year before, (at -2 or at 17),
-   *   then, sum of moon years must be greater than or equal to sun years' sum.
-   *   This rule leads to the following order of leap years: [1,3,6,9,11,14,17]
-   *   which is identical to the traditional order: [3,6,8,11,14,17,19] if
-   *   starting 3 years later.
-   */
+ * The following 2 converters are based on an idea introduced by Rabby
+ * Avraham Bar Hiyya in his Sefer Ha`Ibur, in second article, chapter 5
+ *	 link: http://www.daat.ac.il/daat/vl/haibur2/haibur201.pdf
+ * The main idea is as follow:
+ *   Moon's cycle (of 19 sun years) begins 3 year before, (at -2 or at 17),
+ *   then, sum of moon years must be greater than or equal to sun years' sum.
+ *   This rule leads to the following order of leap years: [1,3,6,9,11,14,17]
+ *   which is identical to the traditional order: [3,6,8,11,14,17,19] if
+ *   starting 3 years later.
+ */
 
 /**
  * months - zero-based
  * returns year - zero-based
+ *
+ * @param {number} months -
+ * @returns {number} -
  */
 const months2year = function (months: number) {
   return Math.floor(((months + 38) * CYCLE_YEARS) / CYCLE_MONTHS) - 3;
@@ -127,6 +140,9 @@ const months2year = function (months: number) {
 /**
  * year - zero-based
  * returns months - zero-based
+ *
+ * @param {number} year -
+ * @returns {number} -
  */
 const year2months = function (year: number) {
   return Math.ceil(((year + 3) * CYCLE_MONTHS) / CYCLE_YEARS) - 38;
@@ -135,6 +151,9 @@ const year2months = function (year: number) {
 /**
  * days - since Hebrew base (29/5/0) zero-based
  * returns months - zero-based
+ *
+ * @param {number} daysSinceHebrewBase -
+ * @returns {number} -
  */
 const days2yearsInMonths = function (daysSinceHebrewBase: number) {
   let months;
@@ -149,6 +168,9 @@ const days2yearsInMonths = function (daysSinceHebrewBase: number) {
 /**
  * months - till the beginnig of year
  * returns days till the beginnig of year
+ *
+ * @param {number} months -
+ * @returns {number} -
  */
 // TODO: improve this function - structure and line length
 const getNewYearInDays = function (months: number) {

@@ -10,19 +10,6 @@ import { LocationTag } from 'matterbridge/matter';
 import { BasicInformationServer } from 'matterbridge/matter/behaviors';
 import { BooleanState } from 'matterbridge/matter/clusters';
 
-// import * as Push from '../pushover.js'
-
-// var p = new Push( {
-//   user: 'u5purs1ef7xrxn7rnd3rrp5vzfzb71',
-//   token: 'a4wt2oipy5cvm1nkjvgsnq1drh9mv2',
-//   // httpOptions: {
-//   //   proxy: process.env['http_proxy'],
-//   //},
-//   // onerror: function(error) {},
-//   // update_sounds: true // update the list of sounds every day - will
-//   // prevent app from exiting.
-// })
-
 interface JewishCalendarSensorParams {
   name: string;
   debug: boolean;
