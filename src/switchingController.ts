@@ -324,7 +324,18 @@ export class SwitchingController {
               if (this.lastStates[sourceSwitchIeee]) {
                 this.lastStates[sourceSwitchIeee][paramToControl] = z2mValue;
               }
-              this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
+              if (actionSourceIsFromMatter && deviceIeee === sourceSwitchIeee) {
+                // Since the matter handler which calls this function caches (cachePublish()) the publish of the controlled light to z2m, then if the switch and linked device is same device,
+                // it will lead to a scenario where the source switches states publish will be sent before the device which controlled is published because of the caching logic,
+                // so the response from z2m for the switches publish will be received with the old device (the controlled device which the matter control wanted) state which will revert it back to its previous state.
+                // So, add a delay so it will be after its already sent (Another option is to add it to the device cache using the device's cachePublish() function, but this is a bit complicated
+                // since we need to make sure to get the correct device object including if its separated endpoint.).
+                setTimeout(() => {
+                  this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
+                }, 101);
+              } else {
+                this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
+              }
             }
           }
         } else {
