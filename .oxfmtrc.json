@@ -1,6 +1,6 @@
-// .oxfmtrc.json 1.0.2
+// .oxfmtrc.json 1.0.5
 
-// This Oxfmt configuration is designed for a TypeScript project using ESM modules.
+// This Oxfmt configuration (shared between all matterbridge packages) is designed for a TypeScript project using ESM modules.
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "ignorePatterns": [
@@ -10,6 +10,7 @@
     "**/build/**",
     "chip/**",
     "**/coverage/**",
+    "docs",
     "**/dist/**",
     "**/temp/**",
     "**/jest/**",
@@ -17,6 +18,7 @@
     "**/screenshots/**",
     "vendor/**",
     "**/package-lock.json",
+    "scripts/*.html",
     "eslint.config.js"
   ],
   "printWidth": 180,
@@ -37,7 +39,21 @@
   "embeddedLanguageFormatting": "auto",
   "singleAttributePerLine": false,
   "sortImports": {
-    "groups": ["side_effect", "builtin", "external", ["internal", "subpath"], ["parent", "sibling", "index"], "style", "unknown"]
+    "groups": [
+      "side_effect",
+      { "newlinesBetween": true },
+      "builtin",
+      { "newlinesBetween": true },
+      "external",
+      { "newlinesBetween": true },
+      ["internal", "subpath"],
+      { "newlinesBetween": true },
+      ["parent", "sibling", "index"],
+      { "newlinesBetween": true },
+      "style",
+      { "newlinesBetween": true },
+      "unknown"
+    ]
   },
   "sortPackageJson": false
 }

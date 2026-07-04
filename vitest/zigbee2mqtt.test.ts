@@ -1,37 +1,40 @@
-// src/zigbee2mqtt.test.ts
+/**
+ * @file vitest/zigbee2mqtt.test.ts
+ * @description This file contains the tests for the Zigbee2MQTT class.
+ * @author Luca Liguori
+ */
 
 const NAME = 'Zigbee';
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, jest, test } from '@jest/globals';
-import { HOMEDIR, setupTest } from 'matterbridge/jestutils';
 import { wait } from 'matterbridge/utils';
+import { HOMEDIR, setupTest } from 'matterbridge/vitest-utils';
 import { LogLevel } from 'node-ansi-logger';
 
-import type { Zigbee2MQTT as Zigbee2MQTTType } from './zigbee2mqtt.js';
+import type { Zigbee2MQTT as Zigbee2MQTTType } from '../src/zigbee2mqtt.js';
 
 // Create a client mock
 const mockClient = {
   // Event emitter methods
-  on: jest.fn<(...args: any[]) => void>(),
-  removeAllListeners: jest.fn<(...args: any[]) => void>(),
+  on: vi.fn<(...args: any[]) => void>(),
+  removeAllListeners: vi.fn<(...args: any[]) => void>(),
   // MQTT client methods
-  endAsync: jest.fn<(force?: boolean) => Promise<void>>().mockResolvedValue(undefined),
-  subscribeAsync: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
-  publishAsync: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+  endAsync: vi.fn<(force?: boolean) => Promise<void>>().mockResolvedValue(),
+  subscribeAsync: vi.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(),
+  publishAsync: vi.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(),
 };
 
 // ESM-safe module mock
-const connectAsync = jest.fn<(brokerUrl: string, opts: any, allowRetries?: boolean) => Promise<typeof mockClient>>().mockResolvedValue(mockClient);
-jest.unstable_mockModule('mqtt', () => ({
+const connectAsync = vi.fn<(brokerUrl: string, opts: any, allowRetries?: boolean) => Promise<typeof mockClient>>().mockResolvedValue(mockClient);
+vi.doMock('mqtt', () => ({
   // Named export
   connectAsync,
 }));
 
 // Import the module after the mock
-const { Zigbee2MQTT } = await import('./zigbee2mqtt.js');
+const { Zigbee2MQTT } = await import('../src/zigbee2mqtt.js');
 
 // Setup the test environment
 await setupTest(NAME, false);
@@ -56,12 +59,90 @@ describe('TestZigbee2MQTT', () => {
     z2m.setLogLevel(LogLevel.DEBUG);
     // @ts-expect-error accessing private member for testing purposes
     expect(z2m.log.logLevel).toBe(LogLevel.DEBUG);
+    z2m.setLogDebug(false);
+    // @ts-expect-error accessing private member for testing purposes
+    expect(z2m.log.logLevel).toBe(LogLevel.INFO);
   });
 
   test('Data path', async () => {
     z2m.setDataPath(HOMEDIR);
     // @ts-expect-error accessing private member for testing purposes
     expect(z2m.mqttDataPath).toBe(HOMEDIR);
+  });
+
+  test('setDataPath removes stale debug files', () => {
+    const dataPath = path.join(HOMEDIR, 'z2m-data-path-cleanup');
+    fs.mkdirSync(dataPath, { recursive: true });
+    const staleFiles = ['bridge-payloads.txt', 'bridge-publish-payloads.txt', 'matter-commands.txt'];
+    for (const file of staleFiles) {
+      fs.writeFileSync(path.join(dataPath, file), 'stale');
+    }
+
+    const z = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    z.setDataPath(dataPath);
+
+    for (const file of staleFiles) {
+      expect(fs.existsSync(path.join(dataPath, file))).toBe(false);
+    }
+  });
+
+  test('setDataPath handles EEXIST when target is a file', () => {
+    const safePath = path.join(HOMEDIR, 'z2m-data-path-safe');
+    const filePath = path.join(HOMEDIR, 'z2m-data-path-file');
+    fs.mkdirSync(safePath, { recursive: true });
+    fs.writeFileSync(filePath, 'not a directory');
+    const z = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    // @ts-expect-error private access for test
+    z.mqttDataPath = safePath;
+
+    z.setDataPath(filePath);
+
+    // @ts-expect-error private access for test
+    expect(z.mqttDataPath).toBe(safePath);
+  });
+
+  test('writeBufferJSON writes JSON, handles write errors, and handles parser throws', async () => {
+    const dataPath = path.join(HOMEDIR, 'z2m-buffer-json');
+    fs.mkdirSync(dataPath, { recursive: true });
+    const z = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    // @ts-expect-error private access for test
+    z.mqttDataPath = dataPath;
+
+    // @ts-expect-error private method access for test
+    z.writeBufferJSON('ok', Buffer.from(JSON.stringify({ ok: true })));
+    await wait(50);
+    expect(JSON.parse(fs.readFileSync(path.join(dataPath, 'ok.json'), 'utf-8'))).toEqual({ ok: true });
+
+    const fileDataPath = path.join(HOMEDIR, 'z2m-buffer-json-file');
+    fs.writeFileSync(fileDataPath, 'not a directory');
+    // @ts-expect-error private access for test
+    z.mqttDataPath = fileDataPath;
+    // @ts-expect-error private method access for test
+    z.writeBufferJSON('write-error', Buffer.from(JSON.stringify({ ok: false })));
+    await wait(50);
+    expect(z).toBeDefined();
+
+    // @ts-expect-error private method override for test
+    z.tryJsonParse = vi.fn(() => {
+      throw new Error('parse-fail');
+    });
+    // @ts-expect-error private method access for test
+    z.writeBufferJSON('parse-error', Buffer.from('{}'));
+    expect(z).toBeDefined();
+  });
+
+  test('writeFile writes data successfully', async () => {
+    const dataPath = path.join(HOMEDIR, 'z2m-write-file');
+    fs.mkdirSync(dataPath, { recursive: true });
+    const z = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    // @ts-expect-error private access for test
+    z.mqttDataPath = dataPath;
+
+    // @ts-expect-error private method access for test
+    z.writeFile('plain.txt', 'plain data');
+    await wait(50);
+
+    expect(fs.readFileSync(path.join(dataPath, 'plain.txt'), 'utf-8')).toBe('plain data');
   });
 
   test('Zigbee2MQTT start', async () => {
@@ -126,9 +207,9 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('messageHandler: bridge/info, devices, groups emit events', async () => {
-    const infoSpy = jest.fn();
-    const devSpy = jest.fn();
-    const grpSpy = jest.fn();
+    const infoSpy = vi.fn();
+    const devSpy = vi.fn();
+    const grpSpy = vi.fn();
     z2m.on('bridge-info', infoSpy);
     z2m.on('bridge-devices', devSpy);
     z2m.on('bridge-groups', grpSpy);
@@ -162,9 +243,9 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('device message emits mqtt MESSAGE-<friendly_name> and availability ONLINE-<friendly_name> OFFLINE-<friendly_name>', async () => {
-    const messageSpy = jest.fn();
-    const onlineSpy = jest.fn();
-    const offlineSpy = jest.fn();
+    const messageSpy = vi.fn();
+    const onlineSpy = vi.fn();
+    const offlineSpy = vi.fn();
     z2m.on('MESSAGE-Lamp1', messageSpy);
     z2m.on('ONLINE-Lamp1', onlineSpy);
     z2m.on('OFFLINE-Lamp1', offlineSpy);
@@ -180,7 +261,7 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('group message emits mqtt MESSAGE-<friendly_name>', async () => {
-    const grpMessageSpy = jest.fn();
+    const grpMessageSpy = vi.fn();
     z2m.on('MESSAGE-Group1', grpMessageSpy);
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Group1', Buffer.from(JSON.stringify({ state: 'ON' })));
@@ -188,15 +269,15 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('bridge responses emit expected events', async () => {
-    const pjSpy = jest.fn();
-    const rnSpy = jest.fn();
-    const rmSpy = jest.fn();
-    const optSpy = jest.fn();
-    const gAddSpy = jest.fn();
-    const gRemSpy = jest.fn();
-    const gRenSpy = jest.fn();
-    const gAddMS = jest.fn();
-    const gRemMS = jest.fn();
+    const pjSpy = vi.fn();
+    const rnSpy = vi.fn();
+    const rmSpy = vi.fn();
+    const optSpy = vi.fn();
+    const gAddSpy = vi.fn();
+    const gRemSpy = vi.fn();
+    const gRenSpy = vi.fn();
+    const gAddMS = vi.fn();
+    const gRemMS = vi.fn();
     z2m.on('permit_join', pjSpy);
     z2m.on('device_rename', rnSpy);
     z2m.on('device_remove', rmSpy);
@@ -252,9 +333,9 @@ describe('TestZigbee2MQTT', () => {
     expect(ok).toBe(true);
     const rd = z2m.readConfig(file);
     expect(rd).toEqual(obj);
-    const spy = jest.fn();
+    const spy = vi.fn();
     z2m.on('MESSAGE-EntityX', spy);
-    z2m.emitPayload('EntityX', { state: 'ON' } as any);
+    z2m.emitPayload('EntityX', { state: 'ON' });
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
   });
 
@@ -272,7 +353,7 @@ describe('TestZigbee2MQTT', () => {
     // @ts-expect-error private access for test
     expect(zTls.options.protocol).toBe(undefined);
     // @ts-expect-error private access for test
-    expect(zTls.options.rejectUnauthorized).toBe(true);
+    expect(zTls.options.rejectUnauthorized).toBe(undefined);
 
     const zPlain = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 'myId', 4);
     // @ts-expect-error private access for test
@@ -314,8 +395,8 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('Coordinator availability handled', async () => {
-    const on = jest.fn();
-    const off = jest.fn();
+    const on = vi.fn();
+    const off = vi.fn();
     z2m.on('ONLINE-Coordinator', on);
     z2m.on('OFFLINE-Coordinator', off);
     // @ts-expect-error private method access for test
@@ -336,8 +417,8 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('group availability handled', async () => {
-    const on = jest.fn();
-    const off = jest.fn();
+    const on = vi.fn();
+    const off = vi.fn();
     z2m.on('ONLINE-Group1', on);
     z2m.on('OFFLINE-Group1', off);
     // @ts-expect-error private method access for test
@@ -476,7 +557,7 @@ describe('TestZigbee2MQTT', () => {
 
   test('start emits mqtt_error when connect fails', async () => {
     const z2mErr = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
-    const errSpy = jest.fn();
+    const errSpy = vi.fn();
     z2mErr.on('mqtt_error', errSpy);
     connectAsync.mockRejectedValueOnce(new Error('connect-fail'));
     z2mErr.start();
@@ -559,7 +640,7 @@ describe('TestZigbee2MQTT', () => {
     const z = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
     z.start();
     await wait(150);
-    const subSpy = jest.fn();
+    const subSpy = vi.fn();
     z.on('mqtt_subscribed', subSpy);
     z.subscribe('zigbee2mqtt/#');
     await wait(100);
@@ -611,8 +692,10 @@ describe('TestZigbee2MQTT', () => {
   test('constructor mqtt+unix:// branch is handled with and without ca/cert/key', () => {
     const zUnix = new Zigbee2MQTT('mqtt+unix://localhost', 0, 'zigbee2mqtt', undefined, undefined, undefined, 5, 'ca.pem', undefined, 'cert.pem', 'key.pem');
     expect(zUnix).toBeInstanceOf(Zigbee2MQTT);
+    expect(zUnix.getUrl()).toBe('mqtt+unix://localhost');
     const zUnixPlain = new Zigbee2MQTT('mqtt+unix://localhost', 0, 'zigbee2mqtt');
     expect(zUnixPlain).toBeInstanceOf(Zigbee2MQTT);
+    expect(zUnixPlain.getUrl()).toBe('mqtt+unix://localhost');
   });
 
   test('constructor TLS with readable ca/cert/key files reads file buffers', () => {
@@ -641,13 +724,13 @@ describe('TestZigbee2MQTT', () => {
 
   test('MQTT client event handlers are fired correctly', async () => {
     const z2mEv = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
-    const connectSpy = jest.fn();
-    const reconnectSpy = jest.fn();
-    const closeSpy = jest.fn();
-    const endSpy = jest.fn();
-    const offlineSpy = jest.fn();
-    const errorSpy = jest.fn();
-    const msgSpy = jest.fn();
+    const connectSpy = vi.fn();
+    const reconnectSpy = vi.fn();
+    const closeSpy = vi.fn();
+    const endSpy = vi.fn();
+    const offlineSpy = vi.fn();
+    const errorSpy = vi.fn();
+    const msgSpy = vi.fn();
     z2mEv.on('mqtt_connect', connectSpy);
     z2mEv.on('mqtt_reconnect', reconnectSpy);
     z2mEv.on('mqtt_close', closeSpy);
@@ -662,7 +745,7 @@ describe('TestZigbee2MQTT', () => {
     z2mEv.start();
     await wait(50);
 
-    const getHandler = (event: string) => mockClient.on.mock.calls.find(([e]) => e === event)?.[1] as (...args: any[]) => void;
+    const getHandler = (event: string): ((...args: any[]) => void) => mockClient.on.mock.calls.find(([e]) => e === event)?.[1] as (...args: any[]) => void;
 
     getHandler('connect')?.({});
     expect(connectSpy).toHaveBeenCalled();

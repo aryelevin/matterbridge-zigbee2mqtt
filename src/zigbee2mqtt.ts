@@ -1,9 +1,9 @@
 /**
+ * @file src/zigbee2mqtt.ts
  * @description This file contains the class Zigbee2MQTT and all the interfaces to communicate with zigbee2MQTT.
- * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @created 2023-06-30
- * @version 3.0.0
+ * @version 3.1.0
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -21,18 +21,17 @@
  * limitations under the License.
  */
 
-/* eslint-disable jsdoc/reject-any-type */
-
 import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { connectAsync, ErrorWithReasonCode, IClientOptions, IConnackPacket, IDisconnectPacket, IPublishPacket, MqttClient, Packet } from 'mqtt';
+import { getErrorMessage, isErrnoException } from 'matterbridge/utils';
+import { connectAsync, type ErrorWithReasonCode, type IClientOptions, type IConnackPacket, type IDisconnectPacket, type IPublishPacket, type MqttClient, type Packet } from 'mqtt';
 import { AnsiLogger, db, dn, er, gn, hk, id, idn, ign, LogLevel, REVERSE, REVERSEOFF, rs, TimestampFormat, zb } from 'node-ansi-logger';
 
-import { Payload } from './payloadTypes.js';
-import { BridgeDevice, BridgeExtension, BridgeGroup, BridgeInfo, Topology } from './zigbee2mqttTypes.js';
+import type { Payload } from './payloadTypes.js';
+import type { BridgeDevice, BridgeExtension, BridgeGroup, BridgeInfo, Topology } from './zigbee2mqttTypes.js';
 
 interface PublishQueue {
   topic: string;
@@ -64,7 +63,7 @@ export class Zigbee2MQTT extends EventEmitter {
   private z2mPermitJoin: boolean;
   private z2mPermitJoinTimeout: number;
   private z2mVersion: string;
-  public z2mBridge: BridgeInfo;
+  public z2mBridge?: BridgeInfo;
   public z2mDevices: BridgeDevice[];
   public z2mGroups: BridgeGroup[];
   loggedBridgePayloads = 0;
@@ -91,7 +90,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @param {string} [mqttUsername] - Optional username for MQTT authentication.
    * @param {string} [mqttPassword] - Optional password for MQTT authentication.
    * @param {string} [mqttClientId] - Optional client identifier for MQTT connection. If not set, a random client id will be generated.
-   * @param {5 | 4 | 3} [protocolVersion] - MQTT protocol version (5, 4, or 3). Default is 5.
+   * @param {3 | 4 | 5} [protocolVersion] - MQTT protocol version (3, 4, or 5). Default is 5.
    * @param {string} [ca] - Path to a CA certificate file for verifying the MQTT broker when using 'mqtts://'. Required for secure connections.
    * @param {boolean} [rejectUnauthorized] - If true, only accept server certificates signed by a trusted CA. Set to false to allow self-signed/untrusted certs (not recommended).
    * @param {string} [cert] - Path to a client certificate file for mutual TLS authentication (optional, only needed if the broker requires client certificates).
@@ -112,7 +111,7 @@ export class Zigbee2MQTT extends EventEmitter {
     mqttUsername?: string,
     mqttPassword?: string,
     mqttClientId?: string,
-    protocolVersion: 5 | 4 | 3 = 5,
+    protocolVersion: 3 | 4 | 5 = 5,
     ca?: string,
     rejectUnauthorized?: boolean,
     cert?: string,
@@ -137,9 +136,7 @@ export class Zigbee2MQTT extends EventEmitter {
     // Setup TLS authentication if needed:
     if (mqttHost.startsWith('mqtts://') || mqttHost.startsWith('wss://')) {
       this.log.debug('Using mqtts:// protocol for secure MQTT connection');
-      if (!ca) {
-        this.log.info('When using mqtts:// protocol, you must provide the ca certificate for SSL/TLS connections with self-signed certificates.');
-      } else {
+      if (ca) {
         try {
           fs.accessSync(ca, fs.constants.R_OK);
           this.options.ca = fs.readFileSync(ca);
@@ -147,8 +144,10 @@ export class Zigbee2MQTT extends EventEmitter {
         } catch (error) {
           this.log.error(`Error reading the CA certificate from ${ca}:`, error);
         }
+      } else {
+        this.log.info('When using mqtts:// protocol, you must provide the ca certificate for SSL/TLS connections with self-signed certificates.');
       }
-      this.options.rejectUnauthorized = rejectUnauthorized !== undefined ? rejectUnauthorized : true; // Default to true for security
+      this.options.rejectUnauthorized = rejectUnauthorized;
       this.log.info(`TLS rejectUnauthorized is set to ${this.options.rejectUnauthorized}`);
       // If cert and key are provided, use them for client authentication with SSL/TLS. Mandatory for mqtts:// connections when require_certificate true
       if (cert && key) {
@@ -198,7 +197,7 @@ export class Zigbee2MQTT extends EventEmitter {
     this.z2mPermitJoin = false;
     this.z2mPermitJoinTimeout = 0;
     this.z2mVersion = '';
-    this.z2mBridge = {} as BridgeInfo;
+    this.z2mBridge = undefined;
     this.z2mDevices = [];
     this.z2mGroups = [];
 
@@ -235,31 +234,30 @@ export class Zigbee2MQTT extends EventEmitter {
       fs.mkdirSync(dataPath, { recursive: true });
       this.mqttDataPath = dataPath;
       this.log.debug(`Data directory ${this.mqttDataPath} created successfully.`);
-    } catch (e) {
-      const error = e as NodeJS.ErrnoException;
-      if (error.code === 'EEXIST') {
+    } catch (error: unknown) {
+      if (isErrnoException(error) && error.code === 'EEXIST') {
         this.log.debug('Data directory already exists');
       } else {
-        this.log.error('Error creating data directory:', error);
+        this.log.error(`Error creating data directory: ${getErrorMessage(error)}`);
       }
     }
     try {
       const filePath = path.join(this.mqttDataPath, 'bridge-payloads.txt');
       fs.unlinkSync(filePath);
-    } catch (error) {
-      this.log.debug(`Error deleting bridge-payloads.txt: ${error}`);
+    } catch (error: unknown) {
+      this.log.debug(`Error deleting bridge-payloads.txt: ${getErrorMessage(error)}`);
     }
     try {
       const filePath = path.join(this.mqttDataPath, 'bridge-publish-payloads.txt');
       fs.unlinkSync(filePath);
-    } catch (error) {
-      this.log.debug(`Error deleting bridge-publish-payloads.txt: ${error}`);
+    } catch (error: unknown) {
+      this.log.debug(`Error deleting bridge-publish-payloads.txt: ${getErrorMessage(error)}`);
     }
     try {
       const filePath = path.join(this.mqttDataPath, 'matter-commands.txt');
       fs.unlinkSync(filePath);
-    } catch (error) {
-      this.log.debug(`Error deleting matter-commands.txt: ${error}`);
+    } catch (error: unknown) {
+      this.log.debug(`Error deleting matter-commands.txt: ${getErrorMessage(error)}`);
     }
   }
 
@@ -275,7 +273,7 @@ export class Zigbee2MQTT extends EventEmitter {
   /**
    * Start the MQTT connection.
    */
-  public start() {
+  public start(): void {
     this.log.debug(`Starting connection to ${this.getUrl()}...`);
 
     connectAsync(this.getUrl(), this.options)
@@ -283,7 +281,7 @@ export class Zigbee2MQTT extends EventEmitter {
         this.log.debug('Connection established');
         this.mqttClient = client;
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // oxlint-disable-next-line typescript/no-unused-vars
         this.mqttClient.on('connect', (packet: IConnackPacket) => {
           this.log.debug(`MQTT client connect to ${this.getUrl()}${rs}` /* , connack*/);
           this.mqttIsConnected = true;
@@ -327,17 +325,17 @@ export class Zigbee2MQTT extends EventEmitter {
           this.emit('mqtt_error', error);
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // oxlint-disable-next-line typescript/no-unused-vars
         this.mqttClient.on('packetsend', (packet: Packet) => {
           // this.log.debug('classZigbee2MQTT=>Event packetsend');
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // oxlint-disable-next-line typescript/no-unused-vars
         this.mqttClient.on('packetreceive', (packet: Packet) => {
           // this.log.debug('classZigbee2MQTT=>Event packetreceive');
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // oxlint-disable-next-line typescript/no-unused-vars
         this.mqttClient.on('message', (topic: string, payload: Buffer, packet: IPublishPacket) => {
           // this.log.debug(`classZigbee2MQTT=>Event message topic: ${topic} payload: ${payload.toString()} packet: ${debugStringify(packet)}`);
           this.messageHandler(topic, payload);
@@ -354,16 +352,18 @@ export class Zigbee2MQTT extends EventEmitter {
         this.mqttKeepaliveInterval = setInterval(
           () => {
             this.log.debug('Publishing keepalive MQTT message');
-            this.mqttClient?.publishAsync(`clients/${this.options.clientId}/heartbeat`, 'alive', { qos: 2 }).catch((error) => {
-              this.log.error('Error publishing keepalive MQTT message:', error);
+            // oxlint-disable-next-line promise/no-nesting -- cause it is not
+            this.mqttClient?.publishAsync(`clients/${this.options.clientId}/heartbeat`, 'alive', { qos: 2 }).catch((error: unknown) => {
+              this.log.error(`Error publishing keepalive MQTT message: ${getErrorMessage(error)}`);
             });
           },
+          // v8 ignore next
           (this.options.keepalive ?? 60) * 1000,
         ).unref();
         return;
       })
-      .catch((error) => {
-        this.log.error(`Error connecting to ${this.getUrl()}: ${error.message}`);
+      .catch((error: unknown) => {
+        this.log.error(`Error connecting to ${this.getUrl()}: ${getErrorMessage(error)}`);
         this.emit('mqtt_error', error);
       });
   }
@@ -371,7 +371,7 @@ export class Zigbee2MQTT extends EventEmitter {
   /**
    * Stop the MQTT connection.
    */
-  public stop() {
+  public stop(): void {
     if (this.mqttKeepaliveInterval) {
       clearInterval(this.mqttKeepaliveInterval);
       this.mqttKeepaliveInterval = undefined;
@@ -392,8 +392,8 @@ export class Zigbee2MQTT extends EventEmitter {
           this.log.debug('Connection closed');
           return;
         })
-        .catch((error) => {
-          this.log.error(`Error closing connection: ${error.message}`);
+        .catch((error: unknown) => {
+          this.log.error(`Error closing connection: ${getErrorMessage(error)}`);
         });
     }
   }
@@ -403,7 +403,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {string} topic - The MQTT topic to subscribe to.
    */
-  public subscribe(topic: string) {
+  public subscribe(topic: string): void {
     if (this.mqttClient && this.mqttIsConnected) {
       this.log.debug(`Subscribing topic: ${topic}`);
       // Use subscribeAsync for promise-based handling
@@ -414,8 +414,8 @@ export class Zigbee2MQTT extends EventEmitter {
           this.emit('mqtt_subscribed');
           return;
         })
-        .catch((error) => {
-          this.log.error(`Subscribe error: ${error} on topic: ${topic}`);
+        .catch((error: unknown) => {
+          this.log.error(`Subscribe error: ${getErrorMessage(error)} on topic: ${topic}`);
         });
     } else {
       this.log.error('Unable to subscribe, client not connected or unavailable');
@@ -429,8 +429,8 @@ export class Zigbee2MQTT extends EventEmitter {
    * @param {string} message - The message to publish.
    * @param {boolean} [queue] - Whether to queue the message if the client is not connected. Default is false.
    */
-  public publish(topic: string, message: string, queue: boolean = false) {
-    const startInterval = () => {
+  public publish(topic: string, message: string, queue: boolean = false): void {
+    const startInterval = (): void => {
       if (this.mqttPublishQueueTimeout) {
         return;
       }
@@ -443,8 +443,10 @@ export class Zigbee2MQTT extends EventEmitter {
           // this.publish(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message);
 
           this.mqttPublishInflights++;
+          // oxlint-disable-next-line promise/catch-or-return
           this.mqttClient
             .publishAsync(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message, { qos: 2 })
+            // oxlint-disable-next-line promise/always-return
             .then(() => {
               this.log.debug(
                 `**Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`,
@@ -452,22 +454,24 @@ export class Zigbee2MQTT extends EventEmitter {
               this.emit('mqtt_published');
               this.mqttPublishInflights--;
             })
-            .catch((error) => {
+            .catch((error: unknown) => {
               this.mqttPublishInflights--;
               this.log.error(
-                `****Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`,
+                `****Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} error: ${getErrorMessage(error)} on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`,
               );
             })
             .finally(() => {
               this.mqttPublishQueue.splice(0, 1);
             });
         } else {
+          // oxlint-disable-next-line no-use-before-define
           stopInterval();
         }
       }, 50);
     };
 
-    const stopInterval = () => {
+    const stopInterval = (): void => {
+      // v8 ignore else
       if (this.mqttPublishQueueTimeout) {
         this.log.debug(`**Stop publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} interval`);
         clearInterval(this.mqttPublishQueueTimeout);
@@ -485,20 +489,23 @@ export class Zigbee2MQTT extends EventEmitter {
 
       this.log.debug(`Publishing ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} topic: ${topic} message: ${message}`);
       this.mqttPublishInflights++;
+      // oxlint-disable-next-line promise/catch-or-return
       this.mqttClient
         .publishAsync(topic, message, { qos: 2 })
+        // oxlint-disable-next-line promise/always-return
         .then(() => {
           this.log.debug(`Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message}`);
           this.emit('mqtt_published');
           // Log the first 10000 payloads
+          // v8 ignore else
           if (this.log.logLevel === LogLevel.DEBUG && this.loggedPublishPayloads < 10000) {
             const filePath = path.join(this.mqttDataPath, 'bridge-publish-payloads.txt');
             fs.appendFileSync(filePath, `${new Date().toLocaleString()} - ` + JSON.stringify({ topic, message }).replaceAll('\\"', '"') + '\n');
             this.loggedPublishPayloads++;
           }
         })
-        .catch((error) => {
-          this.log.error(`****Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message}`);
+        .catch((error: unknown) => {
+          this.log.error(`****Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} error: ${getErrorMessage(error)} on topic: ${topic} message: ${message}`);
         })
         .finally(() => {
           this.mqttPublishInflights--;
@@ -521,7 +528,7 @@ export class Zigbee2MQTT extends EventEmitter {
     // Parse the buffer to JSON
     try {
       jsonData = this.tryJsonParse(buffer.toString());
-    } catch (error) {
+    } catch (error: unknown) {
       this.log.error('writeBufferJSON: parsing error:', error);
       return; // Stop execution if parsing fails
     }
@@ -533,7 +540,7 @@ export class Zigbee2MQTT extends EventEmitter {
         this.log.debug(`Successfully wrote to ${filePath}.json`);
         return;
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         this.log.error(`Error writing to ${filePath}.json:`, error);
       });
   }
@@ -549,12 +556,12 @@ export class Zigbee2MQTT extends EventEmitter {
 
     // Write the data to a file
     fs.promises
-      .writeFile(`${filePath}`, data)
+      .writeFile(filePath, data)
       .then(() => {
         this.log.debug(`Successfully wrote to ${filePath}`);
         return;
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         this.log.error(`Error writing to ${filePath}:`, error);
       });
   }
@@ -565,7 +572,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @param {string} text - The JSON string to parse.
    * @returns {any} - The parsed JSON object or an empty object on error.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   private tryJsonParse(text: string): any {
     try {
       return JSON.parse(text);
@@ -582,7 +589,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @param {string} topic - The MQTT topic the message was received on.
    * @param {Buffer} payload - The message payload.
    */
-  private messageHandler(topic: string, payload: Buffer) {
+  private messageHandler(topic: string, payload: Buffer): void {
     if (topic.startsWith(this.mqttTopic + '/bridge/state')) {
       const payloadString = payload.toString();
       let data: Payload;
@@ -601,6 +608,7 @@ export class Zigbee2MQTT extends EventEmitter {
       }
       this.log.debug(`Message bridge/state online => ${this.z2mIsOnline}`);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/info')) {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       this.z2mBridge = this.tryJsonParse(payload.toString()) as BridgeInfo;
       this.z2mPermitJoin = this.z2mBridge.permit_join;
       this.z2mPermitJoinTimeout = this.z2mBridge.permit_join_timeout;
@@ -614,8 +622,8 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.debug(`Message bridge/info advanced.legacy_availability_payload => ${this.z2mBridge.config.advanced.legacy_availability_payload}`);
       if (this.z2mBridge.config.advanced.output === 'attribute')
         this.log.error(`Message bridge/info advanced.output must be 'json' or 'attribute_and_json'. Now is ${this.z2mBridge.config.advanced.output}`);
-      if (this.z2mBridge.config.advanced.legacy_api === true) this.log.info(`Message bridge/info advanced.legacy_api is ${this.z2mBridge.config.advanced.legacy_api}`);
-      if (this.z2mBridge.config.advanced.legacy_availability_payload === true)
+      if (this.z2mBridge.config.advanced.legacy_api) this.log.info(`Message bridge/info advanced.legacy_api is ${this.z2mBridge.config.advanced.legacy_api}`);
+      if (this.z2mBridge.config.advanced.legacy_availability_payload)
         this.log.info(`Message bridge/info advanced.legacy_availability_payload is ${this.z2mBridge.config.advanced.legacy_availability_payload}`);
       this.emit('bridge-info', this.z2mBridge);
       if (this.log.logLevel === LogLevel.DEBUG) this.writeBufferJSON('bridge-info', payload);
@@ -628,6 +636,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.z2mGroups = this.tryJsonParse(payload.toString());
       this.emit('bridge-groups', this.z2mGroups);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/extensions')) {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const extensions = this.tryJsonParse(payload.toString()) as BridgeExtension[];
       for (const extension of extensions) {
         this.log.debug(`Message topic: ${topic} extension: ${extension.name}`);
@@ -750,7 +759,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @param {string} service - The service type.
    * @param {Buffer} payload - The message payload.
    */
-  private handleDeviceMessage(device: BridgeDevice, entity: string, service: string, payload: Buffer) {
+  private handleDeviceMessage(device: BridgeDevice, entity: string, service: string, payload: Buffer): void {
     if (payload.length === 0 || payload === null) {
       return;
     }
@@ -781,7 +790,7 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  private handleGroupMessage(group: BridgeGroup, entity: string, service: string, payload: Buffer) {
+  private handleGroupMessage(group: BridgeGroup, entity: string, service: string, payload: Buffer): void {
     if (payload.length === 0 || payload === null) {
       return;
     }
@@ -817,7 +826,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseNetworkmap(payload: Buffer) {
+  private handleResponseNetworkmap(payload: Buffer): void {
     /*
     "routes": [
         {
@@ -830,7 +839,7 @@ export class Zigbee2MQTT extends EventEmitter {
     const data = this.tryJsonParse(payload.toString());
 
     const topology: Topology = data.data.value;
-    const lqi = (lqi: number) => {
+    const lqi = (lqi: number): string => {
       if (lqi < 50) {
         return `\x1b[31m${lqi.toString().padStart(3, ' ')}${db}`;
       } else if (lqi > 200) {
@@ -839,7 +848,7 @@ export class Zigbee2MQTT extends EventEmitter {
         return `\x1b[38;5;251m${lqi.toString().padStart(3, ' ')}${db}`;
       }
     };
-    const depth = (depth: number) => {
+    const depth = (depth: number): string => {
       if (depth === 255) {
         return `\x1b[32m${depth.toString().padStart(3, ' ')}${db}`;
       } else {
@@ -946,7 +955,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseDeviceRename(payload: Buffer) {
+  private handleResponseDeviceRename(payload: Buffer): void {
     /*
     {
       data: {
@@ -969,7 +978,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseDeviceRemove(payload: Buffer) {
+  private handleResponseDeviceRemove(payload: Buffer): void {
     /*
     {
       data: { block: false, force: false, id: 'Presence sensor' },
@@ -987,7 +996,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseDeviceOptions(payload: Buffer) {
+  private handleResponseDeviceOptions(payload: Buffer): void {
     /*
     {
       data: {
@@ -1020,7 +1029,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseGroupAdd(payload: Buffer) {
+  private handleResponseGroupAdd(payload: Buffer): void {
     /*
     {
       data: { friendly_name: 'Test', id: 7 },
@@ -1030,6 +1039,7 @@ export class Zigbee2MQTT extends EventEmitter {
     */
     const json = this.tryJsonParse(payload.toString());
     this.log.debug(`handleResponseGroupAdd() friendly_name ${json.data.friendly_name} id ${json.data.id} status ${json.status}`);
+    // v8 ignore else
     if (json.status === 'ok') {
       this.emit('group_add', json.data.friendly_name, json.data.id, json.status);
     }
@@ -1040,7 +1050,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseGroupRemove(payload: Buffer) {
+  private handleResponseGroupRemove(payload: Buffer): void {
     /*
     {
       data: { force: false, id: 'Test' },
@@ -1050,6 +1060,7 @@ export class Zigbee2MQTT extends EventEmitter {
     */
     const json = this.tryJsonParse(payload.toString());
     this.log.debug(`handleResponseGroupRemove() friendly_name ${json.data.id} status ${json.status}`);
+    // v8 ignore else
     if (json.status === 'ok') {
       this.emit('group_remove', json.data.id, json.status);
     }
@@ -1060,7 +1071,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseGroupRename(payload: Buffer) {
+  private handleResponseGroupRename(payload: Buffer): void {
     /*
     {
       data: { from: 'Test2', homeassistant_rename: false, to: 'Test' },
@@ -1070,6 +1081,7 @@ export class Zigbee2MQTT extends EventEmitter {
     */
     const json = this.tryJsonParse(payload.toString());
     this.log.debug(`handleResponseGroupRename() from ${json.data.from} to ${json.data.to} status ${json.status}`);
+    // v8 ignore else
     if (json.status === 'ok') {
       this.emit('group_rename', json.data.from, json.data.to, json.status);
     }
@@ -1080,7 +1092,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseGroupAddMember(payload: Buffer) {
+  private handleResponseGroupAddMember(payload: Buffer): void {
     /*
     {
       data: { device: '0xa4c1388ad0ebb0a6/1', group: 'Test2' },
@@ -1090,7 +1102,8 @@ export class Zigbee2MQTT extends EventEmitter {
     */
     const json = this.tryJsonParse(payload.toString());
     this.log.debug(`handleResponseGroupAddMembers() add to group friendly_name ${json.data.group} device ieee_address ${json.data.device} status ${json.status}`);
-    if (json.status === 'ok' && json.data.device && json.data.device.includes('/')) {
+    // v8 ignore else
+    if (json.status === 'ok' && json.data.device?.includes('/')) {
       this.emit('group_add_member', json.data.group, json.data.device.split('/')[0], json.status);
     }
   }
@@ -1100,7 +1113,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponseGroupRemoveMember(payload: Buffer) {
+  private handleResponseGroupRemoveMember(payload: Buffer): void {
     /*
     {
       data: { device: 'Gledopto RGBCTT light', group: 'Test2' },
@@ -1110,6 +1123,7 @@ export class Zigbee2MQTT extends EventEmitter {
     */
     const json = this.tryJsonParse(payload.toString());
     this.log.debug(`handleResponseGroupRemoveMember() remove from group friendly_name ${json.data.group} device friendly_name ${json.data.device} status ${json.status}`);
+    // v8 ignore else
     if (json.status === 'ok') {
       this.emit('group_remove_member', json.data.group, json.data.device, json.status);
     }
@@ -1120,7 +1134,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleResponsePermitJoin(payload: Buffer) {
+  private handleResponsePermitJoin(payload: Buffer): void {
     /*
     {
       data: { device?: 'Coordinator', time: 254, value: true },
@@ -1129,7 +1143,9 @@ export class Zigbee2MQTT extends EventEmitter {
     }
     */
     const json = this.tryJsonParse(payload.toString());
+    // oxlint-disable-next-line typescript/prefer-nullish-coalescing
     this.log.debug(`handleResponsePermitJoin() device: ${json.data.device ? json.data.device : 'All'} time: ${json.data.time} value: ${json.data.value} status: ${json.status}`);
+    // v8 ignore else
     if (json.status === 'ok') {
       this.emit('permit_join', json.data.device, json.data.time, json.data.value);
     }
@@ -1140,7 +1156,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @param {Buffer} payload - The message payload.
    */
-  private handleEvent(payload: Buffer) {
+  private handleEvent(payload: Buffer): void {
     const json = this.tryJsonParse(payload.toString());
     switch (json.type) {
       case undefined:
@@ -1215,6 +1231,8 @@ export class Zigbee2MQTT extends EventEmitter {
         );
         this.emit('device_interview', json.data.friendly_name, json.data.ieee_address, json.data.status, json.data.supported);
         break;
+      default:
+      //
     }
   }
 
@@ -1261,7 +1279,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @param {string} entity - The entity ID.
    * @param {Payload} data - The payload data.
    */
-  public emitPayload(entity: string, data: Payload) {
+  public emitPayload(entity: string, data: Payload): void {
     this.emit('MESSAGE-' + entity, data);
   }
 }

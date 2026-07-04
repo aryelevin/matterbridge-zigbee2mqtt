@@ -332,7 +332,7 @@ export class SwitchingController {
                 // since we need to make sure to get the correct device object including if its separated endpoint.).
                 setTimeout(() => {
                   this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
-                }, 101);
+                }, 101); // 101 is 1ms more than the current cachePublishTimeoutTime in the entity.ts...
               } else {
                 this.publishCommand(sourceSwitchIeee, { [paramToControl]: z2mValue });
               }

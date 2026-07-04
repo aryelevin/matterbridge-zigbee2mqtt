@@ -1,12 +1,12 @@
 /**
+ * @file src/zigbee2mqttTypes.ts
  * @description This file contains the types for zigbee2mqtt.
- * @file zigbee2mqttTypes.ts
  * @author Luca Liguori
  * @created 2023-11-02
  * @version 1.1.6
  * @license Apache-2.0
  *
- * Copyright 2023, 2024, 2025 Luca Liguori.
+ * Copyright 2023, 2024, 2025, 2026 Luca Liguori.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
