@@ -1,9 +1,9 @@
 /**
+ * @file src/module.ts
  * @description This file contains the class ZigbeePlatform.
- * @file module.ts
  * @author Luca Liguori
  * @created 2023-12-29
- * @version 3.0.2
+ * @version 3.1.0
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -23,12 +23,12 @@
 
 import path from 'node:path';
 
-import { BasePlatformConfig, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformMatterbridge } from 'matterbridge';
+import { type BasePlatformConfig, MatterbridgeDynamicPlatform, type MatterbridgeEndpoint, type PlatformMatterbridge } from 'matterbridge';
 import { type AnsiLogger, CYAN, db, debugStringify, dn, er, gn, type LogLevel, nf, payloadStringify, rs, wr, zb } from 'matterbridge/logger';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
-import { fireAndForget, isValidNumber, isValidString, waiter } from 'matterbridge/utils';
+import { fireAndForget, getErrorMessage, isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
-import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
+import { ZigbeeDevice, type ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import type { Payload } from './payloadTypes.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import type { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
@@ -38,7 +38,7 @@ type DeviceFeatureBlackList = Record<string, string[]>;
 export type ZigbeePlatformConfig = BasePlatformConfig & {
   host: string;
   port: number;
-  protocolVersion: number;
+  protocolVersion: 3 | 4 | 5;
   username: string;
   password: string;
   clientId: string;
@@ -121,9 +121,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.8.0')) {
+    if (typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.9.0')) {
       throw new Error(
-        `This plugin requires Matterbridge version >= "3.8.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`,
+        `This plugin requires Matterbridge version >= "3.9.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`,
       );
     }
 
@@ -157,6 +157,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.postfix = config.postfix;
     }
     this.postfix = this.postfix.trim().slice(0, 3);
+    this.config.debug ??= false;
+    this.config.unregisterOnShutdown ??= false;
 
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
@@ -165,19 +167,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.username = this.mqttUsername ?? '';
     config.password = this.mqttPassword ?? '';
     config.postfix = this.postfix;
-    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
+    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
     // @ts-expect-error is a precaution for old versions of the config, we can remove it in the future
     if (config.postfixHostname !== undefined) delete config.postfixHostname;
-    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
+    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
     // @ts-expect-error is a precaution for old versions of the config, we can remove it in the future
     if (config.deviceScenes !== undefined) delete config.deviceScenes;
-    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
+    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
     // @ts-expect-error is a precaution for old versions of the config, we can remove it in the future
     if (config.groupScenes !== undefined) delete config.groupScenes;
-    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
-    if (config.scenesType === undefined) config.scenesType = 'outlet';
-    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
-    if (config.scenesPrefix === undefined) config.scenesPrefix = true;
+    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
+    config.scenesType ??= 'outlet';
+    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
+    config.scenesPrefix ??= true;
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
@@ -190,7 +192,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.mqttUsername,
       this.mqttPassword,
       this.config.clientId,
-      this.config.protocolVersion as 3 | 4 | 5 | undefined,
+      this.config.protocolVersion,
       this.config.ca,
       this.config.rejectUnauthorized,
       this.config.cert,
@@ -224,7 +226,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.warn(`MQTT broker at ${this.z2m.getUrl()} ended the connection`);
     });
 
-    this.z2m.on('mqtt_error', (error) => {
+    this.z2m.on('mqtt_error', (error: unknown) => {
       this.log.error(`MQTT broker at ${this.z2m.getUrl()} error:`, error);
     });
 
@@ -243,7 +245,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('bridge-info', (bridgeInfo: BridgeInfo) => {
-      /* istanbul ignore next */
+      /* v8 ignore next */
       if (bridgeInfo === null || bridgeInfo === undefined) return;
       this.z2mBridgeInfo = bridgeInfo;
       this.log.info(
@@ -251,19 +253,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       );
       if (this.z2mBridgeInfo.config.advanced.output === 'attribute')
         this.log.error(`zigbee2MQTT advanced.output must be 'json' or 'attribute_and_json'. Now is ${this.z2mBridgeInfo.config.advanced.output}`);
-      if (this.z2mBridgeInfo.config.advanced.legacy_api === true) this.log.info(`zigbee2MQTT advanced.legacy_api is ${this.z2mBridgeInfo.config.advanced.legacy_api}`);
-      if (this.z2mBridgeInfo.config.advanced.legacy_availability_payload === true)
+      if (this.z2mBridgeInfo.config.advanced.legacy_api) this.log.info(`zigbee2MQTT advanced.legacy_api is ${this.z2mBridgeInfo.config.advanced.legacy_api}`);
+      if (this.z2mBridgeInfo.config.advanced.legacy_availability_payload)
         this.log.info(`zigbee2MQTT advanced.legacy_availability_payload is ${this.z2mBridgeInfo.config.advanced.legacy_availability_payload}`);
       if (this.z2mBridgeInfo.config.frontend?.package) this.log.info(`zigbee2MQTT frontend.package is ${this.z2mBridgeInfo.config.frontend?.package}`);
     });
 
     this.z2m.on('bridge-devices', (devices: BridgeDevice[]) => {
       fireAndForget(
-        (async () => {
-          /* istanbul ignore next */
+        (async (): Promise<void> => {
+          /* v8 ignore next */
           if (devices === null || devices === undefined) return;
           this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
-          /* istanbul ignore next if */
+          /* v8 ignore next if */
           /*
           if (config.injectDevices && typeof config.injectDevices === 'string') {
             this.log.warn(`***Injecting virtual devices from ${path.join(matterbridge.matterbridgeDirectory, config.injectDevices)}`);
@@ -299,8 +301,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('bridge-groups', (groups: BridgeGroup[]) => {
       fireAndForget(
-        (async () => {
-          /* istanbul ignore next */
+        (async (): Promise<void> => {
+          /* v8 ignore next */
           if (groups === null || groups === undefined) return;
           this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
           this.z2mBridgeGroups = groups;
@@ -340,7 +342,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('permit_join', (device: string, time: number, status: boolean) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent permit_join device: ${device} time: ${time} status: ${status}`);
           for (const zigbeeEntity of this.zigbeeEntities) {
             if (zigbeeEntity.isRouter && (device === undefined || device === zigbeeEntity.bridgedDevice?.deviceName)) {
@@ -386,7 +388,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('device_leave', (friendly_name: string, ieee_address: string) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent device_leave device: ${friendly_name} ieee_address: ${ieee_address}`);
           await this.unregisterZigbeeEntity(friendly_name);
         })(),
@@ -397,7 +399,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('device_remove', (friendly_name: string, status: string, block: boolean, force: boolean) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent device_remove device: ${friendly_name} status: ${status} block: ${block} force: ${force}`);
           if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
         })(),
@@ -408,7 +410,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('device_interview', (friendly_name: string, ieee_address: string, status: string, supported: boolean) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent device_interview device: ${friendly_name} ieee_address: ${ieee_address} status: ${status} supported: ${supported}`);
           if (status === 'successful' && supported) {
             if (!this.validateDevice(friendly_name)) return;
@@ -424,7 +426,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('device_rename', (ieee_address: string, from: string, to: string) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent device_rename ieee_address: ${ieee_address} from: ${from} to: ${to}`);
           await this.unregisterZigbeeEntity(from);
           const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.ieee_address === ieee_address);
@@ -441,7 +443,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('group_add', (friendly_name: string, id: number, status: string) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent group_add friendly_name: ${friendly_name} id ${id} status ${status}`);
           if (!this.validateDevice(friendly_name)) return;
           this.log.info(`Registering group: ${friendly_name}`);
@@ -455,7 +457,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('group_remove', (friendly_name: string, status: string) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent group_remove friendly_name: ${friendly_name} status ${status}`);
           if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
         })(),
@@ -466,7 +468,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('group_rename', (from: string, to: string, status: string) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent group_rename from: ${from} to ${to} status ${status}`);
           if (status === 'ok') {
             await this.unregisterZigbeeEntity(from);
@@ -481,7 +483,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('group_add_member', (group_friendly_name: string, device_ieee_address: string, status: string) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent group_add_member group ${group_friendly_name} add device ieee_address ${device_ieee_address} status ${status}`);
           if (status === 'ok') {
             await this.unregisterZigbeeEntity(group_friendly_name);
@@ -496,7 +498,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('group_remove_member', (group_friendly_name: string, device_friendly_name: string, status: string) => {
       fireAndForget(
-        (async () => {
+        (async (): Promise<void> => {
           this.log.info(`zigbee2MQTT sent group_remove_member group ${group_friendly_name} remove device friendly_name ${device_friendly_name} status ${status}`);
           if (status === 'ok') {
             await this.unregisterZigbeeEntity(group_friendly_name);
@@ -512,7 +514,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.debug('Created zigbee2mqtt dynamic platform');
   }
 
-  override async onStart(reason?: string) {
+  override async onStart(reason?: string): Promise<void> {
     this.log.info(`Starting zigbee2mqtt dynamic platform v${this.version}: ` + reason);
 
     // Check if the platform is already initialized
@@ -562,7 +564,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.info(`Started zigbee2mqtt dynamic platform v${this.version}: ` + reason);
   }
 
-  override async onConfigure() {
+  override async onConfigure(): Promise<void> {
     await super.onConfigure();
     this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
     for (const bridgedEntity of this.zigbeeEntities) {
@@ -622,11 +624,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.info(`Configured zigbee2mqtt dynamic platform v${this.version}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // oxlint-disable-next-line typescript/require-await
   override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
     this.log.info(`Configuring zigbee2mqtt platform logger level to ${CYAN}${logLevel}${nf}`);
     this.log.logLevel = logLevel;
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // oxlint-disable-next-line typescript/ban-ts-comment
     // @ts-ignore We avoid the type issue here when node-ansi-logger is not updated here but is updated in matterbridge
     this.z2m.setLogLevel(logLevel);
     for (const bridgedDevice of this.bridgedDevices) {
@@ -638,7 +640,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.debug('Changed logger level to ' + logLevel);
   }
 
-  override async onShutdown(reason?: string) {
+  override async onShutdown(reason?: string): Promise<void> {
     await super.onShutdown(reason);
     this.z2m.removeAllListeners();
     this.z2m.stop();
@@ -650,7 +652,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.injectTimer = undefined;
     if (this.availabilityTimer) clearInterval(this.availabilityTimer);
     this.availabilityTimer = undefined;
-    if (this.config.unregisterOnShutdown === true) await this.unregisterAllDevices();
+    if (this.config.unregisterOnShutdown) await this.unregisterAllDevices();
     this.bridgedDevices = [];
     this.zigbeeEntities = [];
     this.z2mBridgeDevices = undefined;
@@ -661,23 +663,25 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.info(`Shutdown zigbee2mqtt dynamic platform v${this.version}`);
   }
 
-  public publish(topic: string, subTopic: string, message: string) {
+  public publish(topic: string, subTopic: string, message: string): void {
     this.log.info(`MQTT publish topic: ${CYAN}${this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic)}${nf} payload: ${CYAN}${message}${nf}`);
     this.z2m.publish(this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic), message);
   }
 
-  private requestDeviceUpdate(device: BridgeDevice) {
+  private requestDeviceUpdate(device: BridgeDevice): void {
     this.log.debug(`Requesting update for ${device.friendly_name} model_id: ${device.model_id} manufacturer: ${device.manufacturer}`);
     const payload: Payload = {};
-    if (device.power_source === 'Battery' || !device.definition || !device.definition.exposes) return;
+    if (device.power_source === 'Battery' || !device.definition?.exposes) return;
     for (const feature of device.definition.exposes) {
       if (feature.features) {
         for (const subFeature of feature.features) {
+          // oxlint-disable-next-line no-bitwise
           if (subFeature.access & 0b100) {
             payload[subFeature.property] = '';
           }
         }
       }
+      // oxlint-disable-next-line no-bitwise
       if (feature.access & 0b100) {
         payload[feature.property] = '';
       }
@@ -688,11 +692,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
   }
 
-  private requestGroupUpdate(group: BridgeGroup) {
+  private requestGroupUpdate(group: BridgeGroup): void {
     this.log.debug(`Requesting update for ${group.friendly_name}`);
     const payload: Payload = {};
     payload['state'] = '';
-    // istanbul ignore else
+    // v8 ignore else
     if (payload && Object.keys(payload).length > 0) {
       const topic = this.z2m.mqttTopic + '/' + group.friendly_name + '/get';
       this.z2m.publish(topic, payloadStringify(payload), false);
@@ -716,7 +720,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         this.log.debug(`Registered device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
       } else this.log.warn(`Device ${dn}${device.friendly_name}${wr} ID: ${device.ieee_address} not registered`);
     } catch (error) {
-      this.log.error(`Error registering device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address}: ${error}`);
+      this.log.error(`Error registering device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address}: ${getErrorMessage(error)}`);
     }
     return matterDevice;
   }
@@ -738,23 +742,23 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
       } else this.log.warn(`Group ${gn}${group.friendly_name}${wr} ID: ${group.id} not registered`);
     } catch (error) {
-      this.log.error(`Error registering group ${gn}${group.friendly_name}${er} ID: ${group.id}: ${error}`);
+      this.log.error(`Error registering group ${gn}${group.friendly_name}${er} ID: ${group.id}: ${getErrorMessage(error)}`);
     }
     return matterGroup;
   }
 
-  private async unregisterZigbeeEntity(friendly_name: string) {
+  private async unregisterZigbeeEntity(friendly_name: string): Promise<void> {
     const entity = this.zigbeeEntities.find((entity) => entity.entityName === friendly_name);
-    if (entity) {
+    if (entity?.bridgedDevice) {
       this.log.info(`Removing device: ${friendly_name}`);
-      await this.unregisterDevice(entity.bridgedDevice as MatterbridgeEndpoint);
+      await this.unregisterDevice(entity.bridgedDevice);
       entity.destroy();
       this.zigbeeEntities = this.zigbeeEntities.filter((entity) => entity.entityName !== friendly_name);
       this.bridgedDevices = this.bridgedDevices.filter((device) => device.deviceName !== friendly_name);
     }
   }
 
-  private async updateAvailability(available: boolean) {
+  private async updateAvailability(available: boolean): Promise<void> {
     if (this.bridgedDevices.length === 0) return;
     this.log.info(`Setting availability for ${this.bridgedDevices.length} devices to ${available}`);
     for (const bridgedDevice of this.bridgedDevices) {
