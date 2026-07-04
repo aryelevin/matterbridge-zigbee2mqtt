@@ -21,8 +21,8 @@
  * limitations under the License.
  */
 
-// oxlint-disable max-lines
-// oxlint-disable no-use-before-define
+/* oxlint-disable max-lines */
+/* oxlint-disable no-use-before-define */
 
 import EventEmitter from 'node:events';
 import fs from 'node:fs';
