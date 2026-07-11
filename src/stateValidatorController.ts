@@ -139,13 +139,14 @@ export class StateValidatorController {
 
   heartbeat(beatNo: number): void {
     // this.platform._configJson.putStateEvery // Seconds!!!
-    // this.log('Heartbeat! ' + beat)
+    this.log.info('Heartbeat! ' + beatNo);
 
     if (this.monitoredEndpoints.length) {
       const index = this.platform.config.putStateRepeatCount > 0 ? this.currentEndpointPutIndex : beatNo % this.monitoredEndpoints.length;
-      // this.log('putState: ' + index + ', id: ' + keysArray[index])
       const endpoint = this.monitoredEndpoints[index];
       const lastState = this.lastStates[endpoint.deviceId]?.[endpoint.property];
+      this.log.info('putState: ' + index + ', id: ' + endpoint.deviceId + ', property: ' + endpoint.property + ', lastState: ' + lastState);
+      this.log.info('LastStates: ' + JSON.stringify(this.lastStates));
       if (lastState) {
         this.publishCommand(endpoint.deviceId as string, { [endpoint.property]: lastState });
       }
@@ -188,9 +189,11 @@ export class StateValidatorController {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
       const deviceEndpoint = deviceIeee + '/' + changedPropertyName + endpoint;
-      if (this.lastStates[deviceIeee]) {
-        this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
+      // TODO: Maybe check if its supposed to be monitored...
+      if (!this.lastStates[deviceIeee]) {
+        this.lastStates[deviceIeee] = {};
       }
+      this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
     }
     return true;
   }
