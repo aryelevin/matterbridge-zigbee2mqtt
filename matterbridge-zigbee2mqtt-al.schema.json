@@ -208,10 +208,10 @@
       "description": "Sets the home location in Longitude and Latitude coordinates to allow jewish calendar and weather to function properly and according to the home location.",
       "type": "object",
       "properties": {
-        "longitude": { "description": "The location longitude", "type": "number" },
-        "latitude": { "description": "The location latitude", "type": "number" }
+        "latitude": { "description": "The location latitude", "type": "number" },
+        "longitude": { "description": "The location longitude", "type": "number" }
       },
-      "default": { "longitude": 34.8376, "latitude": 32.08934 }
+      "default": { "latitude": 32.08934, "longitude": 34.8376 }
     },
     "dummySwitches": {
       "title": "Add Dummy Switches",
@@ -1303,6 +1303,12 @@
           }
         }
       }
+    },
+    "putStateRepeatCount": {
+      "title": "Put State Repeat Count",
+      "description": "The amount of times a basic state of a Light, Switch and Outlet will be published (to ensure up-to-date state).",
+      "type": "number",
+      "default": 1
     },
     "separateDeviceEndpoints": {
       "title": "Separated Endpoints",

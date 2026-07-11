@@ -339,7 +339,7 @@ export class ZigbeeEntity extends EventEmitter {
               if (propertyMap1) {
                 // this.log.debug(`Payload entry ${CYAN}${value}${db} => name: ${CYAN}${propertyMap1.name}${db} endpoint: ${CYAN}${propertyMap1.endpoint}${db} action: ${CYAN}${propertyMap1.action}${db}`);
                 const child = this.bridgedDevice.getChildEndpointById(propertyMap1.endpoint);
-                if (child && child.maybeNumber)
+                if (child?.maybeNumber)
                   fireAndForget(
                     child.triggerSwitchEvent(propertyMap1.action as 'Single' | 'Double' | 'Long', this.log),
                     this.log,
@@ -357,7 +357,7 @@ export class ZigbeeEntity extends EventEmitter {
         if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
           // Added by me: Arye Levin
           // this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', value * 100);
-          const previousLastCoverActionIsMoveState = this.lastCoverActionIsMoveState === true;
+          const previousLastCoverActionIsMoveState = this.lastCoverActionIsMoveState;
           this.lastCoverActionIsMoveState = !(payload.running === false || payload.motor_state === 'stopped' || payload.moving === 'STOP');
           if (this.lastCoverActionIsMoveState || previousLastCoverActionIsMoveState) {
             // Is moving or just stopeed...
@@ -1911,7 +1911,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           const matchingSubstrings: string[] = actionNames.filter((substring) => actionItem.includes(substring));
           // zigbeeDevice.log.info(actionItem + ' matchingSubstrings: ' + JSON.stringify(matchingSubstrings));
           const actionName = matchingSubstrings[0] || actionItem;
-          let switchName = actionName !== actionItem ? actionItem.replace(actionName, '') : supportedActions[actionItem] ? '' : actionItem;
+          let switchName = actionName === actionItem ? (supportedActions[actionItem] ? '' : actionItem) : actionItem.replace(actionName, '');
           if (switchName.startsWith('_')) {
             switchName = switchName.substring(1);
           }
@@ -2146,7 +2146,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const system_mode = zigbeeDevice.propertyMap.get('system_mode' + endpointSuffix);
       const system_mode_values = system_mode?.values;
       const heat = zigbeeDevice.propertyMap.get('occupied_heating_setpoint' + endpointSuffix) ?? zigbeeDevice.propertyMap.get('unoccupied_heating_setpoint' + endpointSuffix);
-      const cool = zigbeeDevice.propertyMap.get('occupied_cooling_setpoint' + endpointSuffix) ?? zigbeeDevice.propertyMap.get('unoccupied_cooling_setpoint' + endpointSuffix) ?? heat; // <- This is for cases where the device uses one zigbee attribute for both heating and cooling (Aqara W100)
+      const cool =
+        zigbeeDevice.propertyMap.get('occupied_cooling_setpoint' + endpointSuffix) ?? zigbeeDevice.propertyMap.get('unoccupied_cooling_setpoint' + endpointSuffix) ?? heat; // <- This is for cases where the device uses one zigbee attribute for both heating and cooling (Aqara W100)
       const minHeating = heat?.value_min !== undefined && !Number.isNaN(heat.value_min) ? heat.value_min : 0;
       const maxHeating = heat?.value_max !== undefined && !Number.isNaN(heat.value_max) ? heat.value_max : 50;
       const minCooling = cool?.value_min !== undefined && !Number.isNaN(cool.value_min) ? cool.value_min : 0;

@@ -18,9 +18,9 @@ import { ColorControl, LevelControl, OnOff /* , Thermostat, WindowCovering */ } 
 import { /* deepCopy,*/ deepEqual } from 'matterbridge/utils';
 
 import { ZigbeeEntity } from './entity.js';
-import { ZigbeePlatform } from './module.js';
+import type { ZigbeePlatform } from './module.js';
 // import { OnOff } from 'matterbridge/matter/clusters';
-import { Payload, PayloadValue } from './payloadTypes.js';
+import type { Payload, PayloadValue } from './payloadTypes.js';
 
 declare module './entity.js' {
   interface ZigbeeEntity {
@@ -159,7 +159,7 @@ export class SwitchingController {
     this.log.debug('switchesLinksDevicesToSwitches contents: ' + JSON.stringify(this.switchesLinksDevicesToSwitches));
   }
 
-  getDeviceEntity(ieee_address: string, separatedEndpointID?: string) {
+  getDeviceEntity(ieee_address: string, separatedEndpointID?: string): ZigbeeEntity | undefined {
     const entity = ieee_address.startsWith('group-')
       ? this.platform.zigbeeEntities?.find((entity) => entity.isGroup && entity.group?.id === Number(ieee_address.split('-')[1]))
       : this.platform.zigbeeEntities?.find(
@@ -171,11 +171,11 @@ export class SwitchingController {
     return entity;
   }
 
-  publishCommand(device_ieee_address: string, payload: Payload) {
+  publishCommand(device_ieee_address: string, payload: Payload): void {
     this.platform.publish(device_ieee_address, 'set', JSON.stringify(payload));
   }
 
-  setSwitchingControllerConfiguration() {
+  setSwitchingControllerConfiguration(): void {
     const devicesToListenToEvents: { [key: string]: string[] } = {};
     // for (const allEntitiesItem of this.platform.zigbeeEntities) {
     //   const sourceDevice = allEntitiesItem.device ? allEntitiesItem.device.ieee_address : allEntitiesItem.isGroup ? 'group-' + allEntitiesItem.group.id : allEntitiesItem.entityName;
@@ -198,7 +198,7 @@ export class SwitchingController {
       if (!this.lastStates[deviceIeee]) {
         this.lastStates[deviceIeee] = {};
         const device = this.getDeviceEntity(deviceIeee);
-        this.platform.z2m.on('MESSAGE-' + (device !== undefined ? device.entityName : deviceIeee), (payload: Payload) => {
+        this.platform.z2m.on('MESSAGE-' + (device === undefined ? deviceIeee : device.entityName), (payload: Payload) => {
           if (this.platform.platformControls.switchesEnabled) {
             if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
             // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
@@ -214,7 +214,7 @@ export class SwitchingController {
                 // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
                 // if (devicesToListenToEvents[deviceIeee] === true) {
                 this.log.info(
-                  (device !== undefined ? device.entityName : deviceIeee) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.',
+                  (device === undefined ? deviceIeee : device.entityName) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.',
                 );
                 this.lastStates[deviceIeee][key] = value;
                 this.switchStateChanged(deviceIeee || '', key, value, payload);
@@ -236,7 +236,8 @@ export class SwitchingController {
     }
   }
 
-  deviceHasChangedMatterAttributeInSwitchesOffMode(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number) {
+  deviceHasChangedMatterAttributeInSwitchesOffMode(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number): void {
+    this.platform.stateValidatorController.deviceHasChangedMatterAttributeInSwitchesOffMode(deviceIeee, endpoint, attribute, value, oldValue);
     const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
     // Enforce switch state when switchesOn is off...
     const z2mOldValue = attribute === 'onOff' ? (oldValue ? 'ON' : 'OFF') : oldValue;
@@ -255,6 +256,7 @@ export class SwitchingController {
     oldValue: boolean | number,
     actionSourceIsFromMatter: boolean,
   ): boolean {
+    this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, value, oldValue, actionSourceIsFromMatter);
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
@@ -344,6 +346,7 @@ export class SwitchingController {
             const device = this.getDeviceEntity(deviceIeee);
             process.nextTick(async () => {
               await device?.bridgedDevice?.setAttribute(attribute === 'onOff' ? OnOff.id : LevelControl.id, attribute, oldValue);
+              this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, oldValue, value, actionSourceIsFromMatter);
             });
           } else {
             // It should revert the device state??? (It happens here when: Switch -> linked device -> linked device changes again for some reason [via device local control or any other way to control it aka z2m FE])...
@@ -355,7 +358,7 @@ export class SwitchingController {
     return true;
   }
 
-  switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload) {
+  switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload): void {
     if (key === 'action') {
       this.processIncomingButtonEvent(deviceIeee, value as string);
       return;
@@ -456,52 +459,7 @@ export class SwitchingController {
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed' + '_' + newPayload['action_rotation_button_state']];
     if (actionsConfig.enabled) {
       for (const linkedDevice in actionsConfig.linkedDevices) {
-        if (!linkedDevice.startsWith('http')) {
-          // TODO: find the correct way on this new system...
-          const actionToDo = actionsConfig.linkedDevices[linkedDevice];
-          const pathComponents = linkedDevice.split('/');
-          const entityIeee = pathComponents[0];
-          const entityEndpoint = pathComponents[1] ? '_' + pathComponents[1] : '';
-          const entityToControl = this.getDeviceEntity(entityIeee);
-          const endpointToControl = entityEndpoint !== '' ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) : entityToControl?.bridgedDevice;
-
-          if (endpointToControl) {
-            if (actionToDo === 'brightness') {
-              if (endpointToControl.hasClusterServer(LevelControl.id) && endpointToControl.hasAttributeServer(LevelControl.id, 'currentLevel')) {
-                if (!endpointToControl.getAttribute(OnOff.id, 'onOff')) {
-                  if (rotationPercentage > 0) {
-                    const currentBrightness = endpointToControl.getAttribute(LevelControl.id, 'currentLevel');
-                    await endpointToControl.setAttribute(OnOff.id, 'onOff', true);
-                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'onOff', true, false, true);
-                    await endpointToControl.setAttribute(LevelControl.id, 'currentLevel', 3);
-                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', 3, currentBrightness, true);
-                    this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' });
-                  }
-                } else {
-                  const currentBrightness = endpointToControl.getAttribute(LevelControl.id, 'currentLevel');
-                  const newBrightnessState = Math.max(3, Math.min(254, currentBrightness + Math.round(rotationPercentage * 2.54))); // 3 is 1% and 254 is 100% in the 255 scale...
-                  if (newBrightnessState !== currentBrightness) {
-                    const z2mNewBrightness = Math.round((newBrightnessState / 254) * 255);
-                    await endpointToControl.setAttribute(LevelControl.id, 'currentLevel', newBrightnessState);
-                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', newBrightnessState, currentBrightness, true);
-                    this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: z2mNewBrightness });
-                  }
-                }
-              }
-            } else if (actionToDo === 'color_temp') {
-              if (endpointToControl.hasClusterServer(ColorControl.id) && endpointToControl.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds')) {
-                const currentColorTemperature = endpointToControl.getAttribute(ColorControl.id, 'colorTemperatureMireds');
-                // const endpointCTParams = entityToControl.device?.definition.exposes
-                const newColorTemperatureState = Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage)); // TODO: take the min/max from the object itself...
-                if (newColorTemperatureState !== currentColorTemperature) {
-                  await endpointToControl.setAttribute(ColorControl.id, 'colorTemperatureMireds', newColorTemperatureState);
-                  // no deviceHasChangedMatterAttribute() call since colorTemperatureMireds isn't supported yet (Not needed??)...
-                  this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
-                }
-              }
-            }
-          }
-        } else {
+        if (linkedDevice.startsWith('http')) {
           // const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
           // if (/* this.platform.state.remotes_on && */ actionToDo) {
           //   // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
@@ -542,21 +500,66 @@ export class SwitchingController {
           //   };
           //   repeatFunction(0, keyForTimeoutAction);
           // }
+        } else {
+          // TODO: find the correct way on this new system...
+          const actionToDo = actionsConfig.linkedDevices[linkedDevice];
+          const pathComponents = linkedDevice.split('/');
+          const entityIeee = pathComponents[0];
+          const entityEndpoint = pathComponents[1] ? '_' + pathComponents[1] : '';
+          const entityToControl = this.getDeviceEntity(entityIeee);
+          const endpointToControl = entityEndpoint === '' ? entityToControl?.bridgedDevice : entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1));
+
+          if (endpointToControl) {
+            if (actionToDo === 'brightness') {
+              if (endpointToControl.hasClusterServer(LevelControl.id) && endpointToControl.hasAttributeServer(LevelControl.id, 'currentLevel')) {
+                if (endpointToControl.getAttribute(OnOff.id, 'onOff')) {
+                  const currentBrightness = endpointToControl.getAttribute(LevelControl.id, 'currentLevel');
+                  const newBrightnessState = Math.max(3, Math.min(254, currentBrightness + Math.round(rotationPercentage * 2.54))); // 3 is 1% and 254 is 100% in the 255 scale...
+                  if (newBrightnessState !== currentBrightness) {
+                    const z2mNewBrightness = Math.round((newBrightnessState / 254) * 255);
+                    await endpointToControl.setAttribute(LevelControl.id, 'currentLevel', newBrightnessState);
+                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', newBrightnessState, currentBrightness, true);
+                    this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: z2mNewBrightness });
+                  }
+                } else {
+                  if (rotationPercentage > 0) {
+                    const currentBrightness = endpointToControl.getAttribute(LevelControl.id, 'currentLevel');
+                    await endpointToControl.setAttribute(OnOff.id, 'onOff', true);
+                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'onOff', true, false, true);
+                    await endpointToControl.setAttribute(LevelControl.id, 'currentLevel', 3);
+                    this.deviceHasChangedMatterAttribute(entityIeee, entityEndpoint, 'currentLevel', 3, currentBrightness, true);
+                    this.publishCommand(entityIeee, { ['brightness' + entityEndpoint]: 3, ['state' + entityEndpoint]: 'ON' });
+                  }
+                }
+              }
+            } else if (actionToDo === 'color_temp') {
+              if (endpointToControl.hasClusterServer(ColorControl.id) && endpointToControl.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds')) {
+                const currentColorTemperature = endpointToControl.getAttribute(ColorControl.id, 'colorTemperatureMireds');
+                // const endpointCTParams = entityToControl.device?.definition.exposes
+                const newColorTemperatureState = Math.max(153, Math.min(500, currentColorTemperature + rotationPercentage)); // TODO: take the min/max from the object itself...
+                if (newColorTemperatureState !== currentColorTemperature) {
+                  await endpointToControl.setAttribute(ColorControl.id, 'colorTemperatureMireds', newColorTemperatureState);
+                  // no deviceHasChangedMatterAttribute() call since colorTemperatureMireds isn't supported yet (Not needed??)...
+                  this.publishCommand(entityIeee, { ['color_temp' + entityEndpoint]: newColorTemperatureState });
+                }
+              }
+            }
+          }
         }
       }
     }
   }
 
-  processIncomingButtonEvent(switchIeee: string, buttonEvent: string) {
+  processIncomingButtonEvent(switchIeee: string, buttonEvent: string): void {
     const actionsConfigPreConfiguredSwitchType = this.switchesActionsConfig[switchIeee];
     const switchTypeInt = actionsConfigPreConfiguredSwitchType?.switchType; // 0 = Old IKEA round 5 button remote, 1 = Hue Switch Remote, 2 = New IKEA rect 4 buttons (Supports the 2 buttons one [No CT control])
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/' + buttonEvent];
     const combinedLinks = [];
-    if (actionsConfigPreConfiguredSwitchType && actionsConfigPreConfiguredSwitchType.enabled && switchTypeInt) {
+    if (actionsConfigPreConfiguredSwitchType?.enabled && switchTypeInt) {
       this.log.info('Switch: ' + switchIeee + ', button event: ' + buttonEvent + ', config: ', JSON.stringify(actionsConfigPreConfiguredSwitchType));
       combinedLinks.push(actionsConfigPreConfiguredSwitchType.linkedDevices);
     }
-    if (actionsConfig && actionsConfig.enabled) {
+    if (actionsConfig?.enabled) {
       this.log.info('Switch: ' + switchIeee + '/' + buttonEvent + ', config: ', JSON.stringify(actionsConfig));
       combinedLinks.push(actionsConfig.linkedDevices);
     }
@@ -570,7 +573,48 @@ export class SwitchingController {
           const keyForTimeoutAction = switchIeee + endpointToExecute;
           clearTimeout(this.longPressTimeoutIDs[keyForTimeoutAction]);
 
-          if (!endpointToExecute.startsWith('http')) {
+          if (endpointToExecute.startsWith('http')) {
+            // const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
+            // if (/* this.platform.state.remotes_on && */ actionToDo) {
+            //   // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
+            //   // jsonObject.action = actionToDo
+            //   const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
+            //   const data = JSON.stringify(jsonObject);
+            //   const options = {
+            //     hostname: actionToDo.host,
+            //     port: actionToDo.port,
+            //     path: actionToDo.path,
+            //     method: 'POST',
+            //     headers: {
+            //       'Content-Type': 'application/json',
+            //       'Content-Length': data.length,
+            //     },
+            //   };
+            //   const repeatFunction = (delay: number, timeoutKey: string) => {
+            //     this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
+            //       this.log.info('Long press being on URL!!!');
+            //       const req = http.request(options, (res) => {
+            //         this.log.info(`statusCode: ${res.statusCode}`);
+            //         if (res.statusCode === 200) {
+            //           this.log.info('Command sent and received successfully');
+            //         }
+            //         res.on('data', d => {
+            //           // process.stdout.write(d)
+            //           this.log.info(d);
+            //         });
+            //       });
+            //       req.on('error', (error) => {
+            //         console.error(error);
+            //       });
+            //       req.write(data);
+            //       req.end();
+            //       // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
+            //       repeatFunction(300, timeoutKey);
+            //     }, delay);
+            //   };
+            //   repeatFunction(0, keyForTimeoutAction);
+            // }
+          } else {
             // TODO: find the correct way on this new system...
             let continueRepeat = true;
             let actionToDo = endpointsToExecute[endpointToExecute] || ''; // The value: like 'ON' in case of state...
@@ -661,12 +705,12 @@ export class SwitchingController {
             const entityEndpoint = pathComponents[1] ? '_' + pathComponents[1] : '';
             const entityToControl = this.getDeviceEntity(entityIeee);
             const endpointToControl =
-              entityEndpoint !== ''
-                ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) || entityToControl?.bridgedDevice // If the config is custom property and not an endpoint ('0x1234567890123456/brighntess'), the load of child endpoint will fail as this isn't endpoint name, just property, then use the main bridged device.
-                : entityToControl?.bridgedDevice;
+              entityEndpoint === ''
+                ? entityToControl?.bridgedDevice // If the config is custom property and not an endpoint ('0x1234567890123456/brighntess'), the load of child endpoint will fail as this isn't endpoint name, just property, then use the main bridged device.
+                : entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) || entityToControl?.bridgedDevice;
 
             if (endpointToControl) {
-              const repeatZBFunction = (delay: number, timeoutKey: string) => {
+              const repeatZBFunction = (delay: number, timeoutKey: string): void => {
                 this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
                   if (typeof actionToDo === 'string' && actionToDo.startsWith('on_low_bri')) {
                     if (endpointToControl.hasClusterServer(LevelControl.id) && endpointToControl.hasAttributeServer(LevelControl.id, 'currentLevel')) {
@@ -774,13 +818,13 @@ export class SwitchingController {
                     }
                     if (endpointToControl.hasClusterServer(LevelControl.id) && endpointToControl.hasAttributeServer(LevelControl.id, 'currentLevel')) {
                       const currentBrightness = Math.round((endpointToControl.getAttribute(LevelControl.id, 'currentLevel') / 254) * 255);
-                      if (!currentOnOff) {
+                      if (currentOnOff) {
+                        const newBrightnessState = Math.min(254, currentBrightness + 13); // 254 is 100% in the 255 scale...
+                        payload['brightness' + entityEndpoint] = newBrightnessState;
+                      } else {
                         if (currentBrightness !== 254) {
                           payload['brightness' + entityEndpoint] = 254;
                         }
-                      } else {
-                        const newBrightnessState = Math.min(254, currentBrightness + 13); // 254 is 100% in the 255 scale...
-                        payload['brightness' + entityEndpoint] = newBrightnessState;
                       }
                     }
                     this.publishCommand(entityIeee, payload);
@@ -802,47 +846,6 @@ export class SwitchingController {
               };
               repeatZBFunction(0, keyForTimeoutAction);
             }
-          } else {
-            // const actionToDo = actionsConfig.httpActionsToDo[resourceToExecute];
-            // if (/* this.platform.state.remotes_on && */ actionToDo) {
-            //   // const jsonObject = JSON.parse(JSON.stringify(actionConfig.json))
-            //   // jsonObject.action = actionToDo
-            //   const jsonObject = JSON.parse(JSON.stringify(actionToDo.body_json['' + buttonevent]));
-            //   const data = JSON.stringify(jsonObject);
-            //   const options = {
-            //     hostname: actionToDo.host,
-            //     port: actionToDo.port,
-            //     path: actionToDo.path,
-            //     method: 'POST',
-            //     headers: {
-            //       'Content-Type': 'application/json',
-            //       'Content-Length': data.length,
-            //     },
-            //   };
-            //   const repeatFunction = (delay: number, timeoutKey: string) => {
-            //     this.longPressTimeoutIDs[timeoutKey] = setTimeout(() => {
-            //       this.log.info('Long press being on URL!!!');
-            //       const req = http.request(options, (res) => {
-            //         this.log.info(`statusCode: ${res.statusCode}`);
-            //         if (res.statusCode === 200) {
-            //           this.log.info('Command sent and received successfully');
-            //         }
-            //         res.on('data', d => {
-            //           // process.stdout.write(d)
-            //           this.log.info(d);
-            //         });
-            //       });
-            //       req.on('error', (error) => {
-            //         console.error(error);
-            //       });
-            //       req.write(data);
-            //       req.end();
-            //       // TODO: check and make a logic to specify when to start and stop the repeating process (currently all operations will be repeated until next buttonevent)
-            //       repeatFunction(300, timeoutKey);
-            //     }, delay);
-            //   };
-            //   repeatFunction(0, keyForTimeoutAction);
-            // }
           }
         }
       }

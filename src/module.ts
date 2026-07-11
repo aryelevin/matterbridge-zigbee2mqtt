@@ -29,13 +29,14 @@ import { deepCopy } from 'matterbridge/matter'; // Added by me: Arye Levin
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
 import { fireAndForget, getErrorMessage, isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
-import { AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js'; // Added by me: Arye Levin
-import { DummySwitch, DummySwitchConfig, DummySwitchType } from './dummySwitch.js'; // Added by me: Arye Levin
+import { type AqaraS1ScenePanelConfig, AqaraS1ScenePanelController } from './aqaraS1ScenePanelController.js'; // Added by me: Arye Levin
+import { DummySwitch, type DummySwitchConfig, type DummySwitchType } from './dummySwitch.js'; // Added by me: Arye Levin
 import { ZigbeeDevice, type ZigbeeEntity, ZigbeeGroup } from './entity.js';
-import { JewishCalendarSensors, JewishCalendarSensorsConfig } from './jewishCalendarSensors.js'; // Added by me: Arye Levin
+import { JewishCalendarSensors, type JewishCalendarSensorsConfig } from './jewishCalendarSensors.js'; // Added by me: Arye Levin
 import type { Payload } from './payloadTypes.js';
 import { PlatformControls } from './platformControls.js'; // Added by me: Arye Levin
-import { SwitchingController, SwitchingControllerSwitchConfig, SwitchingControllerSwitchLinkConfig } from './switchingController.js'; // Added by me: Arye Levin
+import { StateValidatorController } from './stateValidatorController.js'; // Added by me: Arye Levin
+import { SwitchingController, type SwitchingControllerSwitchConfig, type SwitchingControllerSwitchLinkConfig } from './switchingController.js'; // Added by me: Arye Levin
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import type { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
 
@@ -81,6 +82,7 @@ export type ZigbeePlatformConfig = BasePlatformConfig & {
   switchesActions?: { [key: string]: SwitchingControllerSwitchConfig };
   switchesOnStateCommands?: { [key: string]: { [key: string]: string } };
   switchesOffStateCommands?: { [key: string]: { [key: string]: string } };
+  putStateRepeatCount: number;
   separateDeviceEndpoints?: DeviceFeatureBlackList;
   // End of Added by me: Arye Levin
 };
@@ -115,6 +117,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public shabbatModeDummySwitch: DummySwitch | undefined;
   public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController;
   public switchingController: SwitchingController;
+  public stateValidatorController: StateValidatorController;
   private devicesCache: { [key: string]: BridgeDevice } = {};
   // End of Added by me: Arye Levin
 
@@ -223,9 +226,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     // Added by me: Arye Levin
     this.platformControls = new PlatformControls(this);
 
-    this.aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, config.aqaraS1ActionsConfigData || {});
+    this.aqaraS1ScenePanelConroller = new AqaraS1ScenePanelController(this, config.aqaraS1ActionsConfigData ?? {});
 
-    this.switchingController = new SwitchingController(this, config.switchesLinks || [], config.switchesActions || {});
+    this.switchingController = new SwitchingController(this, config.switchesLinks ?? [], config.switchesActions ?? {});
+
+    this.stateValidatorController = new StateValidatorController(this);
     // End of Added by me: Arye Levin
 
     this.z2m = new Zigbee2MQTT(
@@ -619,7 +624,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         } else {
           this.log.info('Shabbat Mode off called');
         }
-        this.platformControls.setSwitchesOnOff(!onOff);
+        void this.platformControls.setSwitchesOnOff(!onOff);
       });
       await this.registerDevice(this.shabbatModeDummySwitch.device);
     }
@@ -690,6 +695,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
 
     // Added by me: Arye Levin
+    this.stateValidatorController.setStateValidatorControllerConfiguration();
     this.platformControls.setPlatformControlsConfiguration();
     await this.aqaraS1ScenePanelConroller.setAqaraS1PanelsConfiguration();
     this.aqaraS1ScenePanelConroller.updateWeather();
@@ -873,7 +879,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
             this.log.debug(`Registered device ${dn}${deviceCopy.friendly_name}${db} ID: ${zb}${deviceCopy.ieee_address}${db}`);
           } else this.log.warn(`Device ${dn}${deviceCopy.friendly_name}${wr} ID: ${deviceCopy.ieee_address} not registered`);
         } catch (error) {
-          this.log.error(`Error registering device ${dn}${deviceCopy.friendly_name}${er} ID: ${deviceCopy.ieee_address}: ${error}`);
+          this.log.error(`Error registering device ${dn}${deviceCopy.friendly_name}${er} ID: ${deviceCopy.ieee_address}: ${getErrorMessage(error)}`);
         }
       }
       for (let index = exposesToRemoveMain.length - 1; index >= 0; index--) {
