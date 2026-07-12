@@ -192,6 +192,7 @@ export class StateValidatorController {
         const counterKey = endpoint.deviceId + '/' + endpoint.endpoint;
         this.log.info('counterKey: ' + counterKey);
         this.monitoredEndpointsRepeatCounts[counterKey]++;
+        this.log.info('monitoredEndpointsRepeatCounts: ' + this.monitoredEndpointsRepeatCounts[counterKey]);
         if (this.monitoredEndpointsRepeatCounts[counterKey] === this.platform.config.putStateRepeatCount) {
           this.monitoredEndpoints.splice(index, 1);
           this.monitoredEndpointsRepeatCounts[counterKey] = -1;
