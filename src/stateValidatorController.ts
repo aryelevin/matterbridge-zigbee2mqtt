@@ -133,8 +133,16 @@ export class StateValidatorController {
         if (propertyMapObject?.name === 'state' && effectiveEndpointTypes.has(propertyMapObject.type)) {
           const serviceToExamine =
             entity.isGroup && entity.group?.id ? 'group-' + entity.group.id : entity.isDevice && entity.device?.ieee_address ? entity.device.ieee_address : '';
-          this.monitoredEndpoints.push({ deviceId: serviceToExamine, property: key });
-          this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key] = 0;
+          const lastState = this.lastStates[serviceToExamine]?.[key];
+          if (lastState && this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key] !== -1) {
+            this.monitoredEndpoints.push({ deviceId: serviceToExamine, property: key });
+            // Create the entry first time with 0 counter to allow it to be run...
+            if (!this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key]) {
+              this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key] = 0;
+            }
+          } else {
+            this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key] = -1;
+          }
         }
       }
     }
@@ -147,6 +155,7 @@ export class StateValidatorController {
     if (this.monitoredEndpoints.length) {
       const index = this.platform.config.putStateRepeatCount > 0 ? this.currentEndpointPutIndex : beatNo % this.monitoredEndpoints.length;
       const endpoint = this.monitoredEndpoints[index];
+      const counterKey = endpoint.deviceId + '/' + endpoint.property;
       const lastState = this.lastStates[endpoint.deviceId]?.[endpoint.property];
       this.log.info('putState: ' + index + ', id: ' + endpoint.deviceId + ', property: ' + endpoint.property + ', lastState: ' + lastState);
       this.log.info('LastStates: ' + JSON.stringify(this.lastStates));
@@ -154,10 +163,10 @@ export class StateValidatorController {
         this.publishCommand(endpoint.deviceId, { [endpoint.property]: lastState });
       }
       if (this.platform.config.putStateRepeatCount > 0) {
-        const counterKey = endpoint.deviceId + '/' + endpoint.property;
         this.monitoredEndpointsRepeatCounts[counterKey]++;
         if (this.monitoredEndpointsRepeatCounts[counterKey] === this.platform.config.putStateRepeatCount) {
           this.monitoredEndpoints.splice(index, 1);
+          this.monitoredEndpointsRepeatCounts[counterKey] = -1;
         } else {
           this.currentEndpointPutIndex++;
         }
