@@ -6,6 +6,7 @@
 // import { MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, LogLevel, TimestampFormat } from 'matterbridge/logger';
 import { ColorControl, LevelControl, OnOff /* , Thermostat, WindowCovering */ } from 'matterbridge/matter/clusters';
+import { string } from 'matterbridge/matter/model';
 // import { EndpointNumber } from 'matterbridge/matter';
 import { /* deepCopy,*/ deepEqual } from 'matterbridge/utils';
 
@@ -78,7 +79,7 @@ export class StateValidatorController {
   public log: AnsiLogger;
   platform: ZigbeePlatform;
   lastStates: { [key: string]: Payload } = {};
-  monitoredEndpoints: { [key: string]: string }[];
+  monitoredEndpoints: { [key: string]: string | string[] }[];
   monitoredEndpointsRepeatCounts: { [key: string]: number };
   currentEndpointPutIndex: number;
 
@@ -124,24 +125,33 @@ export class StateValidatorController {
     this.monitoredEndpoints = [];
     const accessoriesArray = this.platform.zigbeeEntities;
     const effectiveEndpointTypes = new Set(['light', 'switch', 'outlet']);
+    const effectiveEndpointProperties = new Set(['state', 'brightness' /*, 'color_temp'*/]);
     for (let i = 0; i < accessoriesArray.length; i++) {
       const entity = accessoriesArray[i];
       const propertiesMap = entity.getPropertyMap();
+      const endpointsMap: { [key: string]: { [key: string]: string | string[] } } = {};
       // const servicesKeys = propertiesMap.keys();
       for (const key of propertiesMap.keys()) {
         const propertyMapObject = propertiesMap.get(key);
-        if (propertyMapObject?.name === 'state' && effectiveEndpointTypes.has(propertyMapObject.type)) {
+        if (propertyMapObject && effectiveEndpointProperties.has(propertyMapObject.name) && effectiveEndpointTypes.has(propertyMapObject.type)) {
           const serviceToExamine =
             entity.isGroup && entity.group?.id ? 'group-' + entity.group.id : entity.isDevice && entity.device?.ieee_address ? entity.device.ieee_address : '';
           const lastState = this.lastStates[serviceToExamine]?.[key];
-          if (lastState && this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key] !== -1) {
-            this.monitoredEndpoints.push({ deviceId: serviceToExamine, property: key });
+          if (lastState && this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + propertyMapObject.endpoint] !== -1) {
+            let entityEndpointData = endpointsMap[propertyMapObject.endpoint];
+            if (entityEndpointData) {
+              (entityEndpointData.properties as string[]).push(key);
+            } else {
+              entityEndpointData = { deviceId: serviceToExamine, properties: [key], endpoint: propertyMapObject.endpoint };
+              endpointsMap[propertyMapObject.endpoint] = entityEndpointData;
+              this.monitoredEndpoints.push(entityEndpointData);
+            }
             // Create the entry first time with 0 counter to allow it to be run...
-            if (!this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key]) {
-              this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key] = 0;
+            if (this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + propertyMapObject.endpoint] === undefined) {
+              this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + propertyMapObject.endpoint] = 0;
             }
           } else {
-            this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key] = -1;
+            this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + propertyMapObject.endpoint] = -1;
           }
         }
       }
@@ -155,14 +165,28 @@ export class StateValidatorController {
     if (this.monitoredEndpoints.length) {
       const index = this.platform.config.putStateRepeatCount > 0 ? this.currentEndpointPutIndex : beatNo % this.monitoredEndpoints.length;
       const endpoint = this.monitoredEndpoints[index];
-      const counterKey = endpoint.deviceId + '/' + endpoint.property;
-      const lastState = this.lastStates[endpoint.deviceId]?.[endpoint.property];
-      this.log.info('putState: ' + index + ', id: ' + endpoint.deviceId + ', property: ' + endpoint.property + ', lastState: ' + JSON.stringify(lastState));
-      this.log.info('LastStates: ' + JSON.stringify(this.lastStates));
-      if (lastState) {
-        this.publishCommand(endpoint.deviceId, { [endpoint.property]: lastState });
+
+      const lastEndpointState = this.lastStates[endpoint.deviceId as string];
+      if (lastEndpointState) {
+        const statePayload: Payload = {};
+        let dirty = false;
+        for (const property of endpoint.properties) {
+          const lastState = lastEndpointState[property];
+          if (lastState) {
+            statePayload[property] = lastState;
+            dirty = true;
+          }
+        }
+        if (dirty) {
+          this.publishCommand(endpoint.deviceId as string, statePayload);
+        }
       }
+
+      this.log.info('putState: ' + index + ', id: ' + endpoint.deviceId + ', properties: ' + endpoint.properties + ', lastState: ' + JSON.stringify(lastEndpointState));
+      this.log.info('LastStates: ' + JSON.stringify(this.lastStates));
+
       if (this.platform.config.putStateRepeatCount > 0) {
+        const counterKey = endpoint.deviceId + '/' + endpoint.endpoint;
         this.monitoredEndpointsRepeatCounts[counterKey]++;
         if (this.monitoredEndpointsRepeatCounts[counterKey] === this.platform.config.putStateRepeatCount) {
           this.monitoredEndpoints.splice(index, 1);
@@ -204,14 +228,14 @@ export class StateValidatorController {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
-      const deviceEndpoint = deviceIeee + '/' + changedPropertyName + endpoint;
+      // const deviceEndpoint = deviceIeee + '/' + changedPropertyName + endpoint;
       // TODO: Maybe check if its supposed to be monitored...
       if (!this.lastStates[deviceIeee]) {
         this.lastStates[deviceIeee] = {};
       }
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
-      this.monitoredEndpointsRepeatCounts[deviceEndpoint] = 0;
+      this.monitoredEndpointsRepeatCounts[deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint)] = 0;
     }
     return true;
   }
