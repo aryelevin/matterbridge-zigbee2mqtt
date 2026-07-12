@@ -236,6 +236,7 @@ export class StateValidatorController {
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
       this.monitoredEndpointsRepeatCounts[deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint)] = 0;
+      this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));
     }
     return true;
   }
