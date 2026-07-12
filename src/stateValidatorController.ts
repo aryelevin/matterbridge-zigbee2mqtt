@@ -154,7 +154,10 @@ export class StateValidatorController {
               this.monitoredEndpointsRepeatCounts[counterKey] = 0;
             }
           } else {
-            this.monitoredEndpointsRepeatCounts[counterKey] = -1;
+            // Create a non functioning entry to allow proper setting later... (Only if no object already, since it might be that one of few monitored properties doesn't have last state, which will get here, and if some of the last states does exists, it will reset it for no reason).
+            if (this.monitoredEndpointsRepeatCounts[counterKey] === undefined) {
+              this.monitoredEndpointsRepeatCounts[counterKey] = -1;
+            }
           }
         }
       }
