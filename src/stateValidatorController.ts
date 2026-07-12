@@ -78,12 +78,14 @@ export class StateValidatorController {
   public log: AnsiLogger;
   platform: ZigbeePlatform;
   lastStates: { [key: string]: Payload } = {};
-  monitoredEndpoints: { [key: string]: string | number }[];
+  monitoredEndpoints: { [key: string]: string }[];
+  monitoredEndpointsRepeatCounts: { [key: string]: number };
   currentEndpointPutIndex: number;
 
   constructor(platform: ZigbeePlatform) {
     this.platform = platform;
     this.monitoredEndpoints = [];
+    this.monitoredEndpointsRepeatCounts = {};
     this.currentEndpointPutIndex = 0;
 
     this.log = new AnsiLogger({
@@ -131,7 +133,8 @@ export class StateValidatorController {
         if (propertyMapObject?.name === 'state' && effectiveEndpointTypes.has(propertyMapObject.type)) {
           const serviceToExamine =
             entity.isGroup && entity.group?.id ? 'group-' + entity.group.id : entity.isDevice && entity.device?.ieee_address ? entity.device.ieee_address : '';
-          this.monitoredEndpoints.push({ deviceId: serviceToExamine, property: key, putStateCounter: 0 });
+          this.monitoredEndpoints.push({ deviceId: serviceToExamine, property: key });
+          this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + key] = 0;
         }
       }
     }
@@ -148,11 +151,12 @@ export class StateValidatorController {
       this.log.info('putState: ' + index + ', id: ' + endpoint.deviceId + ', property: ' + endpoint.property + ', lastState: ' + lastState);
       this.log.info('LastStates: ' + JSON.stringify(this.lastStates));
       if (lastState) {
-        this.publishCommand(endpoint.deviceId as string, { [endpoint.property]: lastState });
+        this.publishCommand(endpoint.deviceId, { [endpoint.property]: lastState });
       }
       if (this.platform.config.putStateRepeatCount > 0) {
-        (endpoint.putStateCounter as number)++;
-        if (endpoint.putStateCounter === this.platform.config.putStateRepeatCount) {
+        const counterKey = endpoint.deviceId + '/' + endpoint.property;
+        this.monitoredEndpointsRepeatCounts[counterKey]++;
+        if (this.monitoredEndpointsRepeatCounts[counterKey] === this.platform.config.putStateRepeatCount) {
           this.monitoredEndpoints.splice(index, 1);
         } else {
           this.currentEndpointPutIndex++;
@@ -194,6 +198,8 @@ export class StateValidatorController {
         this.lastStates[deviceIeee] = {};
       }
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
+
+      this.monitoredEndpointsRepeatCounts[deviceEndpoint] = 0;
     }
     return true;
   }
