@@ -157,7 +157,7 @@ export class StateValidatorController {
       const endpoint = this.monitoredEndpoints[index];
       const counterKey = endpoint.deviceId + '/' + endpoint.property;
       const lastState = this.lastStates[endpoint.deviceId]?.[endpoint.property];
-      this.log.info('putState: ' + index + ', id: ' + endpoint.deviceId + ', property: ' + endpoint.property + ', lastState: ' + lastState);
+      this.log.info('putState: ' + index + ', id: ' + endpoint.deviceId + ', property: ' + endpoint.property + ', lastState: ' + JSON.stringify(lastState));
       this.log.info('LastStates: ' + JSON.stringify(this.lastStates));
       if (lastState) {
         this.publishCommand(endpoint.deviceId, { [endpoint.property]: lastState });
