@@ -187,6 +187,7 @@ export class StateValidatorController {
 
       if (this.platform.config.putStateRepeatCount > 0) {
         const counterKey = endpoint.deviceId + '/' + endpoint.endpoint;
+        this.log.info('counterKey: ' + counterKey);
         this.monitoredEndpointsRepeatCounts[counterKey]++;
         if (this.monitoredEndpointsRepeatCounts[counterKey] === this.platform.config.putStateRepeatCount) {
           this.monitoredEndpoints.splice(index, 1);
@@ -235,7 +236,9 @@ export class StateValidatorController {
       }
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
-      this.monitoredEndpointsRepeatCounts[deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint)] = 0;
+      const counterKey = deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint);
+      this.log.info('counterKey: ' + counterKey);
+      this.monitoredEndpointsRepeatCounts[counterKey] = 0;
       this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));
     }
     return true;
