@@ -137,7 +137,9 @@ export class StateValidatorController {
           const serviceToExamine =
             entity.isGroup && entity.group?.id ? 'group-' + entity.group.id : entity.isDevice && entity.device?.ieee_address ? entity.device.ieee_address : '';
           const lastState = this.lastStates[serviceToExamine]?.[key];
-          if (lastState && this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + propertyMapObject.endpoint] !== -1) {
+          const counterKey = serviceToExamine + '/' + propertyMapObject.endpoint;
+          this.log.info('counterKey: ' + counterKey);
+          if (lastState && this.monitoredEndpointsRepeatCounts[counterKey] !== -1) {
             let entityEndpointData = endpointsMap[propertyMapObject.endpoint];
             if (entityEndpointData) {
               (entityEndpointData.properties as string[]).push(key);
@@ -147,11 +149,11 @@ export class StateValidatorController {
               this.monitoredEndpoints.push(entityEndpointData);
             }
             // Create the entry first time with 0 counter to allow it to be run...
-            if (this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + propertyMapObject.endpoint] === undefined) {
-              this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + propertyMapObject.endpoint] = 0;
+            if (this.monitoredEndpointsRepeatCounts[counterKey] === undefined) {
+              this.monitoredEndpointsRepeatCounts[counterKey] = 0;
             }
           } else {
-            this.monitoredEndpointsRepeatCounts[serviceToExamine + '/' + propertyMapObject.endpoint] = -1;
+            this.monitoredEndpointsRepeatCounts[counterKey] = -1;
           }
         }
       }
