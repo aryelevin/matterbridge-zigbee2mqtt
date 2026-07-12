@@ -140,6 +140,7 @@ export class StateValidatorController {
           const counterKey = serviceToExamine + '/' + propertyMapObject.endpoint;
           this.log.info('counterKey: ' + counterKey);
           if (lastState && this.monitoredEndpointsRepeatCounts[counterKey] !== -1) {
+            this.log.info('monitoredEndpointsRepeatCounts: ' + this.monitoredEndpointsRepeatCounts[counterKey]);
             let entityEndpointData = endpointsMap[propertyMapObject.endpoint];
             if (entityEndpointData) {
               (entityEndpointData.properties as string[]).push(key);
