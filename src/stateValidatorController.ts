@@ -138,9 +138,7 @@ export class StateValidatorController {
             entity.isGroup && entity.group?.id ? 'group-' + entity.group.id : entity.isDevice && entity.device?.ieee_address ? entity.device.ieee_address : '';
           const lastState = this.lastStates[serviceToExamine]?.[key];
           const counterKey = serviceToExamine + '/' + propertyMapObject.endpoint;
-          this.log.info('counterKey: ' + counterKey);
           if (lastState && this.monitoredEndpointsRepeatCounts[counterKey] !== -1) {
-            this.log.info('monitoredEndpointsRepeatCounts: ' + this.monitoredEndpointsRepeatCounts[counterKey]);
             let entityEndpointData = endpointsMap[propertyMapObject.endpoint];
             if (entityEndpointData) {
               (entityEndpointData.properties as string[]).push(key);
@@ -193,10 +191,7 @@ export class StateValidatorController {
 
       if (this.platform.config.putStateRepeatCount > 0) {
         const counterKey = endpoint.deviceId + '/' + endpoint.endpoint;
-        this.log.info('counterKey: ' + counterKey);
-        this.log.info('monitoredEndpointsRepeatCounts: ' + this.monitoredEndpointsRepeatCounts[counterKey]);
         this.monitoredEndpointsRepeatCounts[counterKey]++;
-        this.log.info('monitoredEndpointsRepeatCounts: ' + this.monitoredEndpointsRepeatCounts[counterKey]);
         if (this.monitoredEndpointsRepeatCounts[counterKey] === this.platform.config.putStateRepeatCount) {
           this.monitoredEndpoints.splice(index, 1);
           this.monitoredEndpointsRepeatCounts[counterKey] = -1;
@@ -245,9 +240,8 @@ export class StateValidatorController {
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
       const counterKey = deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint);
-      this.log.info('counterKey: ' + counterKey);
       this.monitoredEndpointsRepeatCounts[counterKey] = 0;
-      this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));
+      // this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));
     }
     return true;
   }
