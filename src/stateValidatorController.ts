@@ -175,6 +175,9 @@ export class StateValidatorController {
           this.loadEndpointsToMonitor();
         }
       }
+    } else {
+      this.currentEndpointPutIndex = 0;
+      this.loadEndpointsToMonitor();
     }
 
     setTimeout(() => {
