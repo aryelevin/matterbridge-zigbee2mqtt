@@ -392,7 +392,7 @@ export class SwitchingController {
             if (paramToControl.startsWith('state') && value === 'ON') {
               const linkConfig = this.switchesLinksConfigsPerSwitch[deviceEndpointPath];
               if (linkConfig.resetLight !== 0) {
-                if (linkConfig.resetAlways || Date.now() - this.linkedDevicesEndpointExecutionTimes[linkedDeviceIeee + '/' + paramToControl] <= 5000) {
+                if (linkConfig.resetAlways || Date.now() - this.linkedDevicesEndpointExecutionTimes[linkedDeviceIeee + '/' + paramToControl] <= 2000) {
                   // TODO: check if its suffecient or we need something specific for this need...
                   const endpointNameParts = paramToControl.split('_');
                   const endpointName = endpointNameParts.length > 1 ? '_' + endpointNameParts[1] : '';

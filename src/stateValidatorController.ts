@@ -3,12 +3,7 @@
 //
 // Matterbridge plugin for Zigbee2MQTT.
 
-// import { MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, LogLevel, TimestampFormat } from 'matterbridge/logger';
-import { ColorControl, LevelControl, OnOff /* , Thermostat, WindowCovering */ } from 'matterbridge/matter/clusters';
-import { string } from 'matterbridge/matter/model';
-// import { EndpointNumber } from 'matterbridge/matter';
-import { /* deepCopy,*/ deepEqual } from 'matterbridge/utils';
 
 import { ZigbeeEntity } from './entity.js';
 import type { ZigbeePlatform } from './module.js';
