@@ -455,7 +455,7 @@ export class SwitchingController {
   }
 
   async processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload) {
-    const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed' + '_' + newPayload['action_rotation_button_state']];
+    const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed_' + newPayload['action_rotation_button_state']];
     if (actionsConfig.enabled) {
       for (const linkedDevice in actionsConfig.linkedDevices) {
         if (linkedDevice.startsWith('http')) {
