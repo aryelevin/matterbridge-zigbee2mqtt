@@ -237,7 +237,6 @@ export class SwitchingController {
   }
 
   deviceHasChangedMatterAttributeInSwitchesOffMode(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number): void {
-    this.platform.stateValidatorController.deviceHasChangedMatterAttributeInSwitchesOffMode(deviceIeee, endpoint, attribute, value, oldValue);
     const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
     // Enforce switch state when switchesOn is off...
     const z2mOldValue = attribute === 'onOff' ? (oldValue ? 'ON' : 'OFF') : oldValue;

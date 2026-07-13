@@ -213,10 +213,6 @@ export class StateValidatorController {
     }, 5000);
   }
 
-  deviceHasChangedMatterAttributeInSwitchesOffMode(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number): void {
-    this.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, value, oldValue, true);
-  }
-
   // Should be called when matter side changed (By incoming event from z2m by manual control or z2m frontend control of a switch or light, or when user uses matter to control z2m - actionSourceIsFromMatter is true then...)
   // When actionSourceIsFromMatter is true, oldValue can be undefined...
   // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
