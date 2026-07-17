@@ -1,65 +1,74 @@
-// src/module.test.ts
+/**
+ * @file vitest/module.test.ts
+ * @description This file contains the tests for the ZigbeePlatform.
+ * @author Luca Liguori
+ */
+
+/* oxlint-disable no-console */
 
 const NAME = 'Platform';
 const MATTER_PORT = 6000;
 const MATTER_CREATE_ONLY = true;
 
-/* eslint-disable no-console */
-
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { jest } from '@jest/globals';
-import { bridgedNode, colorTemperatureLight, coverDevice, dimmableLight, doorLockDevice, extendedColorLight, onOffLight, powerSource, thermostatDevice } from 'matterbridge';
 import {
-  addMatterbridgePlatform,
-  createMatterbridgeEnvironment,
-  destroyMatterbridgeEnvironment,
-  flushAsync,
-  log,
-  loggerLogSpy,
-  matterbridge,
-  setDebug,
-  setupTest,
-  startMatterbridgeEnvironment,
-  stopMatterbridgeEnvironment,
-} from 'matterbridge/jestutils';
+  bridgedNode,
+  colorTemperatureLight,
+  dimmableLight,
+  doorLock,
+  extendedColorLight,
+  onOffLight,
+  type PlatformMatterbridge,
+  powerSource,
+  thermostat,
+  windowCovering,
+} from 'matterbridge';
 import { db, hk, idn, ign, LogLevel, or, rs, YELLOW } from 'matterbridge/logger';
 import { Thermostat } from 'matterbridge/matter/clusters';
 import { getMacAddress, wait } from 'matterbridge/utils';
+import { flushAsync, log, loggerLogSpy, setDebug, setupTest } from 'matterbridge/vitest-utils';
+import {
+  addMatterbridge,
+  createServerNode,
+  createTestEnvironment,
+  destroyTestEnvironment,
+  flushServerNode,
+  getMatterbridge,
+  startServerNode,
+  stopServerNode,
+} from 'matterbridge/vitest-utils/matter';
 
-import initializePlugin, { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
-import { Zigbee2MQTT } from './zigbee2mqtt.js';
-import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
+import { ZigbeeDevice, ZigbeeGroup } from '../src/entity.js';
+import initializePlugin, { ZigbeePlatform, type ZigbeePlatformConfig } from '../src/module.js';
+import { Zigbee2MQTT } from '../src/zigbee2mqtt.js';
+import type { BridgeDevice, BridgeGroup, BridgeInfo } from '../src/zigbee2mqttTypes.js';
 
 // Spy on ZigbeePlatform
-const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
+const publishSpy = vi.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation((topic: string, subTopic: string, message: string) => {
   console.log(`Mocked publish called with topic: ${topic}, subTopic: ${subTopic}, message: ${message}`);
-  return Promise.resolve();
 });
 
 // Mock the Zigbee2MQTT methods
-const z2mStartSpy = jest.spyOn(Zigbee2MQTT.prototype, 'start').mockImplementation(() => {
+const z2mStartSpy = vi.spyOn(Zigbee2MQTT.prototype, 'start').mockImplementation(() => {
   console.log('Mocked start');
-  return Promise.resolve();
 });
-const z2mStopSpy = jest.spyOn(Zigbee2MQTT.prototype, 'stop').mockImplementation(() => {
+const z2mStopSpy = vi.spyOn(Zigbee2MQTT.prototype, 'stop').mockImplementation(() => {
   console.log('Mocked stop');
-  return Promise.resolve();
 });
-const z2mSubscribeSpy = jest.spyOn(Zigbee2MQTT.prototype, 'subscribe').mockImplementation((topic: string) => {
+const z2mSubscribeSpy = vi.spyOn(Zigbee2MQTT.prototype, 'subscribe').mockImplementation((topic: string) => {
   console.log('Mocked subscribe', topic);
-  return Promise.resolve();
 });
-const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplementation((topic: string, message: string, queue?: boolean) => {
+const z2mPublishSpy = vi.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplementation((topic: string, message: string, queue?: boolean) => {
   console.log(`Mocked publish: ${topic} - ${message} queue ${queue}`);
-  return Promise.resolve();
 });
 
 // Setup the test environment
 await setupTest(NAME, false);
 
 describe('TestPlatform', () => {
+  let matterbridge: PlatformMatterbridge;
   let platform: ZigbeePlatform;
 
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
@@ -97,13 +106,15 @@ describe('TestPlatform', () => {
 
   beforeAll(async () => {
     // Create Matterbridge environment
-    await createMatterbridgeEnvironment();
-    await startMatterbridgeEnvironment(MATTER_PORT, MATTER_CREATE_ONLY);
+    await createTestEnvironment();
+    await createServerNode(MATTER_PORT);
+    if (!MATTER_CREATE_ONLY) await startServerNode();
+    matterbridge = getMatterbridge();
   });
 
   beforeEach(async () => {
     // Clears the call history before each test
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(async () => {
@@ -113,11 +124,12 @@ describe('TestPlatform', () => {
 
   afterAll(async () => {
     // Destroy Matterbridge environment
-    await stopMatterbridgeEnvironment(MATTER_CREATE_ONLY);
-    await destroyMatterbridgeEnvironment();
+    if (MATTER_CREATE_ONLY) await flushServerNode();
+    else await stopServerNode();
+    await destroyTestEnvironment();
 
     // Restore the original implementation of the AnsiLogger.log method
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
 
     // logKeepAlives();
   });
@@ -138,6 +150,7 @@ describe('TestPlatform', () => {
     config.port = -1883;
     config.username = 'user';
     config.password = 'password';
+    // @ts-expect-error - testing invalid protocol version
     config.protocolVersion = 10;
     config.scenesType = 'outlet';
     config.scenesPrefix = true;
@@ -155,13 +168,13 @@ describe('TestPlatform', () => {
     platform.z2m.emit('bridge-info', { version: '1', zigbee_herdsman: { version: '1' }, zigbee_herdsman_converters: { version: '1' }, config: { advanced: { output: 'attribute', legacy_api: true, legacy_availability_payload: true } } });
     platform.shouldStart = true;
     platform.shouldConfigure = true;
-    jest.spyOn(platform as any, 'registerZigbeeDevice').mockImplementation(async () => Promise.resolve());
-    jest.spyOn(platform as any, 'registerZigbeeGroup').mockImplementation(async () => Promise.resolve());
-    jest.spyOn(platform as any, 'requestDeviceUpdate').mockImplementation(async () => Promise.resolve());
-    jest.spyOn(platform as any, 'requestGroupUpdate').mockImplementation(async () => Promise.resolve());
-    jest.spyOn(platform as any, 'unregisterZigbeeEntity').mockImplementation(async () => Promise.resolve());
-    jest.spyOn(platform as any, 'validateDevice').mockImplementation(() => true);
-    platform.zigbeeEntities = [{ entityName: 'TestEntity', isDevice: true, device: {}, isGroup: true, group: {}, configure: jest.fn(), destroy: jest.fn() }] as any;
+    vi.spyOn(platform as any, 'registerZigbeeDevice').mockImplementation(() => {});
+    vi.spyOn(platform as any, 'registerZigbeeGroup').mockImplementation(() => {});
+    vi.spyOn(platform as any, 'requestDeviceUpdate').mockImplementation(() => {});
+    vi.spyOn(platform as any, 'requestGroupUpdate').mockImplementation(() => {});
+    vi.spyOn(platform as any, 'unregisterZigbeeEntity').mockImplementation(() => {});
+    vi.spyOn(platform as any, 'validateDevice').mockImplementation(() => true);
+    platform.zigbeeEntities = [{ entityName: 'TestEntity', isDevice: true, device: {}, isGroup: true, group: {}, configure: vi.fn(), destroy: vi.fn() }] as any;
     platform.z2m.emit('bridge-devices', [{}] as BridgeDevice[]);
     platform.z2m.emit('bridge-groups', [{}] as BridgeGroup[]);
     platform.z2m.emit('availability', 'zigbee2mqtt/TestEntity', false);
@@ -243,7 +256,7 @@ describe('TestPlatform', () => {
     platform = new ZigbeePlatform(matterbridge, log, mockConfig);
     expect(platform).toBeDefined();
     // Add the platform to the Matterbridge environment
-    addMatterbridgePlatform(platform);
+    addMatterbridge(platform);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Initializing platform:/));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Loaded zigbee2mqtt parameters/));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Connecting to MQTT broker/));
@@ -408,7 +421,7 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-onoffswitch:52${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}false${db} to ${YELLOW}true${db}`),
+      expect.stringContaining(`${db}Update endpoint ${or}OnOffLightSwitch:52${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}false${db} to ${YELLOW}true${db}`),
     );
     // await wait(200);
   });
@@ -440,23 +453,23 @@ describe('TestPlatform', () => {
   it('should update /Lights/set', async () => {
     const entity = 'Lights';
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const oldxy = { state: 'OFF', brightness: 100, color: { x: 0.2927, y: 0.6349 }, color_mode: 'xy', changed: 0 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(oldxy)));
     await flushAsync(undefined, undefined, updateTimeout);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
+      expect.stringContaining(`${db}Update endpoint ${or}ExtendedColorLight:60${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
     );
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const oldct = { state: 'OFF', brightness: 100, color_temp: 500, color_mode: 'color_temp', changed: 0 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(oldct)));
     await flushAsync(undefined, undefined, updateTimeout);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const payload = { state: 'ON', brightness: 250, color: { x: 0.5006, y: 0.2993 }, color_mode: 'xy', changed: 1 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(payload)));
     await flushAsync(undefined, undefined, updateTimeout);
@@ -464,25 +477,23 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
+        `${db}Update endpoint ${or}ExtendedColorLight:60${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
+      ),
+    );
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      expect.stringContaining(`${db}Update endpoint ${or}ExtendedColorLight:60${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`),
+    );
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      expect.stringContaining(
+        `${db}Update endpoint ${or}ExtendedColorLight:60${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`,
-      ),
-    );
-    expect(loggerLogSpy).toHaveBeenCalledWith(
-      LogLevel.INFO,
-      expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
-      ),
-    );
-    expect(loggerLogSpy).toHaveBeenCalledWith(
-      LogLevel.INFO,
-      expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
+        `${db}Update endpoint ${or}ExtendedColorLight:60${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
       ),
     );
   });
@@ -528,7 +539,7 @@ describe('TestPlatform', () => {
     if (!device) return;
     await device.construction.ready;
     await flushAsync(undefined, undefined, commandTimeout);
-    expect(device.deviceTypes.get(doorLockDevice.code)).toBeDefined();
+    expect(device.deviceTypes.get(doorLock.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
   });
@@ -638,7 +649,7 @@ describe('TestPlatform', () => {
     if (!device) return;
     await device.construction.ready;
     await flushAsync(undefined, undefined, commandTimeout);
-    expect(device.deviceTypes.get(coverDevice.code)).toBeDefined();
+    expect(device.deviceTypes.get(windowCovering.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
   });
@@ -676,7 +687,7 @@ describe('TestPlatform', () => {
     if (!device) return;
     await device.construction.ready;
     await flushAsync(undefined, undefined, commandTimeout);
-    expect(device.deviceTypes.get(thermostatDevice.code)).toBeDefined();
+    expect(device.deviceTypes.get(thermostat.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
   });
@@ -796,6 +807,20 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Setting availability for/));
   });
 
+  it('should replay retained payloads during onConfigure', async () => {
+    const retainedSpy = vi.fn();
+    platform.z2m.on('MESSAGE-RetainedDevice', retainedSpy);
+    (platform as any).z2mEntityPayload.set('RetainedDevice', { state: 'ON' });
+    (platform as any).availabilityTimeout = 1;
+
+    await platform.onConfigure();
+    await wait(20);
+
+    expect(retainedSpy).toHaveBeenCalledWith({ state: 'ON' });
+    platform.z2m.off('MESSAGE-RetainedDevice', retainedSpy);
+    (platform as any).z2mEntityPayload.delete('RetainedDevice');
+  });
+
   it('should call onConfigure permit_join = false', async () => {
     (platform as any).z2mBridgeInfo.permit_join = false;
     (platform as any).availabilityTimeout = 1;
@@ -807,6 +832,50 @@ describe('TestPlatform', () => {
     (platform as any).z2mBridgeInfo.permit_join = true;
     await platform.onConfigure();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Configured zigbee2mqtt dynamic platform/));
+  });
+
+  it('should return undefined when device registration is not valid', async () => {
+    vi.spyOn(platform as any, 'validateDevice').mockReturnValueOnce(false);
+
+    const result = await (platform as any).registerZigbeeDevice({ ieee_address: '0xinvalid', friendly_name: 'Invalid device' });
+
+    expect(result).toBeUndefined();
+  });
+
+  it('should handle device registration without bridged device and create errors', async () => {
+    vi.spyOn(platform as any, 'validateDevice').mockReturnValue(true);
+    vi.spyOn(ZigbeeDevice, 'create').mockResolvedValueOnce({ bridgedDevice: undefined } as ZigbeeDevice);
+
+    const noBridge = await (platform as any).registerZigbeeDevice({ ieee_address: '0xnobridge', friendly_name: 'No bridge device' });
+
+    expect(noBridge).toBeDefined();
+
+    vi.spyOn(ZigbeeDevice, 'create').mockRejectedValueOnce(new Error('device create failed'));
+    const failed = await (platform as any).registerZigbeeDevice({ ieee_address: '0xfailed', friendly_name: 'Failed device' });
+
+    expect(failed).toBeUndefined();
+  });
+
+  it('should return undefined when group registration is not valid', async () => {
+    vi.spyOn(platform as any, 'validateDevice').mockReturnValueOnce(false);
+
+    const result = await platform.registerZigbeeGroup({ id: 9991, friendly_name: 'Invalid group', description: '', members: [], scenes: [] });
+
+    expect(result).toBeUndefined();
+  });
+
+  it('should handle group registration without bridged device and create errors', async () => {
+    vi.spyOn(platform as any, 'validateDevice').mockReturnValue(true);
+    vi.spyOn(ZigbeeGroup, 'create').mockResolvedValueOnce({ bridgedDevice: undefined } as ZigbeeGroup);
+
+    const noBridge = await platform.registerZigbeeGroup({ id: 9992, friendly_name: 'No bridge group', description: '', members: [], scenes: [] });
+
+    expect(noBridge).toBeDefined();
+
+    vi.spyOn(ZigbeeGroup, 'create').mockRejectedValueOnce(new Error('group create failed'));
+    const failed = await platform.registerZigbeeGroup({ id: 9993, friendly_name: 'Failed group', description: '', members: [], scenes: [] });
+
+    expect(failed).toBeUndefined();
   });
 
   it('should call onChangeLoggerLevel', async () => {
