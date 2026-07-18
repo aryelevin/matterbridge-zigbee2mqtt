@@ -5,7 +5,7 @@
 
 // import * as fs from 'node:fs';
 
-import { bridgedNode, dimmableLight, MatterbridgeEndpoint, onOffLight, onOffOutlet, onOffSwitch, powerSource } from 'matterbridge';
+import { bridgedNode, dimmableLight, MatterbridgeEndpoint, onOffLight, onOffPlugInUnit, onOffLightSwitch, powerSource } from 'matterbridge';
 import { OnOff } from 'matterbridge/matter/clusters';
 
 // import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
@@ -65,7 +65,7 @@ export class DummySwitch {
 
     if (this.config.type === 'switch') {
       // *********************** Create a switch device ***********************
-      this.device = new MatterbridgeEndpoint([onOffSwitch, bridgedNode, powerSource], { id: this.config.name + ' Switch' }, this.config.debug);
+      this.device = new MatterbridgeEndpoint([onOffLightSwitch, bridgedNode, powerSource], { id: this.config.name + ' Switch' }, this.config.debug);
       this.device.createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + ' Switch', 'SWI00010_' + this.device.id, 0xfff1, 'AL Bridge', 'AL Switch');
 
       // this.switch = await this.addDevice(this.switch);
@@ -93,7 +93,7 @@ export class DummySwitch {
       // this.lightOnOff = await this.addDevice(this.lightOnOff);
     } else {
       // *********************** Create an outlet device ***********************
-      this.device = new MatterbridgeEndpoint([onOffOutlet, bridgedNode, powerSource], { id: this.config.name + ' Outlet' }, this.config.debug);
+      this.device = new MatterbridgeEndpoint([onOffPlugInUnit, bridgedNode, powerSource], { id: this.config.name + ' Outlet' }, this.config.debug);
       this.device.createDefaultBridgedDeviceBasicInformationClusterServer(this.config.name + ' Outlet', 'OUT00019_' + this.device.id, 0xfff1, 'AL Bridge', 'AL Outlet');
 
       // this.outlet = await this.addDevice(this.outlet);

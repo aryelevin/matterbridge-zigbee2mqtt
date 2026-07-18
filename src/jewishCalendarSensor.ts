@@ -6,7 +6,7 @@
 // import EventEmitter from 'node:events';
 
 import { contactSensor, MatterbridgeEndpoint } from 'matterbridge';
-import { LocationTag } from 'matterbridge/matter';
+import { CommonLocationTag } from 'matterbridge/matter';
 import { BasicInformationServer } from 'matterbridge/matter/behaviors';
 import { BooleanState } from 'matterbridge/matter/clusters';
 
@@ -31,7 +31,7 @@ export class JewishCalendarSensor {
     this.sensor = accessory.addChildDeviceType(
       params.name,
       [contactSensor],
-      { id: params.name, tagList: [{ mfgCode: null, namespaceId: LocationTag.Indoor.namespaceId, tag: LocationTag.Indoor.tag, label: params.name }] },
+      { id: params.name, tagList: [{ mfgCode: null, namespaceId: CommonLocationTag.Indoor.namespaceId, tag: CommonLocationTag.Indoor.tag, label: params.name }] },
       params.debug,
     );
     // this.sensor.createDefaultIdentifyClusterServer();

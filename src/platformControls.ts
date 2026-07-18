@@ -5,14 +5,14 @@
 
 // import * as fs from 'node:fs';
 
-import { bridgedNode, MatterbridgeEndpoint, onOffSwitch, powerSource } from 'matterbridge';
-import { LocationTag } from 'matterbridge/matter';
+import { bridgedNode, MatterbridgeEndpoint, onOffLightSwitch, powerSource } from 'matterbridge';
+import { CommonLocationTag } from 'matterbridge/matter';
 import { OnOff } from 'matterbridge/matter/clusters';
 // import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
 import { payloadStringify } from 'node-ansi-logger';
 
-import { ZigbeePlatform } from './module.js';
-import { Payload } from './payloadTypes.js';
+import type { ZigbeePlatform } from './module.js';
+import type { Payload } from './payloadTypes.js';
 
 export class PlatformControls {
   platform: ZigbeePlatform;
@@ -34,8 +34,11 @@ export class PlatformControls {
     // *********************** Create a switch device ***********************
     this.switchesEnabledEndpoint = this.device.addChildDeviceType(
       'Enable Switches Switch',
-      [onOffSwitch],
-      { id: 'Enable Switches Switch', tagList: [{ mfgCode: null, namespaceId: LocationTag.Indoor.namespaceId, tag: LocationTag.Indoor.tag, label: 'Enable Switches Switch' }] },
+      [onOffLightSwitch],
+      {
+        id: 'Enable Switches Switch',
+        tagList: [{ mfgCode: null, namespaceId: CommonLocationTag.Indoor.namespaceId, tag: CommonLocationTag.Indoor.tag, label: 'Enable Switches Switch' }],
+      },
       this.platform.config.debug,
     );
     // this.swicthesOnEndpoint.createDefaultBridgedDeviceBasicInformationClusterServer('Enable Switches Switch', 'SWI00010_' + this.swicthesOnEndpoint.id, 0xfff1, 'AL Bridge', 'AL Switch');
