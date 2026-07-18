@@ -633,7 +633,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (!hasContext) {
       await this.context?.set('devicesCache', {});
     }
-    this.devicesCache = (await this.context?.get('devicesCache')) || {};
+    this.devicesCache = (await this.context?.get('devicesCache')) ?? {};
     // End of Added by me: Arye Levin
 
     // Clear select device and entity since we have a bridge here and they will be recreated from the bridge
@@ -961,7 +961,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
   }
 
-  private async saveContext() {
+  private async saveContext(): Promise<void> {
     await this.context?.set('devicesCache', this.devicesCache);
   }
 }

@@ -131,8 +131,8 @@ export class SwitchingController {
 
     for (const linkConfig of this.switchesLinksConfig) {
       if (linkConfig.enabled) {
-        const sourceSwitches = linkConfig.switches || [];
-        const linkedDevices = linkConfig.linkedDevices || [];
+        const sourceSwitches = linkConfig.switches ?? [];
+        const linkedDevices = linkConfig.linkedDevices ?? [];
         for (const sourceSwitch of sourceSwitches) {
           this.switchesLinksConfigsPerSwitch[sourceSwitch] = linkConfig;
           if (!this.switchesLinksSwitchesToDevices[sourceSwitch]) this.switchesLinksSwitchesToDevices[sourceSwitch] = [];
@@ -182,7 +182,7 @@ export class SwitchingController {
     //   devicesToListenToEvents[sourceDevice.split('/')[0]] = false;
     // }
     for (const linkConfig of this.switchesLinksConfig) {
-      for (const sourceSwitch of linkConfig.switches || []) {
+      for (const sourceSwitch of linkConfig.switches ?? []) {
         const sourceSwitchParts = sourceSwitch.split('/');
         if (!devicesToListenToEvents[sourceSwitchParts[0]]) {
           devicesToListenToEvents[sourceSwitchParts[0]] = [];
@@ -454,7 +454,7 @@ export class SwitchingController {
     }
   }
 
-  async processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload) {
+  async processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload): Promise<void> {
     const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed_' + newPayload['action_rotation_button_state']];
     if (actionsConfig.enabled) {
       for (const linkedDevice in actionsConfig.linkedDevices) {
@@ -616,7 +616,7 @@ export class SwitchingController {
           } else {
             // TODO: find the correct way on this new system...
             let continueRepeat = true;
-            let actionToDo = endpointsToExecute[endpointToExecute] || ''; // The value: like 'ON' in case of state...
+            let actionToDo = endpointsToExecute[endpointToExecute] ?? ''; // The value: like 'ON' in case of state...
 
             if (actionToDo === '') {
               // Its a switchType based action...
@@ -696,7 +696,7 @@ export class SwitchingController {
                 }
               }
             } else {
-              continueRepeat = actionsConfig.repeat || false;
+              continueRepeat = actionsConfig.repeat ?? false;
             }
 
             const pathComponents = endpointToExecute.split('/');
@@ -706,7 +706,7 @@ export class SwitchingController {
             const endpointToControl =
               entityEndpoint === ''
                 ? entityToControl?.bridgedDevice // If the config is custom property and not an endpoint ('0x1234567890123456/brighntess'), the load of child endpoint will fail as this isn't endpoint name, just property, then use the main bridged device.
-                : entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) || entityToControl?.bridgedDevice;
+                : (entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpoint.substring(1)) ?? entityToControl?.bridgedDevice);
 
             if (endpointToControl) {
               const repeatZBFunction = (delay: number, timeoutKey: string): void => {

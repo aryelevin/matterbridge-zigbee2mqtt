@@ -59,11 +59,11 @@ export class PlatformControls {
     });
   }
 
-  setPlatformControlsConfiguration() {
+  setPlatformControlsConfiguration(): void {
     this.switchesEnabled = this.switchesEnabledEndpoint.getAttribute(OnOff.id, 'onOff', this.switchesEnabledEndpoint.log);
   }
 
-  private switchesOnOffDidSet(value: boolean) {
+  private switchesOnOffDidSet(value: boolean): void {
     this.switchesEnabled = value;
 
     const commandsToExecute = value ? this.switchesOnCommandsConfig : this.switchesOffCommandsConfig;
@@ -88,7 +88,7 @@ export class PlatformControls {
     }
   }
 
-  async setSwitchesOnOff(value: boolean) {
+  async setSwitchesOnOff(value: boolean): Promise<void> {
     await this.switchesEnabledEndpoint.setAttribute(OnOff.id, 'onOff', value, this.switchesEnabledEndpoint.log);
     this.switchesOnOffDidSet(value);
   }

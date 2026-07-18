@@ -11,7 +11,7 @@ import { bridgedNode, MatterbridgeEndpoint, modeSelect, powerSource } from 'matt
 
 import { HeDate } from './heDate.js';
 import { JewishCalendarSensor } from './jewishCalendarSensor.js';
-import { ZigbeePlatform } from './module.js';
+import type { ZigbeePlatform } from './module.js';
 import { SunCalc } from './suncalc.js';
 
 export interface JewishCalendarSensorsConfig {
@@ -224,7 +224,7 @@ export class JewishCalendarSensors {
     // return Object.values(this.services);
   }
 
-  async updateSensors() {
+  async updateSensors(): Promise<void> {
     if (!this.sensor.plugin) {
       return;
     }
@@ -281,7 +281,7 @@ export class JewishCalendarSensors {
     }
   }
 
-  updateJewishDay() {
+  updateJewishDay(): void {
     this.gDate = new Date();
     if (typeof this.config.offset !== 'undefined' && this.config.offset !== 0) {
       this.sensor.log.debug('Shifting the time by ' + this.config.offset + ' minutes.');
@@ -317,7 +317,7 @@ export class JewishCalendarSensors {
     this.sensor.log.debug(JSON.stringify(this.hebrewMonths));
   }
 
-  updateLoop() {
+  updateLoop(): void {
     // var today = new Date();
     // if (
     //   (this.gDate.getFullYear() != today.getFullYear()) ||
@@ -335,7 +335,7 @@ export class JewishCalendarSensors {
     }, 30000);
   }
 
-  isShabbatEve() {
+  isShabbatEve(): boolean {
     const day = this.gDate.getDay();
     const candletime = new Date(this.sunset);
     candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
@@ -345,7 +345,7 @@ export class JewishCalendarSensors {
     return (4 == day && this.gDate > candletime) || (5 == day && this.gDate < havdalahtime);
   }
 
-  isShabbat() {
+  isShabbat(): boolean {
     const day = this.gDate.getDay();
     const candletime = new Date(this.sunset);
     candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
@@ -355,7 +355,7 @@ export class JewishCalendarSensors {
     return (5 == day && this.gDate > candletime) || (6 == day && this.gDate < havdalahtime);
   }
 
-  isRoshHashanaEve() {
+  isRoshHashanaEve(): boolean {
     if (this.hDate.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 28) {
       const candletime = new Date(this.sunset);
       candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
@@ -364,7 +364,7 @@ export class JewishCalendarSensors {
     return false;
   }
 
-  isRoshHashana() {
+  isRoshHashana(): boolean {
     // Because of year wraps, if it's Elul 29, we check candle lighting, otherwise, use normal DateRange
     if (this.hDate.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 29) {
       const candletime = new Date(this.sunset);
@@ -374,45 +374,45 @@ export class JewishCalendarSensors {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 0 }, { month: this.hebrewMonths.Tishri, date: 2 });
   }
 
-  isYomKippurEve() {
+  isYomKippurEve(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 8 }, { month: this.hebrewMonths.Tishri, date: 9 });
   }
 
-  isYomKippur() {
+  isYomKippur(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 9 }, { month: this.hebrewMonths.Tishri, date: 10 });
   }
 
-  isSukkotEve() {
+  isSukkotEve(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 13 }, { month: this.hebrewMonths.Tishri, date: 14 });
   }
 
-  isSukkot() {
+  isSukkot(): boolean {
     const begin = { month: this.hebrewMonths.Tishri, date: 14 };
     const end = !this.config.israel && this.config.shminiAtzeretInSukkot ? { month: this.hebrewMonths.Tishri, date: 22 } : { month: this.hebrewMonths.Tishri, date: 21 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isSukkotYomTov() {
+  isSukkotYomTov(): boolean {
     const begin = { month: this.hebrewMonths.Tishri, date: 14 };
     const end = this.config.israel ? { month: this.hebrewMonths.Tishri, date: 15 } : { month: this.hebrewMonths.Tishri, date: 16 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isSheminiAtzeretEve() {
+  isSheminiAtzeretEve(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Tishri, date: 20 }, { month: this.hebrewMonths.Tishri, date: 21 });
   }
 
-  isSheminiAtzeret() {
+  isSheminiAtzeret(): boolean {
     const begin = { month: this.hebrewMonths.Tishri, date: 21 };
     const end = this.config.israel ? { month: this.hebrewMonths.Tishri, date: 22 } : { month: this.hebrewMonths.Tishri, date: 23 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isChanukahEve() {
+  isChanukahEve(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Kislev, date: 23 }, { month: this.hebrewMonths.Kislev, date: 24 });
   }
 
-  isChanukah() {
+  isChanukah(): boolean {
     const ChanukahEnd = new HeDate(this.hDate.getFullYear(), 2, 32);
 
     const begin = { month: this.hebrewMonths.Kislev, date: 24 };
@@ -420,18 +420,18 @@ export class JewishCalendarSensors {
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isPurimEve() {
+  isPurimEve(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Adar2, date: 12 }, { month: this.hebrewMonths.Adar2, date: 13 });
   }
 
-  isPurim() {
+  isPurim(): boolean {
     // Leap years can make Adar2's month number "bounce" so we check for it
     const begin = { month: this.hebrewMonths.Adar2, date: 13 };
     const end = { month: this.hebrewMonths.Adar2, date: 14 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isShushanPurimEve() {
+  isShushanPurimEve(): boolean {
     const isPurimMeshulash = this.isPurimMeshulashYear() ? 1 : 0;
     const begin = { month: this.hebrewMonths.Adar2, date: 13 + isPurimMeshulash };
     const end = { month: this.hebrewMonths.Adar2, date: 14 + isPurimMeshulash };
@@ -439,7 +439,7 @@ export class JewishCalendarSensors {
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isShushanPurim() {
+  isShushanPurim(): boolean {
     // Leap years can make Adar2's month number "bounce" so we check for it
     const isPurimMeshulash = this.isPurimMeshulashYear() ? 1 : 0;
     const begin = { month: this.hebrewMonths.Adar2, date: 14 + isPurimMeshulash };
@@ -448,17 +448,17 @@ export class JewishCalendarSensors {
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isPurimMeshulashYear() {
+  isPurimMeshulashYear(): boolean {
     const shushanPurimDate = new HeDate(this.hDate.getFullYear(), this.hebrewMonths.Adar2, 15);
     const isPurimMeshulash = shushanPurimDate.getDay() === 6;
     return isPurimMeshulash;
   }
 
-  isPurimMeshulashEve() {
+  isPurimMeshulashEve(): boolean {
     return this.isPurimMeshulashYear() && this.isPurimEve();
   }
 
-  isPurimMeshulash() {
+  isPurimMeshulash(): boolean {
     // Leap years can make Adar2's month number "bounce" so we check for it
     const begin = { month: this.hebrewMonths.Adar2, date: 13 };
     const end = { month: this.hebrewMonths.Adar2, date: 16 };
@@ -466,41 +466,41 @@ export class JewishCalendarSensors {
     return this.isPurimMeshulashYear() && this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isPesachEve() {
+  isPesachEve(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Nisan, date: 13 }, { month: this.hebrewMonths.Nisan, date: 14 });
   }
 
-  isPesach() {
+  isPesach(): boolean {
     const begin = { month: this.hebrewMonths.Nisan, date: 14 };
     const end = this.config.israel ? { month: this.hebrewMonths.Nisan, date: 21 } : { month: this.hebrewMonths.Nisan, date: 22 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isPesach1stYomTov() {
+  isPesach1stYomTov(): boolean {
     // Leap years can make Nisan's month number "bounce" so we check for it
     const begin = { month: this.hebrewMonths.Nisan, date: 14 };
     const end = this.config.israel ? { month: this.hebrewMonths.Nisan, date: 15 } : { month: this.hebrewMonths.Nisan, date: 16 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isShvihiShelPesachEve() {
+  isShvihiShelPesachEve(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Nisan, date: 19 }, { month: this.hebrewMonths.Nisan, date: 20 });
   }
 
-  isShvihiShelPesach() {
+  isShvihiShelPesach(): boolean {
     // Leap years can make Nisan's month number "bounce" so we check for it
     const begin = { month: this.hebrewMonths.Nisan, date: 20 };
     const end = this.config.israel ? { month: this.hebrewMonths.Nisan, date: 21 } : { month: this.hebrewMonths.Nisan, date: 22 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isSefiratHaOmer() {
+  isSefiratHaOmer(): boolean {
     const begin = { month: this.hebrewMonths.Nisan, date: 15 };
     const end = { month: this.hebrewMonths.Sivan, date: 6 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isSefiratHaOmerMourning() {
+  isSefiratHaOmerMourning(): boolean {
     let begin = null;
     let end = null;
     if (this.config.sefiratHaOmerCustom == 'Ashkenazi') {
@@ -522,18 +522,18 @@ export class JewishCalendarSensors {
     return false;
   }
 
-  isShavuotEve() {
+  isShavuotEve(): boolean {
     return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Sivan, date: 4 }, { month: this.hebrewMonths.Sivan, date: 5 });
   }
 
-  isShavuot() {
+  isShavuot(): boolean {
     // Leap years can make Sivan's month number "bounce" so we check for it
     const begin = { month: this.hebrewMonths.Sivan, date: 5 };
     const end = this.config.israel ? { month: this.hebrewMonths.Sivan, date: 6 } : { month: this.hebrewMonths.Sivan, date: 7 };
     return this._inHebrewHolidayDateRange(begin, end);
   }
 
-  isThreeWeeks() {
+  isThreeWeeks(): boolean {
     let begin = null;
     if (this.config.threeWeeksCustom == 'Ashkenazi') {
       begin = { month: this.hebrewMonths.Tamuz, date: 16 }; // night before Erev 17th of Tamuz
@@ -546,7 +546,7 @@ export class JewishCalendarSensors {
     return begin ? this._inHebrewHolidayDateRange(begin, end) : false;
   }
 
-  isYomTovEve() {
+  isYomTovEve(): boolean {
     const holidaysEve =
       this.isRoshHashanaEve() ||
       this.isYomKippurEve() ||
@@ -558,29 +558,29 @@ export class JewishCalendarSensors {
     return holidaysEve;
   }
 
-  isYomTov() {
+  isYomTov(): boolean {
     const holidays =
       this.isRoshHashana() || this.isYomKippur() || this.isSukkotYomTov() || this.isSheminiAtzeret() || this.isPesach1stYomTov() || this.isShvihiShelPesach() || this.isShavuot();
     return holidays;
   }
 
-  isKodeshEve() {
+  isKodeshEve(): boolean {
     return this.isShabbatEve() || this.isYomTovEve();
   }
 
-  isKodesh() {
+  isKodesh(): boolean {
     return this.isShabbat() || this.isYomTov();
   }
 
-  isMourning() {
+  isMourning(): boolean {
     return this.isSefiratHaOmerMourning() || this.isThreeWeeks();
   }
 
-  isLeapYear() {
+  isLeapYear(): boolean {
     return this.hebrewMonths.Adar2 !== this.hebrewMonths.Adar1;
   }
 
-  _inHebrewHolidayDateRange(erev: { month: number; date: number }, end: { month: number; date: number }) {
+  _inHebrewHolidayDateRange(erev: { month: number; date: number }, end: { month: number; date: number }): boolean {
     // Assumes that all ranges are within the same Hebraic year.
     // We COULD support wrap arounds, but it is only needed for Rosh Hashana
     // Handled there as a special case rule

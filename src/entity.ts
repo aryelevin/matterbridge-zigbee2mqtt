@@ -341,6 +341,7 @@ export class ZigbeeEntity extends EventEmitter {
                 const child = this.bridgedDevice.getChildEndpointById(propertyMap1.endpoint);
                 if (child?.maybeNumber)
                   fireAndForget(
+                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
                     child.triggerSwitchEvent(propertyMap1.action as 'Single' | 'Double' | 'Long', this.log),
                     this.log,
                     `Error triggering switch event ${propertyMap1.action} on ${propertyMap1.endpoint}`,
@@ -1809,9 +1810,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     let theOneOnlyEndpoint = '';
     let hasOneOnlyEndpoint = true;
     for (const endpoint of endpoints) {
-      if (endpoint.length && String(endpoint) !== theOneOnlyEndpoint) {
+      if (endpoint.length && endpoint !== theOneOnlyEndpoint) {
         if (theOneOnlyEndpoint === '') {
-          theOneOnlyEndpoint = String(endpoint);
+          theOneOnlyEndpoint = endpoint;
         } else {
           hasOneOnlyEndpoint = false; // There's more than one endpoint
           break;
