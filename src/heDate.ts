@@ -22,7 +22,7 @@ const MONTHS = ['Tishri', 'Heshvan', 'Kislev', 'Tevet', 'Shevat', 'Adar I', 'Ada
  * @param {Array} dest - Array
  * @returns {Array} The dest array
  */
-const defaults = function (src: unknown[], dest: unknown[]) {
+const defaults = (src: unknown[], dest: unknown[]): unknown[] => {
   let i = 0;
   const len = Math.min(src.length, dest.length);
   while (i < len) {
@@ -33,11 +33,12 @@ const defaults = function (src: unknown[], dest: unknown[]) {
 };
 
 /* like `x % y` even for negative numbers */
-const modulo = function (x: number, y: number) {
+const modulo = (x: number, y: number): number => {
   return x - y * Math.floor(x / y);
 };
 
-const getMonthName = function (monthNum: number, leap: boolean) {
+const getMonthName = (monthNumInput: number, leap: boolean): string => {
+  let monthNum = monthNumInput;
   if (!leap) {
     if (monthNum == 5) {
       return MONTHS[13];
@@ -48,21 +49,37 @@ const getMonthName = function (monthNum: number, leap: boolean) {
   return MONTHS[monthNum];
 };
 
-const isLeap = function (year: number) {
+const ms2days = (ms: number): number => {
+  return Math.floor(ms / 86400000);
+};
+
+const getDaysSinceEpoch = (date: Date): number => {
+  return ms2days(date.getTime() - date.getTimezoneOffset() * 60000);
+};
+
+const getUTCDaysSinceEpoch = (date: Date): number => {
+  return ms2days(date.getTime());
+};
+
+const isLeap = (year: number): boolean => {
   const reminder = modulo(year, CYCLE_YEARS);
   return Boolean([2, 5, 7, 10, 13, 16, 18].indexOf(reminder) + 1);
 };
 
-const ms2days = function (ms: number) {
-  return Math.floor(ms / 86400000);
-};
-
-const getDaysSinceEpoch = function (date: Date) {
-  return ms2days(date.getTime() - date.getTimezoneOffset() * 60000);
-};
-
-const getUTCDaysSinceEpoch = function (date: Date) {
-  return ms2days(date.getTime());
+/**
+ * length of Heshvan and Kislev varies from year to year with 3 possible
+ * states:
+ *   (1)  both have 30 days
+ *   (0)  Heshvan has 29 days, Kislev has 30 days
+ *   (-1) both have 29 days
+ *
+ * @param {number} daysSinceEpoch -
+ * @param {number} nextYearInDays -
+ * @returns {number} -
+ */
+const getYearMode = (daysSinceEpoch: number, nextYearInDays: number): number => {
+  const yearLength = nextYearInDays - daysSinceEpoch;
+  return (yearLength % 10) - 4;
 };
 
 /**
@@ -85,8 +102,36 @@ const getUTCDaysSinceEpoch = function (date: Date) {
  * @param {number} months -
  * @returns {number} -
  */
-const months2year = function (months: number) {
+const months2year = (months: number): number => {
   return Math.floor(((months + 38) * CYCLE_YEARS) / CYCLE_MONTHS) - 3;
+};
+
+/**
+ * year - zero-based
+ * returns months - zero-based
+ *
+ * @param {number} year -
+ * @returns {number} -
+ */
+const year2months = (year: number): number => {
+  return Math.ceil(((year + 3) * CYCLE_MONTHS) / CYCLE_YEARS) - 38;
+};
+
+/**
+ * days - since Hebrew base (29/5/0) zero-based
+ * returns months - zero-based
+ *
+ * @param {number} daysSinceHebrewBase -
+ * @returns {number} -
+ */
+const days2yearsInMonths = (daysSinceHebrewBase: number): number => {
+  let months;
+  const parts = daysSinceHebrewBase * DAY_LENGTH;
+  months = parts / MONTH_LENGTH;
+  months = Math.floor(months);
+  const year = months2year(months);
+  months = year2months(year);
+  return months;
 };
 
 /**
@@ -97,7 +142,7 @@ const months2year = function (months: number) {
  * @returns {number} -
  */
 // TODO: improve this function - structure and line length
-const getNewYearInDays = function (months: number) {
+const getNewYearInDays = (months: number): number => {
   let parts, days, result;
 
   // year's birth (Molad) distance than the sunday before first Rosh Hashana
@@ -131,17 +176,6 @@ const getNewYearInDays = function (months: number) {
 };
 
 /**
- * year - zero-based
- * returns months - zero-based
- *
- * @param {number} year -
- * @returns {number} -
- */
-const year2months = function (year: number) {
-  return Math.ceil(((year + 3) * CYCLE_MONTHS) / CYCLE_YEARS) - 38;
-};
-
-/**
  * months - till the beginnig of current year
  * leap - Boolean
  *
@@ -149,53 +183,29 @@ const year2months = function (year: number) {
  * @param {boolean} leap -
  * @returns {number} -
  */
-const getNextYearInDays = function (months: number, leap: boolean) {
+const getNextYearInDays = (months: number, leap: boolean): number => {
   const yearLength = 12 + Number(leap);
   return getNewYearInDays(months + yearLength);
 };
 
-/**
- * days - since Hebrew base (29/5/0) zero-based
- * returns months - zero-based
- *
- * @param {number} daysSinceHebrewBase -
- * @returns {number} -
- */
-const days2yearsInMonths = function (daysSinceHebrewBase: number) {
-  let months;
-  const parts = daysSinceHebrewBase * DAY_LENGTH;
-  months = parts / MONTH_LENGTH;
-  months = Math.floor(months);
-  const year = months2year(months);
-  months = year2months(year);
-  return months;
-};
+// returns 0, 1 or -1
+const getMonthContext = (month: number, year1: number, year2: number): number => {
+  const leap1 = isLeap(year1 - 1);
+  const leap2 = isLeap(year2 - 1);
 
-/**
- * length of Heshvan and Kislev varies from year to year with 3 possible
- * states:
- *   (1)  both have 30 days
- *   (0)  Heshvan has 29 days, Kislev has 30 days
- *   (-1) both have 29 days
- *
- * @param {number} daysSinceEpoch -
- * @param {number} nextYearInDays -
- * @returns {number} -
- */
-const getYearMode = function (daysSinceEpoch: number, nextYearInDays: number) {
-  const yearLength = nextYearInDays - daysSinceEpoch;
-  return (yearLength % 10) - 4;
+  if (month < 5 + Number(leap1)) return 0;
+  return Number(leap2) - Number(leap1);
 };
 
 /* ================ Conversion ================ */
 
 /* days since 1/1/1970 zero-based */
-const days2hebrew = function (days: number) {
-  days += DISTANCE;
+const days2hebrew = (daysInput: number): { year: number; month: number; date: number } => {
+  let days = daysInput + DISTANCE;
 
   let months = days2yearsInMonths(days);
   let currentYear = getNewYearInDays(months);
-  let nextYear;
+  let nextYear = undefined;
 
   if (currentYear > days) {
     nextYear = currentYear;
@@ -205,7 +215,7 @@ const days2hebrew = function (days: number) {
   days -= currentYear;
   let year = months2year(months);
   const leap = isLeap(year);
-  nextYear = nextYear || getNextYearInDays(months, leap);
+  nextYear = nextYear ?? getNextYearInDays(months, leap);
   const mode = getYearMode(currentYear, nextYear);
 
   if (days > 87) {
@@ -231,10 +241,11 @@ const days2hebrew = function (days: number) {
 };
 
 /* month - zero-based */
-const hebrew2days = function (year: number, month: number, date: number) {
+const hebrew2days = (yearInput: number, monthInput: number, dateInput: number): number => {
   // change value from to zero-based
-  date--;
-  year--;
+  let date = dateInput - 1;
+  let year = yearInput - 1;
+  let month = monthInput;
 
   // combine year and month to get the actual year and month
   // this allows user to set a negative month number
@@ -269,22 +280,13 @@ const setUTCNewDate = function (this: HeDate, newDateInfo: unknown[]) {
   return Date.prototype.setUTCFullYear.call(this, 1970, 0, newDateDays + 1);
 };
 
-const stringify = function (daysSinceEpoch: number) {
+const stringify = (daysSinceEpoch: number): string => {
   const dateInfo = days2hebrew(daysSinceEpoch);
   const weekday = (daysSinceEpoch + 4) % 7;
   const weekdayStr = WEEKDAYS[weekday];
   const month = getMonthName(dateInfo.month, isLeap(dateInfo.year - 1));
   const date = ('0' + dateInfo.date).slice(-2);
   return weekdayStr + ' ' + date + ' ' + month + ' ' + dateInfo.year;
-};
-
-// returns 0, 1 or -1
-const getMonthContext = function (month: number, year1: number, year2: number) {
-  const leap1 = isLeap(year1 - 1);
-  const leap2 = isLeap(year2 - 1);
-
-  if (month < 5 + Number(leap1)) return 0;
-  return Number(leap2) - Number(leap1);
 };
 
 /* ================ Main ================ */
