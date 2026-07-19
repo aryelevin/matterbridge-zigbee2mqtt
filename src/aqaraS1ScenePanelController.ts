@@ -93,6 +93,22 @@ interface AqaraS1ScenePanelConfigCommand {
 }
 
 const AqaraS1ScenePanelSceneConfigDeviceIndex = 999;
+const DeviceOnline = '080007fd';
+const DeviceName = '08001fa5';
+const LightOnOff = '04010055';
+const LightBrightness = '0e010055';
+const LightColorTemperature = '0e020055';
+const LightColor = '0e080055';
+const ACStateIntTherm = '0e020055';
+const ACStateExtTherm = '0e200055';
+const ACConfigModes = '08001fa7';
+const ACConfigFanModes = '08001fa8';
+const ACTemperatureRanges = '08001fa9';
+const CoverState = '0e020055';
+const CoverPosition = '01010055';
+const CoverUnknown = '00010055';
+const TempSensorTemp = '00010055';
+const TempSensorHumid = '00020055';
 
 export class AqaraS1ScenePanelController {
   public log: AnsiLogger;
@@ -172,7 +188,7 @@ export class AqaraS1ScenePanelController {
             this.sendStateToPanels(
               device,
               linkedPanels,
-              internalThermostat ? '0e020055' : '0e200055',
+              internalThermostat ? ACStateIntTherm : ACStateExtTherm,
               (onOff ? '1' : '0') +
                 (systemMode === 'heat' ? '0' : systemMode === 'cool' ? '1' : '2') +
                 (fanMode === 'low' ? '0' : fanMode === 'medium' ? '1' : fanMode === 'high' ? '2' : '3') +
@@ -185,19 +201,19 @@ export class AqaraS1ScenePanelController {
       } else if (linkedPanelDeviceType.startsWith('curtain')) {
         if (key.startsWith('state')) {
           if (device)
-            this.sendStateToPanels(device, linkedPanels, '0e020055', '000000' + (value === 'OPEN' ? 1 : value === 'CLOSE' ? 0 : 2).toString(16).padStart(2, '0'), 'state');
+            this.sendStateToPanels(device, linkedPanels, CoverState, '000000' + (value === 'OPEN' ? 1 : value === 'CLOSE' ? 0 : 2).toString(16).padStart(2, '0'), 'state');
         } else if (key.startsWith('position')) {
-          if (device && typeof value === 'number') this.sendStateToPanels(device, linkedPanels, '01010055', this.getHexFromFloat32Bit(value), 'position');
+          if (device && typeof value === 'number') this.sendStateToPanels(device, linkedPanels, CoverPosition, this.getHexFromFloat32Bit(value), 'position');
         }
       } else if (linkedPanelDeviceType.startsWith('light')) {
         if (key.startsWith('state')) {
-          if (device) this.sendStateToPanels(device, linkedPanels, '04010055', '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
+          if (device) this.sendStateToPanels(device, linkedPanels, LightOnOff, '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
         } else if (key.startsWith('brightness')) {
           if (device && typeof value === 'number')
             this.sendStateToPanels(
               device,
               linkedPanels,
-              '0e010055',
+              LightBrightness,
               '000000' +
                 Math.round(value / 2.54)
                   .toString(16)
@@ -205,14 +221,14 @@ export class AqaraS1ScenePanelController {
               'brightness',
             );
         } else if (key.startsWith('color_temp') && !key.startsWith('color_temp_startup')) {
-          if (device && typeof value === 'number') this.sendStateToPanels(device, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
+          if (device && typeof value === 'number') this.sendStateToPanels(device, linkedPanels, LightColorTemperature, '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
         } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
           const color = newPayload[key];
           if (device && typeof color === 'object' && 'x' in color && typeof color.x === 'number' && 'y' in color && typeof color.y === 'number')
             this.sendStateToPanels(
               device,
               linkedPanels,
-              '0e080055',
+              LightColor,
               Math.round(color.x * 65535)
                 .toString(16)
                 .padStart(4, '0') +
@@ -449,7 +465,7 @@ export class AqaraS1ScenePanelController {
     this.sendStateToPanel(
       deviceIeeeAddress,
       '6169725f636f6e64',
-      internalThermostat ? '0e020055' : '0e200055',
+      internalThermostat ? ACStateIntTherm : ACStateExtTherm,
       (onOff === true ? '1' : '0') +
         (systemMode === Thermostat.SystemMode.Heat ? '0' : systemMode === Thermostat.SystemMode.Cool ? '1' : '2') +
         (fanMode === FanControl.FanMode.Low ? '0' : fanMode === FanControl.FanMode.Medium ? '1' : fanMode === FanControl.FanMode.High ? '2' : '3') +
@@ -462,7 +478,7 @@ export class AqaraS1ScenePanelController {
   sendCoverPositionToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint): void {
     const position = coverEndpoint.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths');
     this.log.info('Position: ' + position);
-    this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '01010055', this.getHexFromFloat32Bit(position / 100));
+    this.sendCoverDataToPanel(panelIeeeAddress, coverNo, CoverPosition, this.getHexFromFloat32Bit(position / 100));
   }
 
   sendCoverMovementStateToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint): void {
@@ -471,25 +487,25 @@ export class AqaraS1ScenePanelController {
       '000000' +
       (movementMatterState === WindowCovering.MovementStatus.Opening ? 1 : movementMatterState === WindowCovering.MovementStatus.Closing ? 0 : 2).toString(16).padStart(2, '0'); // TODO: Check the correct parameters...
     this.log.info('Movement State: ' + movementState);
-    this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '0e020055', movementState);
+    this.sendCoverDataToPanel(panelIeeeAddress, coverNo, CoverState, movementState);
   }
 
   sendLightOnOffStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint): void {
     const onOff = lightEndpoint.getAttribute(OnOff.id, 'onOff');
     this.log.info('On/Off: ' + onOff);
-    this.sendLightDataToPanel(panelIeeeAddress, lightNo, '04010055', '000000' + (onOff ? 1 : 0).toString(16).padStart(2, '0'));
+    this.sendLightDataToPanel(panelIeeeAddress, lightNo, LightOnOff, '000000' + (onOff ? 1 : 0).toString(16).padStart(2, '0'));
   }
 
   sendLightBrightnessStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint): void {
     const brightness = Math.round((lightEndpoint.getAttribute(LevelControl.id, 'currentLevel') / 254) * 255);
     this.log.info('Brightness: ' + brightness);
-    this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e010055', '000000' + brightness.toString(16).padStart(2, '0'));
+    this.sendLightDataToPanel(panelIeeeAddress, lightNo, LightBrightness, '000000' + brightness.toString(16).padStart(2, '0'));
   }
 
   sendLightColorTemperatureStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint): void {
     const colorTemperature = lightEndpoint.getAttribute(ColorControl.id, 'colorTemperatureMireds');
     this.log.info('Color Temperature: ' + colorTemperature);
-    this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e020055', '0000' + colorTemperature.toString(16).padStart(4, '0'));
+    this.sendLightDataToPanel(panelIeeeAddress, lightNo, LightColorTemperature, '0000' + colorTemperature.toString(16).padStart(4, '0'));
   }
 
   sendLightColorStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint): void {
@@ -503,7 +519,7 @@ export class AqaraS1ScenePanelController {
     this.sendLightDataToPanel(
       panelIeeeAddress,
       lightNo,
-      '0e080055',
+      LightColor,
       Math.round(colorX * 65535)
         .toString(16)
         .padStart(4, '0') +
@@ -609,7 +625,7 @@ export class AqaraS1ScenePanelController {
   }
 
   sendLightOnOffToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], newOn: boolean): void {
-    this.sendStateToPanels(originalLightEntity, panelsToUpdate, '04010055', '000000' + (newOn ? 1 : 0).toString(16).padStart(2, '0'), 'on');
+    this.sendStateToPanels(originalLightEntity, panelsToUpdate, LightOnOff, '000000' + (newOn ? 1 : 0).toString(16).padStart(2, '0'), 'on');
   }
 
   async setAqaraS1PanelsConfiguration(): Promise<void> {
@@ -891,7 +907,7 @@ export class AqaraS1ScenePanelController {
                       slots[0].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '04010055' +
+                      LightOnOff +
                       '260a0' +
                       (lightConfig.type === 'dimmable' ? '4' : '5') +
                       '08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac0000000000015' +
@@ -906,7 +922,7 @@ export class AqaraS1ScenePanelController {
                       slots[1].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '0e010055' +
+                      LightBrightness +
                       '170a0' +
                       (lightConfig.type === 'dimmable' ? '4' : '5') +
                       '0ac1c1b6c8b0d9b7d6b1c8000000000000015' +
@@ -921,7 +937,7 @@ export class AqaraS1ScenePanelController {
                       slots[4].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '08001fa5' +
+                      DeviceName +
                       '140a0' +
                       (lightConfig.type === 'dimmable' ? '4' : '5') +
                       '08c9e8b1b8c3fbb3c60000000000015' +
@@ -936,7 +952,7 @@ export class AqaraS1ScenePanelController {
                       slots[5].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '080007fd' +
+                      DeviceOnline +
                       '160a0' +
                       (lightConfig.type === 'dimmable' ? '4' : '5') +
                       '0ac9e8b1b8d4dacfdfc0eb0000000000015' +
@@ -952,7 +968,7 @@ export class AqaraS1ScenePanelController {
                         slots[2].toString(16).padStart(2, '0') +
                         panelMACAddress +
                         deviceSerial +
-                        '0e020055' +
+                        LightColorTemperature +
                         '130a0506c9abcec2d6b5000000000000015' +
                         (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                         '0300',
@@ -964,7 +980,7 @@ export class AqaraS1ScenePanelController {
                         slots[3].toString(16).padStart(2, '0') +
                         panelMACAddress +
                         deviceSerial +
-                        '0e080055' +
+                        LightColor +
                         '130a0506d1d5c9ab7879000000000000015' +
                         (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                         '0100',
@@ -980,7 +996,7 @@ export class AqaraS1ScenePanelController {
                       slots[0].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '0e020055' +
+                      CoverState +
                       '150a0' +
                       (curtainConfig.type === 'curtain' ? '4' : '5') +
                       '08b4b0c1b1d7b4ccac000000000000014' +
@@ -996,7 +1012,7 @@ export class AqaraS1ScenePanelController {
                       slots[1].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '01010055' +
+                      CoverPosition +
                       '190a0' +
                       (curtainConfig.type === 'curtain' ? '4' : '5') +
                       '0000010ab4b0c1b1b4f2bfaab0d90000000000014' +
@@ -1012,7 +1028,7 @@ export class AqaraS1ScenePanelController {
                       slots[2].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '080007fd' +
+                      DeviceOnline +
                       '160a0' +
                       (curtainConfig.type === 'curtain' ? '4' : '5') +
                       '0ac9e8b1b8d4dacfdfc0eb0000000000014' +
@@ -1028,7 +1044,7 @@ export class AqaraS1ScenePanelController {
                       slots[3].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '08001fa5' +
+                      DeviceName +
                       '140a0' +
                       (curtainConfig.type === 'curtain' ? '4' : '5') +
                       '08c9e8b1b8c3fbb3c60000000000014' +
@@ -1044,7 +1060,7 @@ export class AqaraS1ScenePanelController {
                       slots[5].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      '00010055' +
+                      CoverUnknown +
                       '190a050000010ab4b0c1b1d4cbd0d0cab10000000000014' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '3f00',
@@ -1058,38 +1074,38 @@ export class AqaraS1ScenePanelController {
                       slots[0].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      (acConfig.internal_thermostat ? '0e020055' : '0e200055') +
+                      (acConfig.internal_thermostat ? ACStateIntTherm : ACStateExtTherm) +
                       (acConfig.internal_thermostat ? '150a0608bfd8d6c6d7b4ccac000000000000012e0000' : '1708060abfd5b5f7d1b9cbf5d7b4000000000000012e0000'),
                   );
                   // Online/Offline
                   commandsData.push(
-                    slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '080007fd' + '1608060ac9e8b1b8d4dacfdfc0eb0000000000012e6400',
+                    slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + DeviceOnline + '1608060ac9e8b1b8d4dacfdfc0eb0000000000012e6400',
                   );
                   // Name
                   commandsData.push(
-                    slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa5' + '14080608c9e8b1b8c3fbb3c60000000000012e1300',
+                    slotPrefix + slots[2].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + DeviceName + '14080608c9e8b1b8c3fbb3c60000000000012e1300',
                   );
                   // Modes
                   commandsData.push(
-                    slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa7' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1000',
+                    slotPrefix + slots[3].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + ACConfigModes + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1000',
                   );
                   // Fan Modes
                   commandsData.push(
-                    slotPrefix + slots[4].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa8' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1100',
+                    slotPrefix + slots[4].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + ACConfigFanModes + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e1100',
                   );
                   // Temperatures Ranges
                   commandsData.push(
-                    slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '08001fa9' + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e0100',
+                    slotPrefix + slots[5].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + ACTemperatureRanges + '1608060ab5b1c7b0c6a5c5e4b5c40000000000012e0100',
                   );
                 } else if (i === 9) {
                   // Temperature Sensor
                   // Temperature
                   commandsData.push(
-                    slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00010055' + '1908023e00640a74656d706572617475720000000000012c0600',
+                    slotPrefix + slots[0].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + TempSensorTemp + '1908023e00640a74656d706572617475720000000000012c0600',
                   );
                   // Humidity
                   commandsData.push(
-                    slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + '00020055' + '1708021d00640868756d69646974790000000000012c0900',
+                    slotPrefix + slots[1].toString(16).padStart(2, '0') + panelMACAddress + deviceSerial + TempSensorHumid + '1708021d00640868756d69646974790000000000012c0900',
                   );
                 }
                 if (!parsedData[i] || JSON.stringify(parsedData[i]) !== JSON.stringify(commandsData)) {
@@ -1159,7 +1175,7 @@ export class AqaraS1ScenePanelController {
             // let that = this
             // commandsAmount ++
             // setTimeout(function() {
-            //   let cmdToSend = this.generateAqaraS1ScenePanelCommands('05', deviceSerial + '080007fd' + '0000000' + (panelData[devicesControl[i]] ? '1' : '0'))[0]
+            //   let cmdToSend = this.generateAqaraS1ScenePanelCommands('05', deviceSerial + DeviceOnline + '0000000' + (panelData[devicesControl[i]] ? '1' : '0'))[0]
             //   that.log(cmdToSend)
             //   that.client.put(panel + '/config', {preset: cmdToSend}).then((obj) => {
 
@@ -1617,7 +1633,7 @@ export class AqaraS1ScenePanelController {
           } else if (stateParamInt32BE === 0x080007fd) {
             // Online/Offline
             // TODO: maybe set the state, on groups always online, on others, use the device.reachable state. What with multiple devices resources controller with one device???
-            this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '080007fd', '00000001'); // Just respond with "Online" mode...
+            this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, DeviceOnline, '00000001'); // Just respond with "Online" mode...
           } else if (deviceResourceType === 'air_cond') {
             if (stateParamInt32BE === 0x0e005520 || stateParamInt32BE === 0x0e005502) {
               // Air conditioner device state
@@ -1655,7 +1671,7 @@ export class AqaraS1ScenePanelController {
               if (deviceConfig?.modes.includes('dry')) {
                 modesStr += '04';
               }
-              this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '08001fa7', (modesStr.length / 2).toString(16).padStart(2, '0') + modesStr);
+              this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, ACConfigModes, (modesStr.length / 2).toString(16).padStart(2, '0') + modesStr);
             } else if (stateParamInt32BE === 0x08001fa8) {
               // Fan Modes
               const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress]['ac'];
@@ -1673,7 +1689,7 @@ export class AqaraS1ScenePanelController {
               if (deviceConfig?.fan_modes.includes('auto')) {
                 fanModesStr += '03';
               }
-              this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '08001fa8', (fanModesStr.length / 2).toString(16).padStart(2, '0') + fanModesStr);
+              this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, ACConfigFanModes, (fanModesStr.length / 2).toString(16).padStart(2, '0') + fanModesStr);
             } else if (stateParamInt32BE === 0x08001fa9) {
               // Temperature Ranges
               const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress]['ac'];
@@ -1699,7 +1715,7 @@ export class AqaraS1ScenePanelController {
                 tempRangesStr +=
                   '04' + deviceConfig.temperature_ranges.dry.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.dry.highest.toString(16).padStart(2, '0');
               }
-              this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '08001fa9', (tempRangesStr.length / 2).toString(16).padStart(2, '0') + tempRangesStr);
+              this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, ACTemperatureRanges, (tempRangesStr.length / 2).toString(16).padStart(2, '0') + tempRangesStr);
             } else {
               this.log.info('AC Requires data which is not handled!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
             }
@@ -1721,14 +1737,14 @@ export class AqaraS1ScenePanelController {
               if (endpointToControl) {
                 this.sendCoverPositionToPanel(deviceIeeeAddress, coverNo, endpointToControl);
               } else {
-                this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '01010055', this.getHexFromFloat32Bit(0));
+                this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, CoverPosition, this.getHexFromFloat32Bit(0));
               }
             } else if (stateParamInt32BE === 0x0e020055) {
               // Movement State
               if (endpointToControl) {
                 this.sendCoverMovementStateToPanel(deviceIeeeAddress, coverNo, endpointToControl);
               } else {
-                this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, '0e020055', '00000002');
+                this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, CoverState, '00000002');
               }
             }
           } else if (deviceResourceType.startsWith('lights/')) {
@@ -2127,7 +2143,7 @@ export class AqaraS1ScenePanelController {
     const nameSize = name.length;
     const nameHex = this.toHexStringFromCharacterString(name);
 
-    const dataToSend = this.generateAqaraS1ScenePanelCommands('05', device + '08001fa5' + nameSize.toString(16).padStart(2, '0') + nameHex)[0];
+    const dataToSend = this.generateAqaraS1ScenePanelCommands('05', device + DeviceName + nameSize.toString(16).padStart(2, '0') + nameHex)[0];
     this.log.info('Name data: ' + dataToSend);
 
     return dataToSend;
