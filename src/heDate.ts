@@ -16,21 +16,21 @@ const INVALID = 'Invalid Date';
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Tishri', 'Heshvan', 'Kislev', 'Tevet', 'Shevat', 'Adar I', 'Adar II', 'Nisan', 'Iyar', 'Sivan', 'Tamuz', 'Av', 'Elul', 'Adar'];
 
-/**
- *
- * @param {[Array, object]} src - array or Argument object
- * @param {Array} dest - Array
- * @returns {Array} The dest array
- */
-const defaults = (src: unknown[], dest: unknown[]): unknown[] => {
-  let i = 0;
-  const len = Math.min(src.length, dest.length);
-  while (i < len) {
-    dest[i] = src[i];
-    i++;
-  }
-  return dest;
-};
+// /**
+//  *
+//  * @param {[Array, object]} src - array or Argument object
+//  * @param {Array} dest - Array
+//  * @returns {Array} The dest array
+//  */
+// const defaults = (src: any[], dest: any[]): any[] => {
+//   let i = 0;
+//   const len = Math.min(src.length, dest.length);
+//   while (i < len) {
+//     dest[i] = src[i];
+//     i++;
+//   }
+//   return dest;
+// };
 
 /* like `x % y` even for negative numbers */
 const modulo = (x: number, y: number): number => {
@@ -270,16 +270,6 @@ const hebrew2days = (yearInput: number, monthInput: number, dateInput: number): 
   return days - DISTANCE;
 };
 
-const setNewDate = function (this: HeDate, newDateInfo: unknown[]) {
-  const newDateDays = hebrew2days(...(newDateInfo as [number, number, number]));
-  return Date.prototype.setFullYear.call(this, 1970, 0, newDateDays + 1);
-};
-
-const setUTCNewDate = function (this: HeDate, newDateInfo: unknown[]) {
-  const newDateDays = hebrew2days(...(newDateInfo as [number, number, number]));
-  return Date.prototype.setUTCFullYear.call(this, 1970, 0, newDateDays + 1);
-};
-
 const stringify = (daysSinceEpoch: number): string => {
   const dateInfo = days2hebrew(daysSinceEpoch);
   const weekday = (daysSinceEpoch + 4) % 7;
@@ -293,30 +283,172 @@ const stringify = (daysSinceEpoch: number): string => {
 
 // TypeScript
 class HeDate extends Date {
+  // 1. Overload signatures to support all native Date constructor variations
+  constructor();
+  constructor(value: number | string);
+  constructor(date: Date);
+  constructor(year: number, monthIndex: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number);
+
   // Define properties with their types
   // private name: string; //
 
+  // 2. Single implementation handling all cases via rest parameters
   // The constructor is where you initialize the instance
-  constructor(...args: number[] | Date[]) {
-    super();
-    // this.name = name;
-    const argumentsList = args;
+  // oxlint-disable-next-line typescript/no-explicit-any
+  constructor(...args: any[]) {
+    // Spread arguments safely into the native Date constructor
+    // @ts-expect-error - Required for TypeScript to spread arguments into super
+    super(...args);
 
-    const date = new Date();
-    Object.setPrototypeOf(date, Object.getPrototypeOf(this));
+    // super();
+    // this.name = name;
+
+    // const date = new Date();
+    // Object.setPrototypeOf(date, Object.getPrototypeOf(this));
+
+    Object.setPrototypeOf(this, HeDate.prototype);
     // date.__proto__ = this.__proto__;
 
-    if (argumentsList.length == 1) {
-      date.setTime(argumentsList[0] as number);
-    } else if (argumentsList.length > 1) {
-      const args = defaults(argumentsList, [0, 0, 1, 0, 0, 0, 0]);
-      const dateArgs = args.slice(0, 3);
-      const timeArgs = args.slice(3);
-      date.setFullYear(...(dateArgs as [number, number, number]));
-      date.setHours(...(timeArgs as [number, number, number, number]));
+    if (args.length == 1) {
+      if (typeof args[0] === 'number') {
+        this.setTime(args[0]);
+      } else if (args[0] instanceof Date) {
+        this.setTime(args[0].getTime());
+      }
+    } else if (args.length > 1) {
+      const year: number = args[0],
+        monthIndex: number = args[1],
+        date: number = args[2],
+        hours: number = args[3],
+        minutes: number = args[4],
+        seconds: number = args[5],
+        ms: number = args[6];
+      this.setFullYear(year, monthIndex, date ?? 1);
+      this.setHours(hours ?? 0, minutes ?? 0, seconds ?? 0, ms ?? 0);
     }
 
-    return date;
+    // return this;
+  }
+
+  // 1. Declare a static method matching the exact native parameters
+  public static override UTC(year: number, monthIndex: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number): number {
+    // // 2. Add your custom intercept logic here
+    // console.log(`Intercepted static UTC generation for year: ${year}`);
+
+    // if (year < 1970) {
+    //   throw new Error("CustomDate static calculations don't support years before 1970.");
+    // }
+
+    // 3. Forward parameters to the native engine using Date.UTC()
+    // Explicitly fallback to native defaults for optional parameters if they are missing
+    const days = hebrew2days(year, monthIndex, date ?? 1);
+    return Date.UTC(1970, 0, days + 1, hours ?? 0, minutes ?? 0, seconds ?? 0, ms ?? 0);
+  }
+
+  // 1. Match the exact native signature for setFullYear
+  override getFullYear(): number {
+    // // 2. Insert your custom logic before the mutation
+    // console.log(`Intercepted: Changing year to ${year}`);
+
+    // if (year < 1970) {
+    //   throw new Error("CustomDate does not support years before 1970.");
+    // }
+
+    // // 3. Call super to let the native Date engine update the timestamp
+    // // We must pass all arguments dynamically to support optional parameters
+    // return super.setFullYear(year, month ?? this.getMonth(), date ?? this.getDate());
+    const days = getDaysSinceEpoch(this);
+    return days2hebrew(days).year;
+  }
+
+  override getMonth(): number {
+    const days = getDaysSinceEpoch(this);
+    return days2hebrew(days).month;
+  }
+
+  override getDate(): number {
+    const days = getDaysSinceEpoch(this);
+    return days2hebrew(days).date;
+  }
+
+  override getUTCFullYear(): number {
+    const days = getUTCDaysSinceEpoch(this);
+    return days2hebrew(days).year;
+  }
+
+  override getUTCMonth(): number {
+    const days = getUTCDaysSinceEpoch(this);
+    return days2hebrew(days).month;
+  }
+
+  override getUTCDate(): number {
+    const days = getUTCDaysSinceEpoch(this);
+    return days2hebrew(days).date;
+  }
+
+  override setFullYear(year: number, month?: number, date?: number): number {
+    const days = getDaysSinceEpoch(this);
+    const oldDate = days2hebrew(days);
+    oldDate.month += getMonthContext(oldDate.month, oldDate.year, year);
+    return this.setNewDate(year, month ?? oldDate.month, date ?? oldDate.date);
+  }
+
+  override setMonth(month: number, date?: number): number {
+    const days = getDaysSinceEpoch(this);
+    const oldDate = days2hebrew(days);
+    return this.setNewDate(oldDate.year, month, date ?? oldDate.date);
+  }
+
+  override setDate(date: number): number {
+    const days = getDaysSinceEpoch(this);
+    const oldDate = days2hebrew(days);
+    return this.setNewDate(oldDate.year, oldDate.month, date);
+  }
+
+  override setUTCFullYear(year: number, month?: number, date?: number): number {
+    const days = getUTCDaysSinceEpoch(this);
+    const oldDate = days2hebrew(days);
+    oldDate.month += getMonthContext(oldDate.month, oldDate.year, year);
+    return this.setUTCNewDate(year, month ?? oldDate.month, date ?? oldDate.date);
+  }
+
+  override setUTCMonth(month: number, date?: number): number {
+    const days = getUTCDaysSinceEpoch(this);
+    const oldDate = days2hebrew(days);
+    return this.setUTCNewDate(oldDate.year, month, date ?? oldDate.date);
+  }
+
+  override setUTCDate(date: number): number {
+    const days = getUTCDaysSinceEpoch(this);
+    const oldDate = days2hebrew(days);
+    return this.setUTCNewDate(oldDate.year, oldDate.month, date);
+  }
+
+  override toDateString(): string {
+    if (Number.isNaN(this)) return INVALID;
+    const daysSinceEpoch = getDaysSinceEpoch(this);
+    return stringify(daysSinceEpoch);
+  }
+
+  override toString(): string {
+    if (Number.isNaN(this)) return INVALID;
+    return this.toDateString() + ' ' + this.toTimeString();
+  }
+
+  override toUTCString(): string {
+    if (Number.isNaN(this)) return INVALID;
+    const daysSinceEpoch = getUTCDaysSinceEpoch(this);
+    return stringify(daysSinceEpoch);
+  }
+
+  setNewDate(year: number, month: number, date: number): number {
+    const newDateDays = hebrew2days(year, month, date);
+    return Date.prototype.setFullYear.call(this, 1970, 0, newDateDays + 1);
+  }
+
+  setUTCNewDate(year: number, month: number, date: number): number {
+    const newDateDays = hebrew2days(year, month, date);
+    return Date.prototype.setUTCFullYear.call(this, 1970, 0, newDateDays + 1);
   }
 
   // // Define methods
@@ -386,146 +518,22 @@ class HeDate extends Date {
 //   return date as unknown as typeof HeDate;
 // }
 
-// inherit Date.prototype
-Object.setPrototypeOf(HeDate.prototype, Date.prototype);
-// HeDate.prototype.__proto__ = Date.prototype;
+// // inherit Date.prototype
+// Object.setPrototypeOf(HeDate.prototype, Date.prototype);
+// // HeDate.prototype.__proto__ = Date.prototype;
 
-Object.defineProperties(HeDate, {
-  UTC: {
-    value: function UTC(...args: number[]) {
-      const argsList = defaults(args, [Number.NaN, Number.NaN, 1, 0, 0, 0, 0]);
-      const days = hebrew2days(...(argsList.slice(0, 3) as [number, number, number]));
-      argsList.splice(0, 3, 1970, 0, days + 1);
-      return Date.UTC(...(argsList as [number, number, number, number, number, number, number]));
-    },
-  },
-});
+// Object.defineProperties(HeDate, {
+//   UTC: {
+//     value: function UTC(...args: number[]) {
+//       const argsList = defaults(args, [Number.NaN, Number.NaN, 1, 0, 0, 0, 0]);
+//       const days = hebrew2days(...(argsList.slice(0, 3) as [number, number, number]));
+//       argsList.splice(0, 3, 1970, 0, days + 1);
+//       return Date.UTC(...(argsList as [number, number, number, number, number, number, number]));
+//     },
+//   },
+// });
 
-Object.defineProperties(HeDate.prototype, {
-  getFullYear: {
-    value: function getFullYear() {
-      const days = getDaysSinceEpoch(this);
-      return days2hebrew(days).year;
-    },
-  },
-  getYear: {
-    value: function getYear() {
-      return this.getFullYear();
-    },
-  },
-  getMonth: {
-    value: function getMonth() {
-      const days = getDaysSinceEpoch(this);
-      return days2hebrew(days).month;
-    },
-  },
-  getDate: {
-    value: function getDate() {
-      const days = getDaysSinceEpoch(this);
-      return days2hebrew(days).date;
-    },
-  },
-  getUTCFullYear: {
-    value: function getUTCFullYear() {
-      const days = getUTCDaysSinceEpoch(this);
-      return days2hebrew(days).year;
-    },
-  },
-  getUTCMonth: {
-    value: function getUTCMonth() {
-      const days = getUTCDaysSinceEpoch(this);
-      return days2hebrew(days).month;
-    },
-  },
-  getUTCDate: {
-    value: function getUTCDate() {
-      const days = getUTCDaysSinceEpoch(this);
-      return days2hebrew(days).date;
-    },
-  },
-  setFullYear: {
-    value: function setFullYear(...args: number[]) {
-      const days = getDaysSinceEpoch(this);
-      const oldDate = days2hebrew(days);
-      oldDate.month += getMonthContext(oldDate.month, oldDate.year, args[0]);
-      const newDate = defaults(args, [Number.NaN, oldDate.month, oldDate.date]);
-      return setNewDate.call(this, newDate);
-    },
-  },
-  setYear: {
-    value: function setYear(...args: number[]) {
-      return this.setFullYear(args[0]);
-    },
-  },
-  setMonth: {
-    value: function setMonth(...args: number[]) {
-      const days = getDaysSinceEpoch(this);
-      const oldDate = days2hebrew(days);
-      const newDate = defaults(args, [Number.NaN, oldDate.date]);
-      newDate.splice(0, 0, oldDate.year);
-      return setNewDate.call(this, newDate);
-    },
-  },
-  setDate: {
-    value: function setDate(...args: number[]) {
-      const days = getDaysSinceEpoch(this);
-      const oldDate = days2hebrew(days);
-      const newDate = [oldDate.year, oldDate.month, args[0]];
-      return setNewDate.call(this, newDate);
-    },
-  },
-  setUTCFullYear: {
-    value: function setUTCFullYear(...args: number[]) {
-      const days = getUTCDaysSinceEpoch(this);
-      const oldDate = days2hebrew(days);
-      oldDate.month += getMonthContext(oldDate.month, oldDate.year, args[0]);
-      const newDate = defaults(args, [Number.NaN, oldDate.month, oldDate.date]);
-      return setUTCNewDate.call(this, newDate);
-    },
-  },
-  setUTCMonth: {
-    value: function setUTCMonth(...args: number[]) {
-      const days = getUTCDaysSinceEpoch(this);
-      const oldDate = days2hebrew(days);
-      const newDate = defaults(args, [Number.NaN, oldDate.date]);
-      newDate.splice(0, 0, oldDate.year);
-      return setUTCNewDate.call(this, newDate);
-    },
-  },
-  setUTCDate: {
-    value: function setUTCDate(...args: number[]) {
-      const days = getUTCDaysSinceEpoch(this);
-      const oldDate = days2hebrew(days);
-      const newDate = [oldDate.year, oldDate.month, args[0]];
-      return setUTCNewDate.call(this, newDate);
-    },
-  },
-  toDateString: {
-    value: function toDateString() {
-      if (Number.isNaN(this)) return INVALID;
-      const daysSinceEpoch = getDaysSinceEpoch(this);
-      return stringify(daysSinceEpoch);
-    },
-  },
-  toString: {
-    value: function toString() {
-      if (Number.isNaN(this)) return INVALID;
-      return this.toDateString() + ' ' + this.toTimeString();
-    },
-  },
-  toUTCString: {
-    value: function toUTCString() {
-      if (Number.isNaN(this)) return INVALID;
-      const daysSinceEpoch = getUTCDaysSinceEpoch(this);
-      return stringify(daysSinceEpoch);
-    },
-  },
-  toGMTString: {
-    value: function toGMTString() {
-      return this.toUTCString();
-    },
-  },
-});
+// Object.defineProperties(HeDate.prototype, {});
 
 //   /* ================ Export ================ */
 
