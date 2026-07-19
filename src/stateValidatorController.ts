@@ -208,14 +208,7 @@ export class StateValidatorController {
   // When actionSourceIsFromMatter is true, oldValue can be undefined...
   // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
   // Make sure all calls to this method is after verified change of attribute value... (onOff changed from true to false etc..)
-  deviceHasChangedMatterAttribute(
-    deviceIeee: string,
-    endpoint: string,
-    attribute: string,
-    value: boolean | number,
-    oldValue: boolean | number,
-    actionSourceIsFromMatter: boolean,
-  ): boolean {
+  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number): boolean {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';

@@ -3,10 +3,12 @@
 //
 // Matterbridge plugin for Zigbee2MQTT.
 
-// import * as fs from 'node:fs';
-import * as https from 'node:https';
+/* oxlint-disable max-lines */
 
-import { MatterbridgeEndpoint } from 'matterbridge';
+// import * as fs from 'node:fs';
+import https from 'node:https';
+
+import type { MatterbridgeEndpoint } from 'matterbridge';
 // import * as http from 'node:http';
 // import * as url from 'node:url';
 // import * as qs from 'node:querystring';
@@ -16,9 +18,9 @@ import { AnsiLogger, LogLevel, TimestampFormat } from 'matterbridge/logger';
 import { BridgedDeviceBasicInformation, ColorControl, FanControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { deepCopy, deepEqual, fireAndForget } from 'matterbridge/utils';
 
-import { ZigbeeEntity } from './entity.js';
-import { ZigbeePlatform } from './module.js';
-import { Payload, PayloadValue } from './payloadTypes.js';
+import type { ZigbeeEntity } from './entity.js';
+import type { ZigbeePlatform } from './module.js';
+import type { Payload, PayloadValue } from './payloadTypes.js';
 
 // import { xyToHsl } from 'matterbridge/utils';
 
@@ -119,22 +121,22 @@ export class AqaraS1ScenePanelController {
     this.log.debug('aqaraS1ActionsConfigData contents: ' + JSON.stringify(this.aqaraS1ActionsConfigData));
   }
 
-  saveContext() {
+  saveContext(): void {
     void this.platform.context?.set('aqaraS1ExecutedConfigurationsData', this.aqaraS1ExecutedConfigurationsData);
   }
 
   // deviceEndpointPath is the device IEEE address with the endpoint, data is the changed state
   // for example, if the deviceEndpointPath is: /0x541234567890abcd/state_left and data is 'ON', then it means that a device with childEndpoint named state_left have turned on.
-  entityPropertyChanged(deviceIeee: string, separatedEndpoint: string | undefined = undefined, key: string, value: string | number | boolean | object, newPayload: Payload) {
-    const device = this.getDeviceEntity(deviceIeee, separatedEndpoint);
+  entityPropertyChanged(deviceIeee: string, separatedEndpoint: string = '', key: string, value: string | number | boolean | object, newPayload: Payload): void {
+    const device = this.getDeviceEntity(deviceIeee, separatedEndpoint === '' ? undefined : separatedEndpoint);
     const keyPropertyEndpoint = device?.getEndpointOfProperty(key);
     // If its a separated endpoint device, ignore any other endpoint properties (either they're undefined or not equal to the separated endpoint device [this] on the propertyMap which is used within getEndpointOfProperty() method).
-    if (separatedEndpoint && separatedEndpoint !== keyPropertyEndpoint) {
+    if (separatedEndpoint !== '' && separatedEndpoint !== keyPropertyEndpoint) {
       return;
     }
 
     let endpointId = separatedEndpoint;
-    if (!separatedEndpoint) {
+    if (separatedEndpoint === '' && keyPropertyEndpoint) {
       endpointId = keyPropertyEndpoint;
     }
 
@@ -163,7 +165,7 @@ export class AqaraS1ScenePanelController {
             : ['', 'auto', '', 'cool', 'heat', '', '', 'fan_only'][device?.bridgedDevice?.getAttribute(Thermostat.id, 'systemMode')];
           const fanMode = newPayload['fan_mode' + endpointSuffix];
           const targetTemperature =
-            newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] || 255;
+            newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] ?? 255;
           const currentTemperature = newPayload['local_temperature' + endpointSuffix];
           const internalThermostat = this.aqaraS1ActionsConfigData[linkedPanels[0].split('/')[1]]?.ac?.internal_thermostat;
           if (device)
@@ -171,7 +173,7 @@ export class AqaraS1ScenePanelController {
               device,
               linkedPanels,
               internalThermostat ? '0e020055' : '0e200055',
-              (onOff === true ? '1' : '0') +
+              (onOff ? '1' : '0') +
                 (systemMode === 'heat' ? '0' : systemMode === 'cool' ? '1' : '2') +
                 (fanMode === 'low' ? '0' : fanMode === 'medium' ? '1' : fanMode === 'high' ? '2' : '3') +
                 (internalThermostat ? '0' : 'f') +
@@ -226,7 +228,7 @@ export class AqaraS1ScenePanelController {
     }
   }
 
-  getDeviceEntity(ieee_address: string, separatedEndpointID?: string) {
+  getDeviceEntity(ieee_address: string, separatedEndpointID?: string): ZigbeeEntity | undefined {
     const entity = ieee_address.startsWith('group-')
       ? this.platform.zigbeeEntities?.find((entity) => entity.isGroup && entity.group?.id === Number(ieee_address.split('-')[1]))
       : this.platform.zigbeeEntities?.find(
@@ -238,11 +240,11 @@ export class AqaraS1ScenePanelController {
     return entity;
   }
 
-  publishCommand(device_ieee_address: string, payload: Payload) {
+  publishCommand(device_ieee_address: string, payload: Payload): void {
     this.platform.publish(device_ieee_address, 'set', JSON.stringify(payload));
   }
 
-  updateWeather() {
+  updateWeather(): void {
     const updateWeatherEvery = 300; // Seconds!!! // 900 is 15 minutes
     if (this.allPanels.length) {
       const casigningcert = /* this._configJson.caFile ? fs.readFileSync(this._configJson.caFile) : */ undefined;
@@ -257,7 +259,7 @@ export class AqaraS1ScenePanelController {
           casigningcert ? { ca: casigningcert } : {},
           (res) => {
             const data: Uint8Array[] = [];
-            const headerDate = res.headers && res.headers.date ? res.headers.date : 'no response date';
+            const headerDate = res.headers?.date ?? 'no response date';
             this.log.debug('Status Code:', res.statusCode);
             this.log.debug('Date in Response header:', headerDate);
 
@@ -303,7 +305,7 @@ export class AqaraS1ScenePanelController {
                       99: 37,
                     };
                     const temperature = Math.round(parsedData.current_weather?.temperature); // floor/ceil/round
-                    const humidity = parsedData.hourly?.relativehumidity_2m?.[parsedData.hourly?.time?.indexOf(parsedData.current_weather?.time?.slice(0, -2) + '00')] || 0;
+                    const humidity = parsedData.hourly?.relativehumidity_2m?.[parsedData.hourly?.time?.indexOf(parsedData.current_weather?.time?.slice(0, -2) + '00')] ?? 0;
                     const weathercode = wmoWeatherInterpretationCodesToPanelCodes[parsedData.current_weather?.weathercode] || 39;
                     const uvindex = 4096; // 4096 Will show "!" sign and "--" instead any number
                     this.log.info('temperature: ' + temperature + ', humidity: ' + humidity + ', weathercode: ' + weathercode + '.');
@@ -368,75 +370,27 @@ export class AqaraS1ScenePanelController {
     }, updateWeatherEvery * 1000);
   }
 
-  fromHexStringToBytes = (hexString: string) => new Uint8Array(hexString.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || []);
+  fromHexStringToBytes = (hexString: string): Uint8Array => new Uint8Array(hexString.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)) ?? []);
 
-  toHexStringFromBytes = (bytes: number[]) => bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+  toHexStringFromBytes = (bytes: number[]): string => bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
 
-  toHexStringFromCharacterString = (charStr: string) => this.toHexStringFromBytes(charStr.split('')?.map((c) => c.charCodeAt(0)) || []);
+  toHexStringFromCharacterString = (charStr: string): string => this.toHexStringFromBytes(charStr.split('')?.map((c) => c.charCodeAt(0)) || []);
 
-  toCharacterStringFromBytes = (bytes: number[]) =>
+  toCharacterStringFromBytes = (bytes: number[]): string =>
     bytes
       .map((v) => {
         return String.fromCharCode(v);
       })
       .join('');
 
-  getInt8 = (uint8Data: number) => (uint8Data << 24) >> 24;
+  // oxlint-disable-next-line no-bitwise
+  getInt8 = (uint8Data: number): number => (uint8Data << 24) >> 24;
 
-  getUInt8 = (int8Data: number) => (int8Data << 24) >>> 24;
-
-  getAqaraIntFromHex(hexInput: number) {
-    // value to change
-    let a = hexInput;
-
-    let b = 1;
-    let r = 0;
-
-    if (a > 0) {
-      r = 1;
-      a -= 0x3f80;
-    }
-
-    while (a > 0) {
-      const k = 0x80 / b;
-      const n = Math.min(a / k, b);
-
-      a -= k * n;
-      r += n;
-
-      b *= 2;
-    }
-
-    return r;
-  }
-
-  getAqaraHexFromInt(intInput: number) {
-    // value to change
-    let a = intInput;
-
-    let b = 1;
-    let r = 0;
-
-    if (a > 0) {
-      r = 0x3f80;
-      a -= 1;
-    }
-
-    while (a > 0) {
-      const k = 0x80 / b;
-      const n = Math.min(a, b);
-
-      a -= n;
-      r += k * n;
-
-      b *= 2;
-    }
-
-    return r;
-  }
+  // oxlint-disable-next-line no-bitwise
+  getUInt8 = (int8Data: number): number => (int8Data << 24) >>> 24;
 
   // IEEE 754 float-hex convertions
-  getFloatFromHex32Bit(hexString: string) {
+  getFloatFromHex32Bit(hexString: string): number {
     // Create an ArrayBuffer of 4 bytes (for a 32-bit float)
     const buffer = new ArrayBuffer(4);
     // Create a DataView to manipulate the buffer
@@ -444,13 +398,13 @@ export class AqaraS1ScenePanelController {
 
     // Parse the hex string as an integer and set it in the DataView
     // Assumes big-endian for this example, adjust if your hex is little-endian
-    view.setUint32(0, parseInt(hexString, 16), false); // false for big-endian
+    view.setUint32(0, Number.parseInt(hexString, 16), false); // false for big-endian
 
     // Read the float value from the DataView
     return view.getFloat32(0, false); // false for big-endian
   }
 
-  getHexFromFloat32Bit(floatValue: number) {
+  getHexFromFloat32Bit(floatValue: number): string {
     // Create an ArrayBuffer of 4 bytes (32 bits)
     const buffer = new ArrayBuffer(4);
     // Create a DataView to manipulate the buffer
@@ -468,22 +422,22 @@ export class AqaraS1ScenePanelController {
     return ('00000000' + uint32.toString(16)).slice(-8);
   }
 
-  sendFeelPageDataToPanel(deviceIeeeAddress: string, device: string, parameter: string, content: string) {
+  sendFeelPageDataToPanel(deviceIeeeAddress: string, device: string, parameter: string, content: string): void {
     const dataToSend = this.generateAqaraS1ScenePanelCommands('08', device + parameter + content)[0];
     this._writeDataToPanel(deviceIeeeAddress, dataToSend);
   }
 
-  sendStateToPanel(deviceIeeeAddress: string, device: string, parameter: string, content: string) {
+  sendStateToPanel(deviceIeeeAddress: string, device: string, parameter: string, content: string): void {
     const dataToSend = this.generateAqaraS1ScenePanelCommands('05', device + parameter + content)[0];
     this._writeDataToPanel(deviceIeeeAddress, dataToSend);
   }
 
-  _writeDataToPanel(deviceIeeeAddress: string, dataToSend: string) {
+  _writeDataToPanel(deviceIeeeAddress: string, dataToSend: string): void {
     this.log.debug('Going to set "' + dataToSend + '" at panel: ' + deviceIeeeAddress);
     this.publishCommand(deviceIeeeAddress, { communication: dataToSend });
   }
 
-  sendACStateToPanel(deviceIeeeAddress: string, acEndpoint: MatterbridgeEndpoint) {
+  sendACStateToPanel(deviceIeeeAddress: string, acEndpoint: MatterbridgeEndpoint): void {
     const onOff = acEndpoint.getAttribute(OnOff.id, 'onOff');
     const systemMode = acEndpoint.getAttribute(Thermostat.id, 'systemMode'); // Thermostat.SystemMode.Heat, Thermostat.SystemMode.Cool, Thermostat.SystemMode.Auto
     const fanMode = acEndpoint.getAttribute(FanControl.id, 'fanMode');
@@ -491,7 +445,7 @@ export class AqaraS1ScenePanelController {
       acEndpoint.getAttribute(
         Thermostat.id,
         systemMode === Thermostat.SystemMode.Cool ? 'occupiedCoolingSetpoint' : systemMode === Thermostat.SystemMode.Heat ? 'occupiedHeatingSetpoint' : '',
-      ) || 255;
+      ) ?? 255;
     const currentTemperature = acEndpoint.getAttribute(Thermostat.id, 'localTemperature');
     const internalThermostat = this.aqaraS1ActionsConfigData[deviceIeeeAddress]?.ac?.internal_thermostat;
     this.sendStateToPanel(
@@ -507,13 +461,13 @@ export class AqaraS1ScenePanelController {
     );
   }
 
-  sendCoverPositionToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
+  sendCoverPositionToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint): void {
     const position = coverEndpoint.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths');
     this.log.info('Position: ' + position);
     this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '01010055', this.getHexFromFloat32Bit(position / 100));
   }
 
-  sendCoverMovementStateToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint) {
+  sendCoverMovementStateToPanel(panelIeeeAddress: string, coverNo: string, coverEndpoint: MatterbridgeEndpoint): void {
     const movementMatterState = coverEndpoint.getAttribute(WindowCovering.id, 'operationalStatus').global;
     const movementState =
       '000000' +
@@ -522,25 +476,25 @@ export class AqaraS1ScenePanelController {
     this.sendCoverDataToPanel(panelIeeeAddress, coverNo, '0e020055', movementState);
   }
 
-  sendLightOnOffStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
+  sendLightOnOffStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint): void {
     const onOff = lightEndpoint.getAttribute(OnOff.id, 'onOff');
     this.log.info('On/Off: ' + onOff);
     this.sendLightDataToPanel(panelIeeeAddress, lightNo, '04010055', '000000' + (onOff ? 1 : 0).toString(16).padStart(2, '0'));
   }
 
-  sendLightBrightnessStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
+  sendLightBrightnessStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint): void {
     const brightness = Math.round((lightEndpoint.getAttribute(LevelControl.id, 'currentLevel') / 254) * 255);
     this.log.info('Brightness: ' + brightness);
     this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e010055', '000000' + brightness.toString(16).padStart(2, '0'));
   }
 
-  sendLightColorTemperatureStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
+  sendLightColorTemperatureStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint): void {
     const colorTemperature = lightEndpoint.getAttribute(ColorControl.id, 'colorTemperatureMireds');
     this.log.info('Color Temperature: ' + colorTemperature);
     this.sendLightDataToPanel(panelIeeeAddress, lightNo, '0e020055', '0000' + colorTemperature.toString(16).padStart(4, '0'));
   }
 
-  sendLightColorStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint) {
+  sendLightColorStateToPanel(panelIeeeAddress: string, lightNo: string, lightEndpoint: MatterbridgeEndpoint): void {
     const colorX = lightEndpoint.getAttribute(ColorControl.id, 'currentX');
     const colorY = lightEndpoint.getAttribute(ColorControl.id, 'currentY');
     this.log.info('Color X: ' + colorX + ', Color Y: ' + colorY);
@@ -561,7 +515,7 @@ export class AqaraS1ScenePanelController {
     );
   }
 
-  sendStateToPanels(originalEntity: ZigbeeEntity, panelsToUpdate: string[], parameter: string, content: string, valueToCheck: string, secondValueToCheck?: string) {
+  sendStateToPanels(originalEntity: ZigbeeEntity, panelsToUpdate: string[], parameter: string, content: string, valueToCheck: string, secondValueToCheck?: string): void {
     if (panelsToUpdate?.length) {
       for (let i = panelsToUpdate.length - 1; i >= 0; i--) {
         const panelResourceItem = panelsToUpdate[i];
@@ -648,19 +602,19 @@ export class AqaraS1ScenePanelController {
     }
   }
 
-  sendCoverDataToPanel(deviceIeeeAddress: string, coverNo: string, parameter: string, content: string) {
-    this.sendStateToPanel(deviceIeeeAddress, '6375727461696e' + parseInt(coverNo).toString(16).padStart(2, '3'), parameter, content);
+  sendCoverDataToPanel(deviceIeeeAddress: string, coverNo: string, parameter: string, content: string): void {
+    this.sendStateToPanel(deviceIeeeAddress, '6375727461696e' + Number.parseInt(coverNo).toString(16).padStart(2, '3'), parameter, content);
   }
 
-  sendLightDataToPanel(deviceIeeeAddress: string, lightNo: string, parameter: string, content: string) {
-    this.sendStateToPanel(deviceIeeeAddress, '6c69676874732f' + parseInt(lightNo).toString(16).padStart(2, '3'), parameter, content);
+  sendLightDataToPanel(deviceIeeeAddress: string, lightNo: string, parameter: string, content: string): void {
+    this.sendStateToPanel(deviceIeeeAddress, '6c69676874732f' + Number.parseInt(lightNo).toString(16).padStart(2, '3'), parameter, content);
   }
 
-  sendLightOnOffToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], newOn: boolean) {
+  sendLightOnOffToPanels(originalLightEntity: ZigbeeEntity, panelsToUpdate: string[], newOn: boolean): void {
     this.sendStateToPanels(originalLightEntity, panelsToUpdate, '04010055', '000000' + (newOn ? 1 : 0).toString(16).padStart(2, '0'), 'on');
   }
 
-  async setAqaraS1PanelsConfiguration() {
+  async setAqaraS1PanelsConfiguration(): Promise<void> {
     if (this.aqaraS1ExecutedConfigurationsData) {
       this.log.error('setAqaraS1PanelsConfiguration called twice, returning...');
       return;
@@ -680,7 +634,7 @@ export class AqaraS1ScenePanelController {
     if (this.aqaraS1ActionsConfigData) {
       const panels = Object.keys(this.aqaraS1ActionsConfigData);
       for (const panelIeee of panels) {
-        if (this.allPanels.indexOf(panelIeee) < 0) {
+        if (!this.allPanels.includes(panelIeee)) {
           // To avoid duplicates in case of re-running the configuration
           this.allPanels.push(panelIeee);
           if (!this.lastCommunications[panelIeee]) {
@@ -727,7 +681,7 @@ export class AqaraS1ScenePanelController {
               for (const key in payload) {
                 const value = payload[key];
                 if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastStates[deviceIeee][key]) {
-                  this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
+                  this.log.info('Value ' + key + ' changed from ' + JSON.stringify(this.lastStates[deviceIeee][key]) + ' to ' + value + '.');
                   this.entityPropertyChanged(deviceIeee || '', separatedDeviceEndpoint, key, value, payload);
                 } else if (typeof value === 'object' && !deepEqual(value, this.lastStates[deviceIeee][key])) {
                   this.log.info('Value ' + key + ' changed from ' + JSON.stringify(this.lastStates[deviceIeee][key]) + ' to ' + JSON.stringify(value) + '.');
@@ -755,29 +709,29 @@ export class AqaraS1ScenePanelController {
       this.platform.z2m.on('device_announce', (friendly_name: string, ieee_address: string) => {
         this.log.info(`zigbee2MQTT sent device_announce device: ${friendly_name} ieee_address: ${ieee_address}`);
         // Here nothing to do, we wait device_interview
-        if (this.allPanels.indexOf(ieee_address) >= 0) {
+        if (this.allPanels.includes(ieee_address)) {
           // TODO: Check configuration if external temperature sensor is configured, if so, then don't send weather data...
           this.sendFeelPageDataToPanel(
             ieee_address,
-            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) ?? '',
             '0d020055',
             this.lastWeatherData.weathercode.toString(16).padStart(8, '0'),
           );
           this.sendFeelPageDataToPanel(
             ieee_address,
-            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) ?? '',
             '00040055',
             this.getHexFromFloat32Bit(this.lastWeatherData.temperature),
           );
           this.sendFeelPageDataToPanel(
             ieee_address,
-            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) ?? '',
             '00050055',
             this.getHexFromFloat32Bit(this.lastWeatherData.humidity),
           );
           this.sendFeelPageDataToPanel(
             ieee_address,
-            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+            this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) ?? '',
             '00060055',
             this.getHexFromFloat32Bit(this.lastWeatherData.uvindex),
           );
@@ -943,7 +897,7 @@ export class AqaraS1ScenePanelController {
                       '260a0' +
                       (lightConfig.type === 'dimmable' ? '4' : '5') +
                       '08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac0000000000015' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                       '3' +
                       (lightConfig.type === 'color' ? '2' : '3') +
                       '00',
@@ -958,7 +912,7 @@ export class AqaraS1ScenePanelController {
                       '170a0' +
                       (lightConfig.type === 'dimmable' ? '4' : '5') +
                       '0ac1c1b6c8b0d9b7d6b1c8000000000000015' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                       '0' +
                       (lightConfig.type === 'color' ? '2' : '4') +
                       '00',
@@ -973,7 +927,7 @@ export class AqaraS1ScenePanelController {
                       '140a0' +
                       (lightConfig.type === 'dimmable' ? '4' : '5') +
                       '08c9e8b1b8c3fbb3c60000000000015' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                       '0' +
                       (lightConfig.type === 'color' ? 'a' : 'b') +
                       '00',
@@ -988,7 +942,7 @@ export class AqaraS1ScenePanelController {
                       '160a0' +
                       (lightConfig.type === 'dimmable' ? '4' : '5') +
                       '0ac9e8b1b8d4dacfdfc0eb0000000000015' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                       '3' +
                       (lightConfig.type === 'color' ? 'c' : 'd') +
                       '00',
@@ -1002,7 +956,7 @@ export class AqaraS1ScenePanelController {
                         deviceSerial +
                         '0e020055' +
                         '130a0506c9abcec2d6b5000000000000015' +
-                        (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                        (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                         '0300',
                     );
                   } else if (lightConfig.type === 'color') {
@@ -1014,7 +968,7 @@ export class AqaraS1ScenePanelController {
                         deviceSerial +
                         '0e080055' +
                         '130a0506d1d5c9ab7879000000000000015' +
-                        (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
+                        (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                         '0100',
                     );
                   }
@@ -1032,7 +986,7 @@ export class AqaraS1ScenePanelController {
                       '150a0' +
                       (curtainConfig.type === 'curtain' ? '4' : '5') +
                       '08b4b0c1b1d7b4ccac000000000000014' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '3' +
                       (curtainConfig.type === 'curtain' ? '2' : '3') +
                       '00',
@@ -1048,7 +1002,7 @@ export class AqaraS1ScenePanelController {
                       '190a0' +
                       (curtainConfig.type === 'curtain' ? '4' : '5') +
                       '0000010ab4b0c1b1b4f2bfaab0d90000000000014' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '0' +
                       (curtainConfig.type === 'curtain' ? 'c' : 'd') +
                       '00',
@@ -1064,7 +1018,7 @@ export class AqaraS1ScenePanelController {
                       '160a0' +
                       (curtainConfig.type === 'curtain' ? '4' : '5') +
                       '0ac9e8b1b8d4dacfdfc0eb0000000000014' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '3' +
                       (curtainConfig.type === 'curtain' ? 'c' : 'e') +
                       '00',
@@ -1080,7 +1034,7 @@ export class AqaraS1ScenePanelController {
                       '140a0' +
                       (curtainConfig.type === 'curtain' ? '4' : '5') +
                       '08c9e8b1b8c3fbb3c60000000000014' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '0' +
                       (curtainConfig.type === 'curtain' ? 'a' : 'b') +
                       '00',
@@ -1094,7 +1048,7 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       '00010055' +
                       '190a050000010ab4b0c1b1d4cbd0d0cab10000000000014' +
-                      (parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
+                      (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '3f00',
                   );
                 } else if (i === 8) {
@@ -1164,7 +1118,7 @@ export class AqaraS1ScenePanelController {
                     const dataToSend = this.generateNameCommand(name, deviceSerial);
                     // Save a copy/references of the relevant values and separate commands with 1000ms delay...
                     const deviceIndex = i;
-                    const executeCommand = (index: number) => {
+                    const executeCommand = (index: number): void => {
                       this.log.info('Going to send: ' + dataToSend);
                       this.publishCommand(panelIeeeAddresss, { communication: dataToSend });
                       // TODO: Maybe wait for the MQTT to send it back before executing further (use it as ACK..)
@@ -1273,12 +1227,12 @@ export class AqaraS1ScenePanelController {
     // TODO: update switches state (on/off) on the state restore of the light (file loading of the state).
   }
 
-  configurationCommandTimeout() {
+  configurationCommandTimeout(): void {
     this.lastCommandTimeout = undefined; // this will make the executeNextConfigurationCommand() function to retry the last function again...
     this.executeNextConfigurationCommand();
   }
 
-  executeNextConfigurationCommand() {
+  executeNextConfigurationCommand(): void {
     const succeededCommand = this.lastCommandTimeout !== undefined;
     if (succeededCommand) {
       // cancel the timeout...
@@ -1299,9 +1253,9 @@ export class AqaraS1ScenePanelController {
             if (parsedData) {
               if (currentConfiguredDeviceCommandsArray.commandsToExecute[0].endsWith('000000000000000000000000')) {
                 // Its a removed configuration...
-                // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+                // oxlint-disable-next-line typescript/no-dynamic-delete
                 delete parsedData[deviceIndex];
-                // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+                // oxlint-disable-next-line typescript-/no-dynamic-delete
                 delete parsedData.names[deviceIndex];
               } else {
                 parsedData[deviceIndex] = currentConfiguredDeviceCommandsArray.commandsData;
@@ -1352,7 +1306,10 @@ export class AqaraS1ScenePanelController {
         } else {
           // In case the timed out command is a multiple parts command (type 46), go back to the first part in the commands set...
           if (currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index][7] === '6') {
-            const currentCommandPartNo = parseInt(currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index].substring(12, 14), 16);
+            const currentCommandPartNo = Number.parseInt(
+              currentConfiguredDeviceCommandsArray.commandsToExecute[currentConfiguredDeviceCommandsArray.meta.index].substring(12, 14),
+              16,
+            );
             currentConfiguredDeviceCommandsArray.meta.index -= currentCommandPartNo - 1;
           }
           this.configurationCommandTimeout();
@@ -1364,7 +1321,8 @@ export class AqaraS1ScenePanelController {
   }
 
   // TODO: Handle weather data asked from panel (after panel reboot for example)...
-  panelSentData(deviceIeeeAddress: string, data: string) {
+  // oxlint-disable-next-line max-lines-per-function complexity
+  panelSentData(deviceIeeeAddress: string, data: string): void {
     const dataStartIndex = 0;
 
     const dataArray = this.fromHexStringToBytes(data);
@@ -1443,7 +1401,7 @@ export class AqaraS1ScenePanelController {
               // Updated Air conditioner device state
               const onOff = dataArray[dataStartIndex + 21] >= 0x10;
               const mode = dataArray[dataStartIndex + 21] - (onOff ? 0x10 : 0x0);
-              const fan = parseInt(dataArray[dataStartIndex + 22].toString(16).padStart(2, '0').slice(0, 1), 16);
+              const fan = Number.parseInt(dataArray[dataStartIndex + 22].toString(16).padStart(2, '0').slice(0, 1), 16);
               const setTemperature = dataArray[dataStartIndex + 23];
               this.log.info('On/Off: ' + onOff + ', Mode: ' + mode + ', Fan: ' + fan + ', Set Temperature: ' + setTemperature);
 
@@ -1548,11 +1506,11 @@ export class AqaraS1ScenePanelController {
               }
             } else if (deviceResourceType.startsWith('lights/')) {
               // Lights control
-              let onOff = undefined;
-              let brightness = undefined;
-              let colorTemperature = undefined;
-              let colorX = undefined;
-              let colorY = undefined;
+              let onOff;
+              let brightness;
+              let colorTemperature;
+              let colorX;
+              let colorY;
 
               if (stateParamInt32BE === 0x04010055) {
                 // Light On/Off
@@ -1564,12 +1522,12 @@ export class AqaraS1ScenePanelController {
                 this.log.info('Brightness: ' + brightness);
               } else if (stateParamInt32BE === 0x0e020055) {
                 // Light CT
-                colorTemperature = parseInt(dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'), 16);
+                colorTemperature = Number.parseInt(dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'), 16);
                 this.log.info('Color Temperature: ' + colorTemperature);
               } else if (stateParamInt32BE === 0x0e080055) {
                 // Light Color
-                colorX = parseInt(dataArray[dataStartIndex + 21].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 22].toString(16).padStart(2, '0'), 16);
-                colorY = parseInt(dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'), 16);
+                colorX = Number.parseInt(dataArray[dataStartIndex + 21].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 22].toString(16).padStart(2, '0'), 16);
+                colorY = Number.parseInt(dataArray[dataStartIndex + 23].toString(16).padStart(2, '0') + dataArray[dataStartIndex + 24].toString(16).padStart(2, '0'), 16);
                 this.log.info('Color X: ' + colorX + ', Color Y: ' + colorY);
               }
               const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/light_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
@@ -1611,28 +1569,28 @@ export class AqaraS1ScenePanelController {
           if (stateParamInt32BE === 0x0d020055) {
             this.sendFeelPageDataToPanel(
               deviceIeeeAddress,
-              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) ?? '',
               '0d020055',
               this.lastWeatherData.weathercode.toString(16).padStart(8, '0'),
             );
           } else if (stateParamInt32BE === 0x00040055) {
             this.sendFeelPageDataToPanel(
               deviceIeeeAddress,
-              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) ?? '',
               '00040055',
               this.getHexFromFloat32Bit(this.lastWeatherData.temperature),
             );
           } else if (stateParamInt32BE === 0x00050055) {
             this.sendFeelPageDataToPanel(
               deviceIeeeAddress,
-              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) ?? '',
               '00050055',
               this.getHexFromFloat32Bit(this.lastWeatherData.humidity),
             );
           } else if (stateParamInt32BE === 0x00060055) {
             this.sendFeelPageDataToPanel(
               deviceIeeeAddress,
-              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) || '',
+              this.platform.z2mBridgeInfo?.coordinator.ieee_address.slice(2) ?? '',
               '00060055',
               this.getHexFromFloat32Bit(this.lastWeatherData.uvindex),
             );
@@ -1812,7 +1770,7 @@ export class AqaraS1ScenePanelController {
         } else if (commandCategory === 0x73 && commandAction === 0x03) {
           if (this.platform.platformControls.switchesEnabled) {
             const panelDevice = this.getDeviceEntity(deviceIeeeAddress);
-            const sceneNo = parseInt(data[data.length - 1]);
+            const sceneNo = Number.parseInt(data[data.length - 1]);
             const sceneConfigName = ('scene_' + sceneNo) as AqaraS1ScenePanelConfigKey;
 
             const sceneConfig = this.aqaraS1ActionsConfigData?.[deviceIeeeAddress]?.[sceneConfigName] as AqaraS1ScenePanelSceneConfig | undefined;
@@ -2150,7 +2108,7 @@ export class AqaraS1ScenePanelController {
     const numValue = Number(value);
     // Check if it's a valid number and not NaN, while also ensuring the original
     // string isn't just an empty string which Number() converts to 0.
-    if (!isNaN(numValue) && /* value.trim() !== '' && */ String(numValue) === value) {
+    if (!Number.isNaN(numValue) && /* value.trim() !== '' && */ String(numValue) === value) {
       return numValue;
     }
 
@@ -2167,7 +2125,7 @@ export class AqaraS1ScenePanelController {
     return value;
   }
 
-  generateNameCommand(name: string, device: string) {
+  generateNameCommand(name: string, device: string): string {
     const nameSize = name.length;
     const nameHex = this.toHexStringFromCharacterString(name);
 
@@ -2177,7 +2135,7 @@ export class AqaraS1ScenePanelController {
     return dataToSend;
   }
 
-  generateAqaraS1ScenePanelCommands(cmdAction: string, data: string, cmdCatergory: string = '71') {
+  generateAqaraS1ScenePanelCommands(cmdAction: string, data: string, cmdCatergory: string = '71'): string[] {
     // To device
     const commandsToExecute = [];
     const cmdDataType = '41'; // Octed String
@@ -2186,7 +2144,7 @@ export class AqaraS1ScenePanelController {
     if (dataSize <= 0x37) {
       const cmdType = '44'; // Single ZCL Command
       const commandSize = dataSize + 3;
-      const integrity = 512 - (parseInt('aa', 16) + parseInt(cmdCatergory, 16) + commandSize + parseInt(cmdType, 16) + parseInt(counter, 16));
+      const integrity = 512 - (Number.parseInt('aa', 16) + Number.parseInt(cmdCatergory, 16) + commandSize + Number.parseInt(cmdType, 16) + Number.parseInt(counter, 16));
       const dataToSend =
         'aa' +
         cmdCatergory +
@@ -2230,13 +2188,13 @@ export class AqaraS1ScenePanelController {
         const commandSize = partDataSize + (index === 0 ? 3 : 0); // The first command contains the cmdType, dataType and dataSize.
         const integrity =
           512 -
-          (parseInt('aa', 16) +
-            parseInt(cmdCatergory, 16) +
+          (Number.parseInt('aa', 16) +
+            Number.parseInt(cmdCatergory, 16) +
             commandSize +
-            parseInt(cmdType, 16) +
-            parseInt(counter, 16) +
-            parseInt('' + partsData.length, 16) +
-            parseInt('' + (index + 1), 16));
+            Number.parseInt(cmdType, 16) +
+            Number.parseInt(counter, 16) +
+            Number.parseInt('' + partsData.length, 16) +
+            Number.parseInt('' + (index + 1), 16));
         const dataPrefix =
           'aa' +
           cmdCatergory +

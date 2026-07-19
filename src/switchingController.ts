@@ -214,7 +214,14 @@ export class SwitchingController {
                 // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
                 // if (devicesToListenToEvents[deviceIeee] === true) {
                 this.log.info(
-                  (device === undefined ? deviceIeee : device.entityName) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.',
+                  (device === undefined ? deviceIeee : device.entityName) +
+                    ' value ' +
+                    key +
+                    ' changed from ' +
+                    JSON.stringify(this.lastStates[deviceIeee][key]) +
+                    ' to ' +
+                    value +
+                    '.',
                 );
                 this.lastStates[deviceIeee][key] = value;
                 this.switchStateChanged(deviceIeee || '', key, value, payload);
@@ -255,7 +262,7 @@ export class SwitchingController {
     oldValue: boolean | number,
     actionSourceIsFromMatter: boolean,
   ): boolean {
-    this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, value, oldValue, actionSourceIsFromMatter);
+    this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, value);
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
@@ -345,7 +352,7 @@ export class SwitchingController {
             const device = this.getDeviceEntity(deviceIeee);
             process.nextTick(async () => {
               await device?.bridgedDevice?.setAttribute(attribute === 'onOff' ? OnOff.id : LevelControl.id, attribute, oldValue);
-              this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, oldValue, value, actionSourceIsFromMatter);
+              this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, oldValue);
             });
           } else {
             // It should revert the device state??? (It happens here when: Switch -> linked device -> linked device changes again for some reason [via device local control or any other way to control it aka z2m FE])...
@@ -455,7 +462,7 @@ export class SwitchingController {
   }
 
   async processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload): Promise<void> {
-    const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed_' + newPayload['action_rotation_button_state']];
+    const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed_' + JSON.stringify(newPayload['action_rotation_button_state'])];
     if (actionsConfig.enabled) {
       for (const linkedDevice in actionsConfig.linkedDevices) {
         if (linkedDevice.startsWith('http')) {
