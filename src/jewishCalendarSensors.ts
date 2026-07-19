@@ -315,6 +315,7 @@ export class JewishCalendarSensors {
 
     this.sensor.log.debug("This Year's Hebrew Months: ");
     this.sensor.log.debug(JSON.stringify(this.hebrewMonths));
+    this.sensor.log.debug('The jewish date is: ' + this.hDate.toString());
   }
 
   updateLoop(): void {

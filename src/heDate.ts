@@ -16,22 +16,6 @@ const INVALID = 'Invalid Date';
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Tishri', 'Heshvan', 'Kislev', 'Tevet', 'Shevat', 'Adar I', 'Adar II', 'Nisan', 'Iyar', 'Sivan', 'Tamuz', 'Av', 'Elul', 'Adar'];
 
-// /**
-//  *
-//  * @param {[Array, object]} src - array or Argument object
-//  * @param {Array} dest - Array
-//  * @returns {Array} The dest array
-//  */
-// const defaults = (src: any[], dest: any[]): any[] => {
-//   let i = 0;
-//   const len = Math.min(src.length, dest.length);
-//   while (i < len) {
-//     dest[i] = src[i];
-//     i++;
-//   }
-//   return dest;
-// };
-
 /* like `x % y` even for negative numbers */
 const modulo = (x: number, y: number): number => {
   return x - y * Math.floor(x / y);
@@ -289,9 +273,6 @@ class HeDate extends Date {
   constructor(date: Date);
   constructor(year: number, monthIndex: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number);
 
-  // Define properties with their types
-  // private name: string; //
-
   // 2. Single implementation handling all cases via rest parameters
   // The constructor is where you initialize the instance
   // oxlint-disable-next-line typescript/no-explicit-any
@@ -300,14 +281,7 @@ class HeDate extends Date {
     // @ts-expect-error - Required for TypeScript to spread arguments into super
     super(...args);
 
-    // super();
-    // this.name = name;
-
-    // const date = new Date();
-    // Object.setPrototypeOf(date, Object.getPrototypeOf(this));
-
     Object.setPrototypeOf(this, HeDate.prototype);
-    // date.__proto__ = this.__proto__;
 
     if (args.length == 1) {
       if (typeof args[0] === 'number') {
@@ -326,8 +300,6 @@ class HeDate extends Date {
       this.setFullYear(year, monthIndex, date ?? 1);
       this.setHours(hours ?? 0, minutes ?? 0, seconds ?? 0, ms ?? 0);
     }
-
-    // return this;
   }
 
   // 1. Declare a static method matching the exact native parameters
@@ -336,7 +308,7 @@ class HeDate extends Date {
     // console.log(`Intercepted static UTC generation for year: ${year}`);
 
     // if (year < 1970) {
-    //   throw new Error("CustomDate static calculations don't support years before 1970.");
+    //   throw new Error("HeDate static calculations don't support years before 1970.");
     // }
 
     // 3. Forward parameters to the native engine using Date.UTC()
@@ -351,7 +323,7 @@ class HeDate extends Date {
     // console.log(`Intercepted: Changing year to ${year}`);
 
     // if (year < 1970) {
-    //   throw new Error("CustomDate does not support years before 1970.");
+    //   throw new Error("HeDate does not support years before 1970.");
     // }
 
     // // 3. Call super to let the native Date engine update the timestamp
@@ -450,99 +422,8 @@ class HeDate extends Date {
     const newDateDays = hebrew2days(year, month, date);
     return Date.prototype.setUTCFullYear.call(this, 1970, 0, newDateDays + 1);
   }
-
-  // // Define methods
-  // public sayHello(): void { //
-  //   console.log(`Hello, ${this.name}`);
-  // }
 }
 
-// class HeDate {
-//   // Define properties with their types
-//   // private name: string; //
-
-//   // The constructor is where you initialize the instance
-//   constructor(/*  name: string  */) {
-//     // this.name = name;
-
-//     if (!(this instanceof HeDate)) {
-//       return new HeDate().toString();
-//     }
-
-//     const date = new Date();
-//     Object.setPrototypeOf(date, Object.getPrototypeOf(this));
-//     // date.__proto__ = this.__proto__;
-
-//     if (arguments.length == 1) {
-//       date.setTime(arguments[0]);
-//     } else if (arguments.length > 1) {
-//       const args = defaults(arguments, [0, 0, 1, 0, 0, 0, 0]);
-//       const dateArgs = args.slice(0, 3);
-//       const timeArgs = args.slice(3);
-//       date.setFullYear.apply(date, dateArgs);
-//       date.setHours.apply(date, timeArgs);
-//     }
-
-//     return date;
-//   }
-
-//   // // Define methods
-//   // public sayHello(): void { //
-//   //   console.log(`Hello, ${this.name}`);
-//   // }
-// }
-
-// // Instantiate and use the class
-// const greeterInstance = new Greeter('World');
-// greeterInstance.sayHello();
-
-// function HeDate(this: typeof HeDate): typeof HeDate {
-//   if (!(this instanceof HeDate)) {
-//     return new HeDate().toString();
-//   }
-
-//   const date = new Date();
-//   Object.setPrototypeOf(date, Object.getPrototypeOf(this));
-//   // date.__proto__ = this.__proto__;
-
-//   if (arguments.length == 1) {
-//     date.setTime(arguments[0]);
-//   } else if (arguments.length > 1) {
-//     const args = defaults(arguments, [0, 0, 1, 0, 0, 0, 0]);
-//     const dateArgs = args.slice(0, 3);
-//     const timeArgs = args.slice(3);
-//     date.setFullYear.apply(date, dateArgs);
-//     date.setHours.apply(date, timeArgs);
-//   }
-
-//   return date as unknown as typeof HeDate;
-// }
-
-// // inherit Date.prototype
-// Object.setPrototypeOf(HeDate.prototype, Date.prototype);
-// // HeDate.prototype.__proto__ = Date.prototype;
-
-// Object.defineProperties(HeDate, {
-//   UTC: {
-//     value: function UTC(...args: number[]) {
-//       const argsList = defaults(args, [Number.NaN, Number.NaN, 1, 0, 0, 0, 0]);
-//       const days = hebrew2days(...(argsList.slice(0, 3) as [number, number, number]));
-//       argsList.splice(0, 3, 1970, 0, days + 1);
-//       return Date.UTC(...(argsList as [number, number, number, number, number, number, number]));
-//     },
-//   },
-// });
-
-// Object.defineProperties(HeDate.prototype, {});
-
-//   /* ================ Export ================ */
-
-//   if(typeof window !== 'undefined') {
-//     window.HeDate = HeDate;
-//   } else if(typeof module !== 'undefined' && module.exports) {
-//     module.exports = HeDate;
-//   }
-
-// })()
+/* ================ Export ================ */
 
 export { HeDate };
