@@ -166,9 +166,9 @@ export class AqaraS1ScenePanelController {
           const fanMode = newPayload['fan_mode' + endpointSuffix];
           const targetTemperature =
             newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] ?? 255;
-          const currentTemperature = newPayload['local_temperature' + endpointSuffix];
+          const currentTemperature = newPayload['local_temperature' + endpointSuffix] ?? 255;
           const internalThermostat = this.aqaraS1ActionsConfigData[linkedPanels[0].split('/')[1]]?.ac?.internal_thermostat;
-          if (device)
+          if (device && typeof targetTemperature === 'number' && typeof currentTemperature === 'number')
             this.sendStateToPanels(
               device,
               linkedPanels,
@@ -178,7 +178,7 @@ export class AqaraS1ScenePanelController {
                 (fanMode === 'low' ? '0' : fanMode === 'medium' ? '1' : fanMode === 'high' ? '2' : '3') +
                 (internalThermostat ? '0' : 'f') +
                 targetTemperature.toString(16).padStart(2, '0') +
-                (internalThermostat ? ((Math.round((currentTemperature as number) || 255) + 0) * 4).toString(16).padStart(2, '0') : '00'),
+                (internalThermostat ? (Math.round(currentTemperature) * 4).toString(16).padStart(2, '0') : '00'),
               '',
             );
         }
@@ -187,38 +187,36 @@ export class AqaraS1ScenePanelController {
           if (device)
             this.sendStateToPanels(device, linkedPanels, '0e020055', '000000' + (value === 'OPEN' ? 1 : value === 'CLOSE' ? 0 : 2).toString(16).padStart(2, '0'), 'state');
         } else if (key.startsWith('position')) {
-          if (device) this.sendStateToPanels(device, linkedPanels, '01010055', this.getHexFromFloat32Bit(value as number), 'position');
+          if (device && typeof value === 'number') this.sendStateToPanels(device, linkedPanels, '01010055', this.getHexFromFloat32Bit(value), 'position');
         }
       } else if (linkedPanelDeviceType.startsWith('light')) {
         if (key.startsWith('state')) {
           if (device) this.sendStateToPanels(device, linkedPanels, '04010055', '000000' + (value === 'ON' ? 1 : 0).toString(16).padStart(2, '0'), 'state');
         } else if (key.startsWith('brightness')) {
-          if (device)
+          if (device && typeof value === 'number')
             this.sendStateToPanels(
               device,
               linkedPanels,
               '0e010055',
               '000000' +
-                Math.round((value as number) / 2.54)
+                Math.round(value / 2.54)
                   .toString(16)
                   .padStart(2, '0'),
               'brightness',
             );
         } else if (key.startsWith('color_temp') && !key.startsWith('color_temp_startup')) {
-          if (device) this.sendStateToPanels(device, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
+          if (device && typeof value === 'number') this.sendStateToPanels(device, linkedPanels, '0e020055', '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
         } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
-          const color = newPayload[key] as { [key: string]: number };
-          const colorX = color?.x;
-          const colorY = color?.y;
-          if (device)
+          const color = newPayload[key];
+          if (device && typeof color === 'object' && 'x' in color && typeof color.x === 'number' && 'y' in color && typeof color.y === 'number')
             this.sendStateToPanels(
               device,
               linkedPanels,
               '0e080055',
-              Math.round(colorX * 65535)
+              Math.round(color.x * 65535)
                 .toString(16)
                 .padStart(4, '0') +
-                Math.round(colorY * 65535)
+                Math.round(color.y * 65535)
                   .toString(16)
                   .padStart(4, '0'),
               'color',
