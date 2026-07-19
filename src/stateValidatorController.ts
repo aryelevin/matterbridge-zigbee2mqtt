@@ -74,7 +74,7 @@ export class StateValidatorController {
   public log: AnsiLogger;
   platform: ZigbeePlatform;
   lastStates: { [key: string]: Payload } = {};
-  monitoredEndpoints: { [key: string]: string | string[] }[];
+  monitoredEndpoints: { deviceId: string; properties: string[]; endpoint: string }[];
   monitoredEndpointsRepeatCounts: { [key: string]: number };
   currentEndpointPutIndex: number;
 
@@ -124,7 +124,7 @@ export class StateValidatorController {
     for (let i = 0; i < accessoriesArray.length; i++) {
       const entity = accessoriesArray[i];
       const propertiesMap = entity.getPropertyMap();
-      const endpointsMap: { [key: string]: { [key: string]: string | string[] } } = {};
+      const endpointsMap: { [key: string]: { deviceId: string; properties: string[]; endpoint: string } } = {};
       // const servicesKeys = propertiesMap.keys();
       for (const key of propertiesMap.keys()) {
         const propertyMapObject = propertiesMap.get(key);
@@ -136,21 +136,17 @@ export class StateValidatorController {
           if (lastState && this.monitoredEndpointsRepeatCounts[counterKey] !== -1) {
             let entityEndpointData = endpointsMap[propertyMapObject.endpoint];
             if (entityEndpointData) {
-              (entityEndpointData.properties as string[]).push(key);
+              entityEndpointData.properties.push(key);
             } else {
               entityEndpointData = { deviceId: serviceToExamine, properties: [key], endpoint: propertyMapObject.endpoint };
               endpointsMap[propertyMapObject.endpoint] = entityEndpointData;
               this.monitoredEndpoints.push(entityEndpointData);
             }
             // Create the entry first time with 0 counter to allow it to be run...
-            if (this.monitoredEndpointsRepeatCounts[counterKey] === undefined) {
-              this.monitoredEndpointsRepeatCounts[counterKey] = 0;
-            }
+            this.monitoredEndpointsRepeatCounts[counterKey] ??= 0;
           } else {
             // Create a non functioning entry to allow proper setting later... (Only if no object already, since it might be that one of few monitored properties doesn't have last state, which will get here, and if some of the last states does exists, it will reset it for no reason).
-            if (this.monitoredEndpointsRepeatCounts[counterKey] === undefined) {
-              this.monitoredEndpointsRepeatCounts[counterKey] = -1;
-            }
+            this.monitoredEndpointsRepeatCounts[counterKey] ??= -1;
           }
         }
       }
@@ -165,7 +161,7 @@ export class StateValidatorController {
       const index = this.platform.config.putStateRepeatCount > 0 ? this.currentEndpointPutIndex : beatNo % this.monitoredEndpoints.length;
       const endpoint = this.monitoredEndpoints[index];
 
-      const lastEndpointState = this.lastStates[endpoint.deviceId as string];
+      const lastEndpointState = this.lastStates[endpoint.deviceId];
       if (lastEndpointState) {
         const statePayload: Payload = {};
         let dirty = false;
@@ -177,7 +173,7 @@ export class StateValidatorController {
           }
         }
         if (dirty) {
-          this.publishCommand(endpoint.deviceId as string, statePayload);
+          this.publishCommand(endpoint.deviceId, statePayload);
         }
       }
 

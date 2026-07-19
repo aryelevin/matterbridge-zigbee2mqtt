@@ -1,9 +1,7 @@
 /**
- * (c) 2017 Avraham Ostreicher
- * HeDate.js is released under the MIT license
+ * (c) 2026 Arye Levin (Avraham Ostreicher)
+ * HeDate.ts is released under the MIT license
  */
-
-// (function() {
 
 /* ================ Helpers ================ */
 

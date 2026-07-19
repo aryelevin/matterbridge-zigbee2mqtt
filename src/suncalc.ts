@@ -25,13 +25,13 @@ const dayMs = 1000 * 60 * 60 * 24,
   J1970 = 2440588,
   J2000 = 2451545;
 
-function toJulian(date: Date) {
+function toJulian(date: Date): number {
   return date.valueOf() / dayMs - 0.5 + J1970;
 }
-function fromJulian(j: number) {
+function fromJulian(j: number): Date {
   return new Date((j + 0.5 - J1970) * dayMs);
 }
-function toDays(date: Date) {
+function toDays(date: Date): number {
   return toJulian(date) - J2000;
 }
 
@@ -39,25 +39,26 @@ function toDays(date: Date) {
 
 const e = rad * 23.4397; // obliquity of the Earth
 
-function rightAscension(l: number, b: number) {
+function rightAscension(l: number, b: number): number {
   return atan(sin(l) * cos(e) - tan(b) * sin(e), cos(l));
 }
-function declination(l: number, b: number) {
+function declination(l: number, b: number): number {
   return asin(sin(b) * cos(e) + cos(b) * sin(e) * sin(l));
 }
 
-function azimuth(H: number, phi: number, dec: number) {
+function azimuth(H: number, phi: number, dec: number): number {
   return atan(sin(H), cos(H) * sin(phi) - tan(dec) * cos(phi));
 }
-function altitude(H: number, phi: number, dec: number) {
+function altitude(H: number, phi: number, dec: number): number {
   return asin(sin(phi) * sin(dec) + cos(phi) * cos(dec) * cos(H));
 }
 
-function siderealTime(d: number, lw: number) {
+function siderealTime(d: number, lw: number): number {
   return rad * (280.16 + 360.9856235 * d) - lw;
 }
 
-function astroRefraction(h: number) {
+function astroRefraction(hVal: number): number {
+  let h = hVal;
   if (h < 0)
     // the following formula works for positive altitudes only.
     h = 0; // if h = -0.08901179 a div/0 would occur.
@@ -80,7 +81,7 @@ function eclipticLongitude(M: number): number {
   return M + C + P + PI;
 }
 
-function sunCoords(d: number) {
+function sunCoords(d: number): { dec: number; ra: number } {
   const M = solarMeanAnomaly(d),
     L = eclipticLongitude(M);
 
@@ -123,7 +124,7 @@ const SunCalc: {
 
 // calculates sun position for a given date and latitude/longitude
 
-SunCalc.getPosition = function (date: Date, lat: number, lng: number) {
+SunCalc.getPosition = function (date: Date, lat: number, lng: number): { azimuth: number; altitude: number } {
   const lw = rad * -lng,
     phi = rad * lat,
     d = toDays(date),
@@ -149,7 +150,7 @@ const times = (SunCalc.times = [
 
 // adds a custom time to the times config
 
-SunCalc.addTime = function (angle: number, riseName: string, setName: string) {
+SunCalc.addTime = function (angle: number, riseName: string, setName: string): void {
   times.push([angle, riseName, setName]);
 };
 
@@ -157,26 +158,26 @@ SunCalc.addTime = function (angle: number, riseName: string, setName: string) {
 
 const J0 = 0.0009;
 
-function julianCycle(d: number, lw: number) {
+function julianCycle(d: number, lw: number): number {
   return Math.round(d - J0 - lw / (2 * PI));
 }
 
-function approxTransit(Ht: number, lw: number, n: number) {
+function approxTransit(Ht: number, lw: number, n: number): number {
   return J0 + (Ht + lw) / (2 * PI) + n;
 }
-function solarTransitJ(ds: number, M: number, L: number) {
+function solarTransitJ(ds: number, M: number, L: number): number {
   return J2000 + ds + 0.0053 * sin(M) - 0.0069 * sin(2 * L);
 }
 
-function hourAngle(h: number, phi: number, d: number) {
+function hourAngle(h: number, phi: number, d: number): number {
   return acos((sin(h) - sin(phi) * sin(d)) / (cos(phi) * cos(d)));
 }
-function observerAngle(height: number) {
+function observerAngle(height: number): number {
   return (-2.076 * Math.sqrt(height)) / 60;
 }
 
 // returns set time for the given sun altitude
-function getSetJ(h: number, lw: number, phi: number, dec: number, n: number, M: number, L: number) {
+function getSetJ(h: number, lw: number, phi: number, dec: number, n: number, M: number, L: number): number {
   const w = hourAngle(h, phi, dec),
     a = approxTransit(w, lw, n);
   return solarTransitJ(a, M, L);
@@ -185,9 +186,7 @@ function getSetJ(h: number, lw: number, phi: number, dec: number, n: number, M: 
 // calculates sun times for a given date, latitude/longitude, and, optionally,
 // the observer height (in meters) relative to the horizon
 
-SunCalc.getTimes = function (date: Date, lat: number, lng: number, height?: number) {
-  height = height || 0;
-
+SunCalc.getTimes = function (date: Date, lat: number, lng: number, height: number = 0): { [key: string]: Date } {
   const lw = rad * -lng,
     phi = rad * lat,
     dh = observerAngle(height),
@@ -221,7 +220,7 @@ SunCalc.getTimes = function (date: Date, lat: number, lng: number, height?: numb
 
 // moon calculations, based on http://aa.quae.nl/en/reken/hemelpositie.html formulas
 
-function moonCoords(d: number) {
+function moonCoords(d: number): { ra: number; dec: number; dist: number } {
   // geocentric ecliptic coordinates of the moon
 
   const L = rad * (218.316 + 13.176396 * d), // ecliptic longitude
@@ -238,7 +237,7 @@ function moonCoords(d: number) {
   };
 }
 
-SunCalc.getMoonPosition = function (date: Date, lat: number, lng: number) {
+SunCalc.getMoonPosition = function (date: Date, lat: number, lng: number): { azimuth: number; altitude: number; distance: number; parallacticAngle: number } {
   const lw = rad * -lng,
     phi = rad * lat,
     d = toDays(date),
@@ -262,7 +261,7 @@ SunCalc.getMoonPosition = function (date: Date, lat: number, lng: number) {
 // based on http://idlastro.gsfc.nasa.gov/ftp/pro/astro/mphase.pro formulas and
 // Chapter 48 of "Astronomical Algorithms" 2nd edition by Jean Meeus (Willmann-Bell, Richmond) 1998.
 
-SunCalc.getMoonIllumination = function (date: Date) {
+SunCalc.getMoonIllumination = function (date: Date): { fraction: number; phase: number; angle: number } {
   const d = toDays(date || new Date()),
     s = sunCoords(d),
     m = moonCoords(d),
@@ -278,13 +277,13 @@ SunCalc.getMoonIllumination = function (date: Date) {
   };
 };
 
-function hoursLater(date: Date, h: number) {
+function hoursLater(date: Date, h: number): Date {
   return new Date(date.valueOf() + (h * dayMs) / 24);
 }
 
 // calculations for moon rise/set times are based on http://www.stargazing.net/kepler/moonrise.html article
 
-SunCalc.getMoonTimes = function (date: Date, lat: number, lng: number, inUTC: boolean) {
+SunCalc.getMoonTimes = function (date: Date, lat: number, lng: number, inUTC: boolean): { [key: string]: Date | boolean } {
   const t = new Date(date);
   if (inUTC) t.setUTCHours(0, 0, 0, 0);
   else t.setHours(0, 0, 0, 0);

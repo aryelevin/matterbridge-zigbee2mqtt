@@ -1,10 +1,9 @@
-import * as fs from 'node:fs';
-import * as http from 'node:http';
-import { ClientRequest, IncomingMessage } from 'node:http';
-import * as https from 'node:https';
-import * as path from 'node:path';
-import * as qs from 'node:querystring';
-import * as url from 'node:url';
+import fs from 'node:fs';
+import http from 'node:http';
+import type { ClientRequest, IncomingMessage } from 'node:http';
+import https from 'node:https';
+import path from 'node:path';
+import qs from 'node:querystring';
 // import { er } from 'node-ansi-logger';
 
 const pUrl = 'https://api.pushover.net/1/messages.json';
@@ -14,7 +13,7 @@ const pUrl = 'https://api.pushover.net/1/messages.json';
  * @param {object} o - The parameters object.
  * @returns {object} The parameters object with default values set.
  */
-function setDefaults(o: { [key: string]: string | number | boolean }) {
+function setDefaults(o: { [key: string]: string | number | boolean }): { [key: string]: string | number | boolean } {
   const def = ['device', 'title', 'url', 'url_title', 'priority', 'timestamp', 'sound'];
 
   let i = 0;
@@ -146,7 +145,7 @@ export class Pushover {
     }
   }
 
-  errors(d: string | AggregateError, res?: IncomingMessage) {
+  errors(d: string | AggregateError, res?: IncomingMessage): void {
     if (typeof d === 'string') {
       try {
         d = JSON.parse(d);
@@ -171,10 +170,10 @@ export class Pushover {
     }
   }
 
-  updateSounds() {
+  updateSounds(): void {
     let data = '';
     const surl = 'https://api.pushover.net/1/sounds.json?token=' + this.token;
-    const req = https.request(new url.URL(surl), (res: IncomingMessage) => {
+    const req = https.request(new URL(surl), (res: IncomingMessage) => {
       res.on('end', () => {
         try {
           const j = JSON.parse(data);
@@ -199,8 +198,12 @@ export class Pushover {
     req.end();
   }
 
-  send(obj: { [key: string]: string | number | boolean }, callback?: ((err?: Error, result?: string, res?: http.IncomingMessage) => void) | null, casigningcert?: Buffer | null) {
-    const urlObject = new url.URL(pUrl);
+  send(
+    objectData: { [key: string]: string | number | boolean },
+    callback?: ((err?: Error, result?: string, res?: http.IncomingMessage) => void) | null,
+    casigningcert?: Buffer | null,
+  ): void {
+    const urlObject = new URL(pUrl);
     const o: { [key: string]: string | number | boolean | object } = {
       host: urlObject.hostname,
       port: urlObject.port,
@@ -209,7 +212,7 @@ export class Pushover {
     };
     let proxy;
 
-    obj = setDefaults(obj);
+    const obj = setDefaults(objectData);
 
     const reqString: { [key: string]: string | number | boolean } = {
       token: this.token || obj.token,
@@ -253,7 +256,7 @@ export class Pushover {
     }
 
     if (Object.prototype.hasOwnProperty.call(httpOpts, 'proxy') && httpOpts?.proxy && httpOpts.proxy !== '') {
-      proxy = new url.URL(httpOpts.proxy);
+      proxy = new URL(httpOpts.proxy);
       headersObj.Host = o.host;
       o.host = proxy.hostname;
       o.protocol = proxy.protocol;
@@ -261,7 +264,7 @@ export class Pushover {
 
     o.headers = headersObj;
 
-    let request: (options: string | url.URL | https.RequestOptions, callback?: (res: IncomingMessage) => void) => ClientRequest;
+    let request: (options: string | URL | https.RequestOptions, callback?: (res: IncomingMessage) => void) => ClientRequest;
     if ((httpOpts?.proxy && httpOpts.proxy !== '') || pUrl.match(/http:/)) {
       request = http.request;
     } else {
@@ -307,6 +310,6 @@ export class Pushover {
   }
 }
 
-Pushover.prototype.send = function (obj, fn) {
+Pushover.prototype.send = function (obj, fn): void {
   this.send(obj, fn, null);
 };
