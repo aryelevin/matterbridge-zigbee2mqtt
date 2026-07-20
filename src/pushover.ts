@@ -76,8 +76,8 @@ function reqString2MP(rs: string, b: string, imgObj?: { [key: string]: string | 
   }
 
   let payload;
-  if (imgObj) {
-    payload = Buffer.concat([Buffer.from(a.join('\r\n'), 'utf8'), Buffer.from(imgObj.data as string, 'binary'), Buffer.from('\r\n' + b + '--\r\n', 'utf8')]);
+  if (imgObj && typeof imgObj.data === 'string') {
+    payload = Buffer.concat([Buffer.from(a.join('\r\n'), 'utf8'), Buffer.from(imgObj.data, 'binary'), Buffer.from('\r\n' + b + '--\r\n', 'utf8')]);
   } else {
     payload = Buffer.concat([Buffer.from(a.join('\r\n'), 'utf8'), Buffer.from(b + '--\r\n', 'utf8')]);
   }
@@ -148,7 +148,7 @@ export class Pushover {
   errors(d: string | AggregateError, res?: IncomingMessage): void {
     if (typeof d === 'string') {
       try {
-        d = JSON.parse(d);
+        const _d = JSON.parse(d);
       } catch (error) {
         let errMsg = String(error);
         if (error instanceof Error) {
