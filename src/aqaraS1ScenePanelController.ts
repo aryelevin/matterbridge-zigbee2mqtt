@@ -224,7 +224,7 @@ export class AqaraS1ScenePanelController {
           if (device && typeof value === 'number') this.sendStateToPanels(device, linkedPanels, LightColorTemperature, '0000' + value.toString(16).padStart(4, '0'), 'color_temp');
         } else if (key.startsWith('color') && !key.startsWith('color_mode')) {
           const color = newPayload[key];
-          if (device && typeof color === 'object' && 'x' in color && typeof color.x === 'number' && 'y' in color && typeof color.y === 'number')
+          if (device && color && typeof color === 'object' && 'x' in color && typeof color.x === 'number' && 'y' in color && typeof color.y === 'number')
             this.sendStateToPanels(
               device,
               linkedPanels,
