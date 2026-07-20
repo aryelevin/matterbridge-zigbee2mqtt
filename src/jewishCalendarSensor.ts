@@ -5,7 +5,7 @@
 
 // import EventEmitter from 'node:events';
 
-import { contactSensor, MatterbridgeEndpoint } from 'matterbridge';
+import { contactSensor, type MatterbridgeEndpoint } from 'matterbridge';
 import { CommonLocationTag } from 'matterbridge/matter';
 import { BasicInformationServer } from 'matterbridge/matter/behaviors';
 import { BooleanState } from 'matterbridge/matter/clusters';
@@ -38,18 +38,18 @@ export class JewishCalendarSensor {
     this.sensor.addClusterServers([BasicInformationServer.cluster.id]);
     this.sensor.createDefaultBasicInformationClusterServer(params.name, '0x8803047534' /* , 4874, 'AL Systems', 77, 'Eve Door 20EBN9901', 1144, '1.2.8'*/);
     this.sensor.createDefaultBooleanStateClusterServer(true);
-    this.sensor.addFixedLabel('composed', params.name);
-    this.sensor.addUserLabel('composed', params.name);
+    void this.sensor.addFixedLabel('composed', params.name);
+    void this.sensor.addUserLabel('composed', params.name);
   }
 
-  async update(isOpen: boolean) {
+  async update(isOpen: boolean): Promise<void> {
     this.calendarState = isOpen;
     await this.updateState();
   }
 
-  private async updateState() {
+  private async updateState(): Promise<void> {
     let contact = this.calendarState;
-    if (this._testMode === true) {
+    if (this._testMode) {
       contact = !contact;
     }
 

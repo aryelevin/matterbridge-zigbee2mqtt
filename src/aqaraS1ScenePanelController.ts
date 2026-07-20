@@ -5,14 +5,14 @@
 
 /* oxlint-disable max-lines */
 
-// import * as fs from 'node:fs';
+// import fs from 'node:fs';
 import https from 'node:https';
 
 import type { MatterbridgeEndpoint } from 'matterbridge';
-// import * as http from 'node:http';
-// import * as url from 'node:url';
-// import * as qs from 'node:querystring';
-// import * as path from 'node:path';
+// import http from 'node:http';
+// import url from 'node:url';
+// import qs from 'node:querystring';
+// import path from 'node:path';
 // import { ClientRequest, IncomingMessage } from 'node:http';
 import { AnsiLogger, LogLevel, TimestampFormat } from 'matterbridge/logger';
 import { BridgedDeviceBasicInformation, ColorControl, FanControl, LevelControl, OnOff, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';

@@ -365,12 +365,12 @@ export class SwitchingController {
   }
 
   switchStateChanged(deviceIeee: string, key: string, value: string | number | boolean, newPayload: Payload): void {
-    if (key === 'action') {
-      this.processIncomingButtonEvent(deviceIeee, value as string);
+    if (key === 'action' && typeof value === 'string') {
+      this.processIncomingButtonEvent(deviceIeee, value);
       return;
     }
-    if (key === 'action_rotation_percent_speed') {
-      void this.processIncomingRotationPercentageEvent(deviceIeee, value as number, newPayload);
+    if (key === 'action_rotation_percent_speed' && typeof value === 'number') {
+      void this.processIncomingRotationPercentageEvent(deviceIeee, value, newPayload);
       return;
     }
     const deviceEndpointPath = deviceIeee + '/' + key;

@@ -3,13 +3,13 @@
 //
 // Matterbridge plugin for Zigbee2MQTT.
 
-// import * as fs from 'node:fs';
+// import fs from 'node:fs';
 
 import { bridgedNode, dimmableLight, MatterbridgeEndpoint, onOffLight, onOffPlugInUnit, onOffLightSwitch, powerSource } from 'matterbridge';
 import { OnOff } from 'matterbridge/matter/clusters';
 
 // import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
-import { ZigbeePlatform } from './module.js';
+import type { ZigbeePlatform } from './module.js';
 import { Pushover } from './pushover.js';
 
 const p = new Pushover({
@@ -120,12 +120,12 @@ export class DummySwitch {
     });
   }
 
-  private onOffDidSet(value: boolean) {
+  private onOffDidSet(value: boolean): void {
     if (this.callback) {
       this.callback(value);
     }
 
-    const delay = this.config.random ? randomize(this.config.time || 1000) : (this.config.time || 1) * 1000;
+    const delay = this.config.random ? randomize(this.config.time ?? 1000) : (this.config.time ?? 1) * 1000;
     let msg = 'Setting switch to ' + value;
     if (!this.config.stateful) {
       if ((value && !this.config.reverse) || (!value && this.config.reverse)) {
@@ -150,7 +150,9 @@ export class DummySwitch {
       }, delay);
 
       if (this.config.notification) {
-        if (this.notificationMuted === false) {
+        if (this.notificationMuted) {
+          this.device.log.info('notification is muted');
+        } else {
           this.device.log.info('Send notification: ' + JSON.stringify(this.config.notification));
           const paramsMsg = {
             // These values correspond to the parameters detailed on https://pushover.net/api
@@ -182,19 +184,17 @@ export class DummySwitch {
             this.notificationMuted = false;
             this.device.log.info('notification did now un-muted');
           }, this.config.notification.muteNotificationIntervalInSec * 1000);
-        } else {
-          this.device.log.info('notification is muted');
         }
       }
     }
   }
 
-  async setOnOff(value: boolean) {
+  async setOnOff(value: boolean): Promise<void> {
     await this.device.setAttribute(OnOff.id, 'onOff', value, this.device.log);
     this.onOffDidSet(value);
   }
 
-  async updateOnOff(value: boolean) {
+  async updateOnOff(value: boolean): Promise<void> {
     await this.device.setAttribute(OnOff.id, 'onOff', value, this.device.log);
   }
 }
