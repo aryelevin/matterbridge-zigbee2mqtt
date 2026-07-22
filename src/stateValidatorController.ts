@@ -140,22 +140,24 @@ export class StateValidatorController {
         if (propertyMapObject && effectiveEndpointProperties.has(propertyMapObject.name) && effectiveEndpointTypes.has(propertyMapObject.type)) {
           const serviceToExamine =
             entity.isGroup && entity.group?.id ? 'group-' + entity.group.id : entity.isDevice && entity.device?.ieee_address ? entity.device.ieee_address : '';
-          const lastState = this.lastStates[serviceToExamine]?.[key];
-          const counterKey = serviceToExamine + '/' + propertyMapObject.endpoint;
-          if (lastState && this.monitoredEndpointsRepeatCounts[counterKey] !== -1) {
-            let entityEndpointData = endpointsMap[propertyMapObject.endpoint];
-            if (entityEndpointData) {
-              entityEndpointData.properties.push(key);
+          if (!this.config.blacklist[serviceToExamine] || (this.config.blacklist[serviceToExamine].length && !this.config.blacklist[serviceToExamine].includes(key))) {
+            const lastState = this.lastStates[serviceToExamine]?.[key];
+            const counterKey = serviceToExamine + '/' + propertyMapObject.endpoint;
+            if (lastState && this.monitoredEndpointsRepeatCounts[counterKey] !== -1) {
+              let entityEndpointData = endpointsMap[propertyMapObject.endpoint];
+              if (entityEndpointData) {
+                entityEndpointData.properties.push(key);
+              } else {
+                entityEndpointData = { deviceId: serviceToExamine, properties: [key], endpoint: propertyMapObject.endpoint };
+                endpointsMap[propertyMapObject.endpoint] = entityEndpointData;
+                this.monitoredEndpoints.push(entityEndpointData);
+              }
+              // Create the entry first time with 0 counter to allow it to be run...
+              this.monitoredEndpointsRepeatCounts[counterKey] ??= 0;
             } else {
-              entityEndpointData = { deviceId: serviceToExamine, properties: [key], endpoint: propertyMapObject.endpoint };
-              endpointsMap[propertyMapObject.endpoint] = entityEndpointData;
-              this.monitoredEndpoints.push(entityEndpointData);
+              // Create a non functioning entry to allow proper setting later... (Only if no object already, since it might be that one of few monitored properties doesn't have last state, which will get here, and if some of the last states does exists, it will reset it for no reason).
+              this.monitoredEndpointsRepeatCounts[counterKey] ??= -1;
             }
-            // Create the entry first time with 0 counter to allow it to be run...
-            this.monitoredEndpointsRepeatCounts[counterKey] ??= 0;
-          } else {
-            // Create a non functioning entry to allow proper setting later... (Only if no object already, since it might be that one of few monitored properties doesn't have last state, which will get here, and if some of the last states does exists, it will reset it for no reason).
-            this.monitoredEndpointsRepeatCounts[counterKey] ??= -1;
           }
         }
       }
@@ -228,9 +230,11 @@ export class StateValidatorController {
       }
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
-      const counterKey = deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint);
-      this.monitoredEndpointsRepeatCounts[counterKey] = 0;
-      // this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));
+      if (!this.config.blacklist[deviceIeee] || (this.config.blacklist[deviceIeee].length && !this.config.blacklist[deviceIeee].includes(changedPropertyName + endpoint))) {
+        const counterKey = deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint);
+        this.monitoredEndpointsRepeatCounts[counterKey] = 0;
+        // this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));
+      }
     }
     return true;
   }
