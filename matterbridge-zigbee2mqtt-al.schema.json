@@ -1320,7 +1320,7 @@
           "description": "List of features not to be published for a single device. Enter in the first field the name of the device and in the list add all the features to exclude (Leave empty for all features).",
           "type": "object",
           "uniqueItems": true,
-          "selectFrom": "name",
+          "selectFrom": "serial",
           "additionalProperties": {
             "description": "List of features not to be published for this device. Enter the feature (i.e. state, state_l1, state_center, brightness) to exclude.",
             "type": "array",
