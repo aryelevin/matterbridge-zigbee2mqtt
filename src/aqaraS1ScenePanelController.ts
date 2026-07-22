@@ -695,10 +695,10 @@ export class AqaraS1ScenePanelController {
               for (const key in payload) {
                 const value = payload[key];
                 if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastStates[deviceIeee][key]) {
-                  this.log.info('Value ' + key + ' changed from ' + JSON.stringify(this.lastStates[deviceIeee][key]) + ' to ' + value + '.');
+                  this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
                   this.entityPropertyChanged(deviceIeee || '', separatedDeviceEndpoint, key, value, payload);
                 } else if (typeof value === 'object' && !deepEqual(value, this.lastStates[deviceIeee][key])) {
-                  this.log.info('Value ' + key + ' changed from ' + JSON.stringify(this.lastStates[deviceIeee][key]) + ' to ' + JSON.stringify(value) + '.');
+                  this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
                   this.entityPropertyChanged(deviceIeee || '', separatedDeviceEndpoint, key, value, payload);
                 }
               }

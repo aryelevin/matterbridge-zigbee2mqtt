@@ -214,14 +214,7 @@ export class SwitchingController {
                 // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
                 // if (devicesToListenToEvents[deviceIeee] === true) {
                 this.log.info(
-                  (device === undefined ? deviceIeee : device.entityName) +
-                    ' value ' +
-                    key +
-                    ' changed from ' +
-                    JSON.stringify(this.lastStates[deviceIeee][key]) +
-                    ' to ' +
-                    value +
-                    '.',
+                  (device === undefined ? deviceIeee : device.entityName) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.',
                 );
                 this.lastStates[deviceIeee][key] = value;
                 this.switchStateChanged(deviceIeee || '', key, value, payload);
@@ -462,7 +455,10 @@ export class SwitchingController {
   }
 
   async processIncomingRotationPercentageEvent(switchIeee: string, rotationPercentage: number, newPayload: Payload): Promise<void> {
-    const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed_' + JSON.stringify(newPayload['action_rotation_button_state'])];
+    if (!newPayload['action_rotation_button_state'] || typeof newPayload['action_rotation_button_state'] !== 'string') {
+      return;
+    }
+    const actionsConfig = this.switchesActionsConfig[switchIeee + '/action_rotation_percent_speed_' + newPayload['action_rotation_button_state']];
     if (actionsConfig.enabled) {
       for (const linkedDevice in actionsConfig.linkedDevices) {
         if (linkedDevice.startsWith('http')) {
