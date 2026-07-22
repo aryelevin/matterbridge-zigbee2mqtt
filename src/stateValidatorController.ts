@@ -70,9 +70,17 @@ ZigbeeEntity.prototype.getPropertyMap = function (): Map<string, { name: string;
   return this.propertyMap;
 };
 
+type PublishRepeatFeatureBlackList = Record<string, string[]>;
+
+export interface PublishRepeatConfig {
+  repeatCount: number;
+  blacklist: PublishRepeatFeatureBlackList;
+}
+
 export class StateValidatorController {
   public log: AnsiLogger;
   platform: ZigbeePlatform;
+  config: PublishRepeatConfig;
   lastStates: { [key: string]: Payload } = {};
   monitoredEndpoints: { deviceId: string; properties: string[]; endpoint: string }[];
   monitoredEndpointsRepeatCounts: { [key: string]: number };
@@ -80,6 +88,7 @@ export class StateValidatorController {
 
   constructor(platform: ZigbeePlatform) {
     this.platform = platform;
+    this.config = this.platform.config.publishRepeat;
     this.monitoredEndpoints = [];
     this.monitoredEndpointsRepeatCounts = {};
     this.currentEndpointPutIndex = 0;
@@ -158,7 +167,7 @@ export class StateValidatorController {
     this.log.info('Heartbeat! ' + beatNo);
 
     if (this.monitoredEndpoints.length) {
-      const index = this.platform.config.putStateRepeatCount > 0 ? this.currentEndpointPutIndex : beatNo % this.monitoredEndpoints.length;
+      const index = this.config.repeatCount > 0 ? this.currentEndpointPutIndex : beatNo % this.monitoredEndpoints.length;
       const endpoint = this.monitoredEndpoints[index];
 
       const lastEndpointState = this.lastStates[endpoint.deviceId];
@@ -180,10 +189,10 @@ export class StateValidatorController {
       this.log.info('putState: ' + index + ', id: ' + endpoint.deviceId + ', properties: ' + endpoint.properties + ', lastState: ' + JSON.stringify(lastEndpointState));
       this.log.info('LastStates: ' + JSON.stringify(this.lastStates));
 
-      if (this.platform.config.putStateRepeatCount > 0) {
+      if (this.config.repeatCount > 0) {
         const counterKey = endpoint.deviceId + '/' + endpoint.endpoint;
         this.monitoredEndpointsRepeatCounts[counterKey]++;
-        if (this.monitoredEndpointsRepeatCounts[counterKey] === this.platform.config.putStateRepeatCount) {
+        if (this.monitoredEndpointsRepeatCounts[counterKey] === this.config.repeatCount) {
           this.monitoredEndpoints.splice(index, 1);
           this.monitoredEndpointsRepeatCounts[counterKey] = -1;
         } else {

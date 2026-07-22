@@ -1304,11 +1304,34 @@
         }
       }
     },
-    "putStateRepeatCount": {
-      "title": "Put State Repeat Count",
+    "publishRepeat": {
+      "title": "Publish Repeat Count",
       "description": "The amount of times a basic state of a Light, Switch and Outlet will be published (to ensure up-to-date state).",
-      "type": "number",
-      "default": 1
+      "type": "object",
+      "properties": {
+        "repeatCount": {
+          "title": "Publish Repeat Count",
+          "description": "The amount of times a basic state of a Light, Switch and Outlet will be published (to ensure up-to-date state).",
+          "type": "number",
+          "default": 1
+        },
+        "blackList": {
+          "title": "Publish Repeat Black List",
+          "description": "List of features not to be published for a single device. Enter in the first field the name of the device and in the list add all the features to exclude (Leave empty for all features).",
+          "type": "object",
+          "uniqueItems": true,
+          "selectFrom": "name",
+          "additionalProperties": {
+            "description": "List of features not to be published for this device. Enter the feature (i.e. state, state_l1, state_center, brightness) to exclude.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true,
+            "selectDeviceEntityFrom": "name"
+          }
+        }
+      }
     },
     "separateDeviceEndpoints": {
       "title": "Separated Endpoints",

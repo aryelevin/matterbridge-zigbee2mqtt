@@ -35,7 +35,7 @@ import { ZigbeeDevice, type ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { JewishCalendarSensors, type JewishCalendarSensorsConfig } from './jewishCalendarSensors.js'; // Added by me: Arye Levin
 import type { Payload } from './payloadTypes.js';
 import { PlatformControls } from './platformControls.js'; // Added by me: Arye Levin
-import { StateValidatorController } from './stateValidatorController.js'; // Added by me: Arye Levin
+import { type PublishRepeatConfig, StateValidatorController } from './stateValidatorController.js'; // Added by me: Arye Levin
 import { SwitchingController, type SwitchingControllerSwitchConfig, type SwitchingControllerSwitchLinkConfig } from './switchingController.js'; // Added by me: Arye Levin
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import type { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
@@ -82,7 +82,7 @@ export type ZigbeePlatformConfig = BasePlatformConfig & {
   switchesActions?: { [key: string]: SwitchingControllerSwitchConfig };
   switchesOnStateCommands?: { [key: string]: { [key: string]: string } };
   switchesOffStateCommands?: { [key: string]: { [key: string]: string } };
-  putStateRepeatCount: number;
+  publishRepeat: PublishRepeatConfig;
   separateDeviceEndpoints?: DeviceFeatureBlackList;
   // End of Added by me: Arye Levin
 };
