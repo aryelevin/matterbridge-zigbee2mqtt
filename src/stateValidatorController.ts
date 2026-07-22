@@ -74,7 +74,7 @@ type PublishRepeatFeatureBlackList = Record<string, string[]>;
 
 export interface PublishRepeatConfig {
   repeatCount: number;
-  blacklist: PublishRepeatFeatureBlackList;
+  blackList: PublishRepeatFeatureBlackList;
 }
 
 export class StateValidatorController {
@@ -140,7 +140,7 @@ export class StateValidatorController {
         if (propertyMapObject && effectiveEndpointProperties.has(propertyMapObject.name) && effectiveEndpointTypes.has(propertyMapObject.type)) {
           const serviceToExamine =
             entity.isGroup && entity.group?.id ? 'group-' + entity.group.id : entity.isDevice && entity.device?.ieee_address ? entity.device.ieee_address : '';
-          if (!this.config.blacklist?.[serviceToExamine] || (this.config.blacklist?.[serviceToExamine].length > 0 && !this.config.blacklist[serviceToExamine].includes(key))) {
+          if (!this.config.blackList?.[serviceToExamine] || (this.config.blackList?.[serviceToExamine].length > 0 && !this.config.blackList[serviceToExamine].includes(key))) {
             const lastState = this.lastStates[serviceToExamine]?.[key];
             const counterKey = serviceToExamine + '/' + propertyMapObject.endpoint;
             if (lastState && this.monitoredEndpointsRepeatCounts[counterKey] !== -1) {
@@ -230,7 +230,7 @@ export class StateValidatorController {
       }
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
-      if (!this.config.blacklist?.[deviceIeee] || (this.config.blacklist?.[deviceIeee].length > 0 && !this.config.blacklist[deviceIeee].includes(changedPropertyName + endpoint))) {
+      if (!this.config.blackList?.[deviceIeee] || (this.config.blackList?.[deviceIeee].length > 0 && !this.config.blackList[deviceIeee].includes(changedPropertyName + endpoint))) {
         const counterKey = deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint);
         this.monitoredEndpointsRepeatCounts[counterKey] = 0;
         // this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));
