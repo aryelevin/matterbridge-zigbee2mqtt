@@ -553,7 +553,7 @@
                 "type": "string",
                 "default": "Light 1"
               },
-              "type": {
+              "lightType": {
                 "description": "Type",
                 "type": "string",
                 "oneOf": [
@@ -597,7 +597,7 @@
                 "type": "string",
                 "default": "Light 2"
               },
-              "type": {
+              "lightType": {
                 "description": "Type",
                 "type": "string",
                 "oneOf": [
@@ -641,7 +641,7 @@
                 "type": "string",
                 "default": "Light 3"
               },
-              "type": {
+              "lightType": {
                 "description": "Type",
                 "type": "string",
                 "oneOf": [
@@ -681,7 +681,7 @@
                 "type": "string",
                 "default": "Light 4"
               },
-              "type": {
+              "lightType": {
                 "description": "Type",
                 "type": "string",
                 "oneOf": [
@@ -721,7 +721,7 @@
                 "type": "string",
                 "default": "Light 5"
               },
-              "type": {
+              "lightType": {
                 "description": "Type",
                 "type": "string",
                 "oneOf": [
@@ -747,21 +747,21 @@
               }
             }
           },
-          "curtain_1": {
-            "description": "Curtain 1",
+          "cover_1": {
+            "description": "Cover 1",
             "type": "object",
             "properties": {
               "enabled": {
-                "description": "Enable the controls of Curtain No. 1",
+                "description": "Enable the controls of Cover No. 1",
                 "type": "boolean",
                 "default": false
               },
               "name": {
                 "description": "Name",
                 "type": "string",
-                "default": "Curtain 1"
+                "default": "Cover 1"
               },
-              "type": {
+              "coverType": {
                 "description": "Type",
                 "type": "string",
                 "oneOf": [
@@ -787,21 +787,21 @@
               }
             }
           },
-          "curtain_2": {
-            "description": "Curtain 2",
+          "cover_2": {
+            "description": "Cover 2",
             "type": "object",
             "properties": {
               "enabled": {
-                "description": "Enable the controls of Curtain No. 2",
+                "description": "Enable the controls of Cover No. 2",
                 "type": "boolean",
                 "default": false
               },
               "name": {
                 "description": "Name",
                 "type": "string",
-                "default": "Curtain 2"
+                "default": "Cover 2"
               },
-              "type": {
+              "coverType": {
                 "description": "Type",
                 "type": "string",
                 "oneOf": [
@@ -827,21 +827,21 @@
               }
             }
           },
-          "curtain_3": {
-            "description": "Curtain 3",
+          "cover_3": {
+            "description": "Cover 3",
             "type": "object",
             "properties": {
               "enabled": {
-                "description": "Enable the controls of Curtain No. 3",
+                "description": "Enable the controls of Cover No. 3",
                 "type": "boolean",
                 "default": false
               },
               "name": {
                 "description": "Name",
                 "type": "string",
-                "default": "Curtain 3"
+                "default": "Cover 3"
               },
-              "type": {
+              "coverType": {
                 "description": "Type",
                 "type": "string",
                 "oneOf": [

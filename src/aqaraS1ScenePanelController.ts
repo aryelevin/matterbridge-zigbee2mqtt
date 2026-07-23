@@ -25,7 +25,7 @@ import type { Payload, PayloadValue } from './payloadTypes.js';
 // import { xyToHsl } from 'matterbridge/utils';
 
 type AqaraS1ScenePanelLightType = 'ct' | 'color' | 'dimmable' | 'onoff';
-type AqaraS1ScenePanelCurtainType = 'curtain' | 'roller';
+type AqaraS1ScenePanelCoverType = 'curtain' | 'roller';
 type AqaraS1ScenePanelACModes = 'cool' | 'heat' | 'dry' | 'fan' | 'auto';
 type AqaraS1ScenePanelFanModes = 'low' | 'medium' | 'high' | 'auto';
 
@@ -36,11 +36,11 @@ interface AqaraS1ScenePanelControlledDeviceConfig {
 }
 
 interface AqaraS1ScenePanelLightConfig extends AqaraS1ScenePanelControlledDeviceConfig {
-  type: AqaraS1ScenePanelLightType;
+  lightType: AqaraS1ScenePanelLightType;
 }
 
-interface AqaraS1ScenePanelCurtainConfig extends AqaraS1ScenePanelControlledDeviceConfig {
-  type: AqaraS1ScenePanelCurtainType;
+interface AqaraS1ScenePanelCoverConfig extends AqaraS1ScenePanelControlledDeviceConfig {
+  coverType: AqaraS1ScenePanelCoverType;
 }
 
 interface AqaraS1ScenePanelACConfig extends AqaraS1ScenePanelControlledDeviceConfig {
@@ -67,9 +67,9 @@ export interface AqaraS1ScenePanelConfig {
   light_4?: AqaraS1ScenePanelLightConfig;
   light_5?: AqaraS1ScenePanelLightConfig;
   ac?: AqaraS1ScenePanelACConfig;
-  curtain_1?: AqaraS1ScenePanelCurtainConfig;
-  curtain_2?: AqaraS1ScenePanelCurtainConfig;
-  curtain_3?: AqaraS1ScenePanelCurtainConfig;
+  cover_1?: AqaraS1ScenePanelCoverConfig;
+  cover_2?: AqaraS1ScenePanelCoverConfig;
+  cover_3?: AqaraS1ScenePanelCoverConfig;
   temperature_sensor?: AqaraS1ScenePanelControlledDeviceConfig; // TODO: After implementation use its own type (see commented one above)...
   scene_1?: AqaraS1ScenePanelSceneConfig;
   scene_2?: AqaraS1ScenePanelSceneConfig;
@@ -90,6 +90,11 @@ interface AqaraS1ScenePanelConfigCommand {
     panelIeeeAddresss: string;
     failureCount: number;
   };
+}
+
+// 1. Create a generic Type Guard function (put this in a utility file or top of file)
+function isValidConfigKey(key: string, config: AqaraS1ScenePanelConfig): key is keyof AqaraS1ScenePanelConfig {
+  return config !== undefined && config !== null && Object.hasOwn(config, key);
 }
 
 const AqaraS1ScenePanelSceneConfigDeviceIndex = 999;
@@ -198,7 +203,7 @@ export class AqaraS1ScenePanelController {
               '',
             );
         }
-      } else if (linkedPanelDeviceType.startsWith('curtain')) {
+      } else if (linkedPanelDeviceType.startsWith('cover')) {
         if (key.startsWith('state')) {
           if (device)
             this.sendStateToPanels(device, linkedPanels, CoverState, '000000' + (value === 'OPEN' ? 1 : value === 'CLOSE' ? 0 : 2).toString(16).padStart(2, '0'), 'state');
@@ -369,7 +374,7 @@ export class AqaraS1ScenePanelController {
                   }
                 }
               } catch (error) {
-                this.log.error(error as string);
+                this.log.error('Error: ', error);
               }
             });
           },
@@ -560,7 +565,7 @@ export class AqaraS1ScenePanelController {
           if (shouldUpdatePanelState) {
             this.sendLightDataToPanel(pathComponents[1], lightNo, parameter, content);
           }
-        } else if (pathComponents[2].startsWith('curtain')) {
+        } else if (pathComponents[2].startsWith('cover')) {
           const coverNo = pathComponents[2].charAt(pathComponents[2].length - 1);
           const coversControlledWithPanelDevice = this.panelsToEndpoints[panelResourceItem];
           let shouldUpdatePanelState = true;
@@ -657,7 +662,9 @@ export class AqaraS1ScenePanelController {
             if (device && device.device?.model_id === 'lumi.switch.n4acn4') {
               this.platform.z2m.on('MESSAGE-' + device.entityName, (payload: Payload) => {
                 if (payload.communication && payload.communication === this.lastCommunications[panelIeee]) return;
-                this.panelSentData(panelIeee, payload.communication as string);
+                if (typeof payload.communication === 'string') {
+                  this.panelSentData(panelIeee, payload.communication);
+                }
                 this.lastCommunications[panelIeee] = payload.communication;
               });
             }
@@ -666,15 +673,17 @@ export class AqaraS1ScenePanelController {
         const panelData = this.aqaraS1ActionsConfigData[panelIeee];
         const panelControls = Object.keys(panelData);
         for (const panelControl of panelControls) {
-          const controlData = panelData[panelControl as AqaraS1ScenePanelConfigKey] as AqaraS1ScenePanelControlledDeviceConfig;
-          if (controlData.enabled && controlData.endpoints?.length) {
-            this.panelsToEndpoints['/' + panelIeee + '/' + panelControl] = controlData.endpoints;
-            for (let i = controlData.endpoints.length - 1; i >= 0; i--) {
-              const endpoint = controlData.endpoints[i];
-              if (!this.endpointsToPanels[endpoint]) {
-                this.endpointsToPanels[endpoint] = [];
+          if (isValidConfigKey(panelControl, panelData)) {
+            const controlData = panelData[panelControl];
+            if (controlData?.enabled && 'endpoints' in controlData && controlData.endpoints?.length) {
+              this.panelsToEndpoints['/' + panelIeee + '/' + panelControl] = controlData.endpoints;
+              for (let i = controlData.endpoints.length - 1; i >= 0; i--) {
+                const endpoint = controlData.endpoints[i];
+                if (!this.endpointsToPanels[endpoint]) {
+                  this.endpointsToPanels[endpoint] = [];
+                }
+                this.endpointsToPanels[endpoint].push('/' + panelIeee + '/' + panelControl);
               }
-              this.endpointsToPanels[endpoint].push('/' + panelIeee + '/' + panelControl);
             }
           }
         }
@@ -694,11 +703,20 @@ export class AqaraS1ScenePanelController {
               // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
               for (const key in payload) {
                 const value = payload[key];
-                if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastStates[deviceIeee][key]) {
-                  this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
-                  this.entityPropertyChanged(deviceIeee || '', separatedDeviceEndpoint, key, value, payload);
-                } else if (typeof value === 'object' && !deepEqual(value, this.lastStates[deviceIeee][key])) {
-                  this.log.info('Value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.');
+                if (
+                  ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== this.lastStates[deviceIeee][key]) ||
+                  (typeof value === 'object' && !deepEqual(value, this.lastStates[deviceIeee][key]))
+                ) {
+                  const lastStateValue = this.lastStates[deviceIeee][key];
+                  this.log.info(
+                    'Value ' +
+                      key +
+                      ' changed from ' +
+                      (typeof lastStateValue === 'object' ? JSON.stringify(lastStateValue) : lastStateValue) +
+                      ' to ' +
+                      (typeof value === 'object' ? JSON.stringify(value) : value) +
+                      '.',
+                  );
                   this.entityPropertyChanged(deviceIeee || '', separatedDeviceEndpoint, key, value, payload);
                 }
               }
@@ -811,27 +829,16 @@ export class AqaraS1ScenePanelController {
         '6169725f636f6e64', // air_cond
         '74656d70736e7372', // tempsnsr
       ]; // array of devices serial which is configured when setup is done
-      const devicesControl: AqaraS1ScenePanelConfigKey[] = [
-        'light_1',
-        'light_2',
-        'light_3',
-        'light_4',
-        'light_5',
-        'curtain_1',
-        'curtain_2',
-        'curtain_3',
-        'ac',
-        'temperature_sensor',
-      ]; // array of config names
+      const devicesControl: AqaraS1ScenePanelConfigKey[] = ['light_1', 'light_2', 'light_3', 'light_4', 'light_5', 'cover_1', 'cover_2', 'cover_3', 'ac', 'temperature_sensor']; // array of config names
       // | Temp Sensor | AC Page | Curtain 1 | Curtain 2 | Curtain 3 | Light 1 | Light 2 | Light 3 | Light 4 | Light 5 |
       // | ----------- | ------- | --------- | --------- | --------- | ------- | ------- | ------- | ------- | ------- |
       // | 01-02       | 03-08   | 09-0e     | 0f-14     | 15-1a     | 1b-20   | 21-26   | 27-2c   | 2d-32   | 33-38   |
       const slotsRanges: { [key in AqaraS1ScenePanelConfigKey]: number[] } = {
         temperature_sensor: [0x01, 0x02],
         ac: [0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
-        curtain_1: [0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e],
-        curtain_2: [0x0f, 0x10, 0x11, 0x12, 0x13, 0x14],
-        curtain_3: [0x15, 0x16, 0x17, 0x18, 0x19, 0x1a],
+        cover_1: [0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e],
+        cover_2: [0x0f, 0x10, 0x11, 0x12, 0x13, 0x14],
+        cover_3: [0x15, 0x16, 0x17, 0x18, 0x19, 0x1a],
         light_1: [0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20],
         light_2: [0x21, 0x22, 0x23, 0x24, 0x25, 0x26],
         light_3: [0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c],
@@ -848,9 +855,9 @@ export class AqaraS1ScenePanelController {
       const slotPrefixes: { [key in AqaraS1ScenePanelConfigKey]: string } = {
         temperature_sensor: '604a55b7',
         ac: '6044f76a',
-        curtain_1: '604f651f',
-        curtain_2: '604f651f',
-        curtain_3: '604f651f',
+        cover_1: '604f651f',
+        cover_2: '604f651f',
+        cover_3: '604f651f',
         light_1: '604f7448',
         light_2: '604f7448',
         light_3: '604f7448',
@@ -898,9 +905,9 @@ export class AqaraS1ScenePanelController {
                 // TODO: Check that the config haven't changed in a new config (Need to check how this is possible to be done... Maybe try to set CT/Color and see what is the response...)
                 // Configuration itself consists: cmd header (as in all commands), slot prefix, slot, panel serial, controlled device serial, function id, configuration data size, some type (unknown yet), configuration commands set size (how many configuration commands is consisting the device control), some data (unknown yet), device number (to set which "page" this device is presented at), a suffix with 2 bytes (unknown yet).
                 const commandsData = [];
-                if (i <= 4) {
+                if (i <= 4 && 'lightType' in deviceConfig) {
                   // Lights
-                  const lightConfig = deviceConfig as AqaraS1ScenePanelLightConfig;
+                  const lightConfig = deviceConfig;
                   // On/Off, general type...
                   commandsData.push(
                     slotPrefix +
@@ -909,11 +916,11 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       LightOnOff +
                       '260a0' +
-                      (lightConfig.type === 'dimmable' ? '4' : '5') +
+                      (lightConfig.lightType === 'dimmable' ? '4' : '5') +
                       '08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac08bfaab9d8d7b4ccac0000000000015' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                       '3' +
-                      (lightConfig.type === 'color' ? '2' : '3') +
+                      (lightConfig.lightType === 'color' ? '2' : '3') +
                       '00',
                   );
                   // Brightness
@@ -924,11 +931,11 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       LightBrightness +
                       '170a0' +
-                      (lightConfig.type === 'dimmable' ? '4' : '5') +
+                      (lightConfig.lightType === 'dimmable' ? '4' : '5') +
                       '0ac1c1b6c8b0d9b7d6b1c8000000000000015' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                       '0' +
-                      (lightConfig.type === 'color' ? '2' : '4') +
+                      (lightConfig.lightType === 'color' ? '2' : '4') +
                       '00',
                   );
                   // Name
@@ -939,11 +946,11 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       DeviceName +
                       '140a0' +
-                      (lightConfig.type === 'dimmable' ? '4' : '5') +
+                      (lightConfig.lightType === 'dimmable' ? '4' : '5') +
                       '08c9e8b1b8c3fbb3c60000000000015' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                       '0' +
-                      (lightConfig.type === 'color' ? 'a' : 'b') +
+                      (lightConfig.lightType === 'color' ? 'a' : 'b') +
                       '00',
                   );
                   // Online/Offline
@@ -954,14 +961,14 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       DeviceOnline +
                       '160a0' +
-                      (lightConfig.type === 'dimmable' ? '4' : '5') +
+                      (lightConfig.lightType === 'dimmable' ? '4' : '5') +
                       '0ac9e8b1b8d4dacfdfc0eb0000000000015' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                       '3' +
-                      (lightConfig.type === 'color' ? 'c' : 'd') +
+                      (lightConfig.lightType === 'color' ? 'c' : 'd') +
                       '00',
                   );
-                  if (lightConfig.type === 'ct') {
+                  if (lightConfig.lightType === 'ct') {
                     // Color Temperature
                     commandsData.push(
                       slotPrefix +
@@ -973,7 +980,7 @@ export class AqaraS1ScenePanelController {
                         (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) - 1) +
                         '0300',
                     );
-                  } else if (lightConfig.type === 'color') {
+                  } else if (lightConfig.lightType === 'color') {
                     // Color
                     commandsData.push(
                       slotPrefix +
@@ -986,9 +993,9 @@ export class AqaraS1ScenePanelController {
                         '0100',
                     );
                   }
-                } else if (i <= 7) {
+                } else if (i <= 7 && 'coverType' in deviceConfig) {
                   // Curtains
-                  const curtainConfig = deviceConfig as AqaraS1ScenePanelCurtainConfig;
+                  const curtainConfig = deviceConfig;
                   // Opening/Closing/Stopped
                   // 38aa713244 0a65 02412f 64767f57 09 54ef4410000513ea 54ef44100005c83d 0e020055 150a0508b4b0c1b1d7b4ccac000000000000014 6 3300
                   commandsData.push(
@@ -998,11 +1005,11 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       CoverState +
                       '150a0' +
-                      (curtainConfig.type === 'curtain' ? '4' : '5') +
+                      (curtainConfig.coverType === 'curtain' ? '4' : '5') +
                       '08b4b0c1b1d7b4ccac000000000000014' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '3' +
-                      (curtainConfig.type === 'curtain' ? '2' : '3') +
+                      (curtainConfig.coverType === 'curtain' ? '2' : '3') +
                       '00',
                   );
                   // Position
@@ -1014,11 +1021,11 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       CoverPosition +
                       '190a0' +
-                      (curtainConfig.type === 'curtain' ? '4' : '5') +
+                      (curtainConfig.coverType === 'curtain' ? '4' : '5') +
                       '0000010ab4b0c1b1b4f2bfaab0d90000000000014' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '0' +
-                      (curtainConfig.type === 'curtain' ? 'c' : 'd') +
+                      (curtainConfig.coverType === 'curtain' ? 'c' : 'd') +
                       '00',
                   );
                   // Online/Offline
@@ -1030,11 +1037,11 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       DeviceOnline +
                       '160a0' +
-                      (curtainConfig.type === 'curtain' ? '4' : '5') +
+                      (curtainConfig.coverType === 'curtain' ? '4' : '5') +
                       '0ac9e8b1b8d4dacfdfc0eb0000000000014' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '3' +
-                      (curtainConfig.type === 'curtain' ? 'c' : 'e') +
+                      (curtainConfig.coverType === 'curtain' ? 'c' : 'e') +
                       '00',
                   );
                   // Name
@@ -1046,11 +1053,11 @@ export class AqaraS1ScenePanelController {
                       deviceSerial +
                       DeviceName +
                       '140a0' +
-                      (curtainConfig.type === 'curtain' ? '4' : '5') +
+                      (curtainConfig.coverType === 'curtain' ? '4' : '5') +
                       '08c9e8b1b8c3fbb3c60000000000014' +
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '0' +
-                      (curtainConfig.type === 'curtain' ? 'a' : 'b') +
+                      (curtainConfig.coverType === 'curtain' ? 'a' : 'b') +
                       '00',
                   );
                   // ??? Was on setup of roller shade...
@@ -1065,9 +1072,9 @@ export class AqaraS1ScenePanelController {
                       (Number.parseInt(deviceSerial.charAt(deviceSerial.length - 1)) + 5) +
                       '3f00',
                   );
-                } else if (i === 8) {
+                } else if (i === 8 && 'modes' in deviceConfig) {
                   // AC
-                  const acConfig = deviceConfig as AqaraS1ScenePanelACConfig;
+                  const acConfig = deviceConfig;
                   // On/Off, general type...
                   commandsData.push(
                     slotPrefix +
@@ -1190,8 +1197,8 @@ export class AqaraS1ScenePanelController {
           let configuredScenesData = '';
           for (let index = 0; index < sceneControls.length; index++) {
             const sceneName = sceneControls[index];
-            const sceneConfig = panelData[sceneName] as AqaraS1ScenePanelSceneConfig | undefined;
-            if (sceneConfig?.enabled) {
+            const sceneConfig = panelData[sceneName];
+            if (sceneConfig?.enabled && 'icon' in sceneConfig) {
               // numberOfConfiguredScenes++
               // TODO: trim the name to the max of what possible on the panel...
               configuredScenesData +=
@@ -1478,7 +1485,7 @@ export class AqaraS1ScenePanelController {
                 );
                 this.log.info('Position: ' + position);
 
-                const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
+                const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/cover_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
                 for (let i = devicesIeee?.length - 1; i >= 0; i--) {
                   const endpointToExecute = devicesIeee[i]; // 0x5465654664646464(/l1)
                   const pathComponents = endpointToExecute.split('/'); // [0x5465654664646464(, l1)]
@@ -1497,7 +1504,7 @@ export class AqaraS1ScenePanelController {
                 const positionState = dataArray[dataStartIndex + 24];
                 this.log.info('Movement State: ' + positionState);
 
-                const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
+                const devicesIeee = this.panelsToEndpoints['/' + deviceIeeeAddress + '/cover_' + deviceResourceType.charAt(deviceResourceType.length - 1)];
                 for (let i = devicesIeee?.length - 1; i >= 0; i--) {
                   const endpointToExecute = devicesIeee[i]; // 0x5465654664646464(/l1)
                   const pathComponents = endpointToExecute.split('/'); // [0x5465654664646464(, l1)]
@@ -1610,25 +1617,26 @@ export class AqaraS1ScenePanelController {
             );
           } else if (stateParamInt32BE === 0x08001fa5) {
             // Names
-            if (this.aqaraS1ActionsConfigData[deviceIeeeAddress]) {
-              // this.log(this.aqaraS1ActionsConfigData[deviceIeeeAddress])
-              const panelControlledDeviceConfig: AqaraS1ScenePanelConfigKey = (
-                deviceResourceType.startsWith('lights/')
-                  ? 'light_' + deviceResourceType.charAt(deviceResourceType.length - 1)
-                  : deviceResourceType.startsWith('curtain')
-                    ? 'curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)
-                    : 'ac'
-              ) as AqaraS1ScenePanelConfigKey;
-              let name = panelControlledDeviceConfig as string;
+            const panelConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress];
+            if (panelConfig) {
+              // this.log(panelConfig)
+              const panelControlledDeviceConfig = deviceResourceType.startsWith('lights/')
+                ? 'light_' + deviceResourceType.charAt(deviceResourceType.length - 1)
+                : deviceResourceType.startsWith('curtain')
+                  ? 'cover_' + deviceResourceType.charAt(deviceResourceType.length - 1)
+                  : 'ac';
+              let name = panelControlledDeviceConfig;
               // this.log(panelControlledDeviceConfig)
-              const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress][panelControlledDeviceConfig];
-              if (deviceConfig) {
-                name = deviceConfig.name;
-              }
+              if (panelConfig && isValidConfigKey(panelControlledDeviceConfig, panelConfig)) {
+                const deviceConfig = panelConfig[panelControlledDeviceConfig];
+                if (deviceConfig) {
+                  name = deviceConfig.name;
+                }
 
-              const dataToSend = this.generateNameCommand(name, deviceSerialStr);
-              this._writeDataToPanel(deviceIeeeAddress, dataToSend);
-              // TODO: save the name in the context for proper handling...
+                const dataToSend = this.generateNameCommand(name, deviceSerialStr);
+                this._writeDataToPanel(deviceIeeeAddress, dataToSend);
+                // TODO: save the name in the context for proper handling...
+              }
             }
           } else if (stateParamInt32BE === 0x080007fd) {
             // Online/Offline
@@ -1653,7 +1661,7 @@ export class AqaraS1ScenePanelController {
               }
             } else if (stateParamInt32BE === 0x08001fa7) {
               // Modes
-              const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress]['ac'];
+              const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac;
 
               let modesStr = '';
               if (deviceConfig?.modes.includes('heat')) {
@@ -1674,7 +1682,7 @@ export class AqaraS1ScenePanelController {
               this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, ACConfigModes, (modesStr.length / 2).toString(16).padStart(2, '0') + modesStr);
             } else if (stateParamInt32BE === 0x08001fa8) {
               // Fan Modes
-              const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress]['ac'];
+              const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac;
 
               let fanModesStr = '';
               if (deviceConfig?.fan_modes.includes('low')) {
@@ -1692,7 +1700,7 @@ export class AqaraS1ScenePanelController {
               this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, ACConfigFanModes, (fanModesStr.length / 2).toString(16).padStart(2, '0') + fanModesStr);
             } else if (stateParamInt32BE === 0x08001fa9) {
               // Temperature Ranges
-              const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress]['ac'];
+              const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac;
 
               let tempRangesStr = '';
               if (deviceConfig?.modes.includes('heat') && deviceConfig.temperature_ranges?.heat) {
@@ -1721,7 +1729,7 @@ export class AqaraS1ScenePanelController {
             }
           } else if (deviceResourceType.startsWith('curtain')) {
             const coverNo = deviceResourceType.charAt(deviceResourceType.length - 1);
-            const panelDevicePath = '/' + deviceIeeeAddress + '/curtain_' + coverNo;
+            const panelDevicePath = '/' + deviceIeeeAddress + '/cover_' + coverNo;
             const deviceIeee = this.panelsToEndpoints[panelDevicePath]?.[0]; // 0x5465654664646464(/l1)
             const pathComponents = deviceIeee?.split('/'); // [0x5465654664646464(, l1)]
             const entityIeee = pathComponents[0]; // 0x5465654664646464
@@ -1785,47 +1793,52 @@ export class AqaraS1ScenePanelController {
           if (this.platform.platformControls.switchesEnabled) {
             const panelDevice = this.getDeviceEntity(deviceIeeeAddress);
             const sceneNo = Number.parseInt(data[data.length - 1]);
-            const sceneConfigName = ('scene_' + sceneNo) as AqaraS1ScenePanelConfigKey;
+            const sceneConfigName = 'scene_' + sceneNo;
 
-            const sceneConfig = this.aqaraS1ActionsConfigData?.[deviceIeeeAddress]?.[sceneConfigName] as AqaraS1ScenePanelSceneConfig | undefined;
-            const sceneExecutionData = sceneConfig?.execute;
-            if (sceneExecutionData) {
-              for (const deviceIeee in sceneExecutionData) {
-                const sceneExecutionActions = sceneExecutionData[deviceIeee];
+            const panelConfigData = this.aqaraS1ActionsConfigData[deviceIeeeAddress];
+            if (panelConfigData && isValidConfigKey(sceneConfigName, panelConfigData)) {
+              const sceneConfig = panelConfigData[sceneConfigName];
+              if (sceneConfig && 'icon' in sceneConfig) {
+                const sceneExecutionData = sceneConfig.execute;
+                if (sceneExecutionData) {
+                  for (const deviceIeee in sceneExecutionData) {
+                    const sceneExecutionActions = sceneExecutionData[deviceIeee];
 
-                const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
-                const entityIeee = pathComponents[0]; // 0x5465654664646464
-                const entityEndpointName = pathComponents[1]; // (l1)
-                // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
-                const isSeparatedEndpoint = entityEndpointName ? this.platform.config.separateDeviceEndpoints?.[entityIeee]?.includes(entityEndpointName) : false;
-                const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
-                const endpointToControl =
-                  entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
+                    const pathComponents = deviceIeee.split('/'); // [0x5465654664646464(, l1)]
+                    const entityIeee = pathComponents[0]; // 0x5465654664646464
+                    const entityEndpointName = pathComponents[1]; // (l1)
+                    // const entityEndpointSuffix = entityEndpointName ? '_' + entityEndpointName : ''; // (_l1)
+                    const isSeparatedEndpoint = entityEndpointName ? this.platform.config.separateDeviceEndpoints?.[entityIeee]?.includes(entityEndpointName) : false;
+                    const entityToControl = this.getDeviceEntity(entityIeee, isSeparatedEndpoint ? entityEndpointName : undefined); // The main device
+                    const endpointToControl =
+                      entityEndpointName && !isSeparatedEndpoint ? entityToControl?.bridgedDevice?.getChildEndpointById(entityEndpointName) : entityToControl?.bridgedDevice; // The child endpoint if its a multi-child device...
 
-                if (endpointToControl) {
-                  // Allow also triggering buttons actions, so in matter it will execute the button automation.
-                  if (
-                    sceneExecutionActions?.buttonAction === 'Single' ||
-                    sceneExecutionActions?.buttonAction === 'Double' ||
-                    sceneExecutionActions?.buttonAction === 'Long' ||
-                    sceneExecutionActions?.buttonAction === 'Press' ||
-                    sceneExecutionActions?.buttonAction === 'Release'
-                  ) {
-                    fireAndForget(
-                      // TODO: Test if it functions properly.
-                      endpointToControl.triggerSwitchEvent(sceneExecutionActions.buttonAction, this.log),
-                      this.log,
-                      `Error triggering switch event ${sceneExecutionActions.buttonAction} on ${endpointToControl.deviceName}`,
-                    );
+                    if (endpointToControl) {
+                      // Allow also triggering buttons actions, so in matter it will execute the button automation.
+                      if (
+                        sceneExecutionActions?.buttonAction === 'Single' ||
+                        sceneExecutionActions?.buttonAction === 'Double' ||
+                        sceneExecutionActions?.buttonAction === 'Long' ||
+                        sceneExecutionActions?.buttonAction === 'Press' ||
+                        sceneExecutionActions?.buttonAction === 'Release'
+                      ) {
+                        fireAndForget(
+                          // TODO: Test if it functions properly.
+                          endpointToControl.triggerSwitchEvent(sceneExecutionActions.buttonAction, this.log),
+                          this.log,
+                          `Error triggering switch event ${sceneExecutionActions.buttonAction} on ${endpointToControl.deviceName}`,
+                        );
+                      }
+
+                      // Now convert numbers and bools to their types...
+                      const typedSceneExecutionActions: { [key: string]: string | number | boolean } = {};
+                      for (const property in sceneExecutionActions) {
+                        typedSceneExecutionActions[property] = this.convertStringToType(sceneExecutionActions[property]);
+                      }
+
+                      this.publishCommand(entityIeee, typedSceneExecutionActions);
+                    }
                   }
-
-                  // Now convert numbers and bools to their types...
-                  const typedSceneExecutionActions: { [key: string]: string | number | boolean } = {};
-                  for (const property in sceneExecutionActions) {
-                    typedSceneExecutionActions[property] = this.convertStringToType(sceneExecutionActions[property]);
-                  }
-
-                  this.publishCommand(entityIeee, typedSceneExecutionActions);
                 }
               }
             }
@@ -1943,13 +1956,15 @@ export class AqaraS1ScenePanelController {
             //
           } else if (dataArray[dataStartIndex + 9] === 0x00) {
             this.log.info('State update ACK, Param: 0x' + dataArray[dataStartIndex + 18] + '.');
+            const panelConfigData = this.aqaraS1ActionsConfigData[deviceIeeeAddress];
+            const lastCharOfDeviceResourceType = deviceResourceType.charAt(deviceResourceType.length - 1);
+            const lightWithNo = 'light_' + lastCharOfDeviceResourceType;
+            const coverWithNo = 'cover_' + lastCharOfDeviceResourceType;
             if (
-              !this.aqaraS1ActionsConfigData[deviceIeeeAddress] ||
-              (deviceResourceType.startsWith('lights/') &&
-                !this.aqaraS1ActionsConfigData[deviceIeeeAddress][('light_' + deviceResourceType.charAt(deviceResourceType.length - 1)) as AqaraS1ScenePanelConfigKey]) ||
-              (deviceResourceType.startsWith('curtain') &&
-                !this.aqaraS1ActionsConfigData[deviceIeeeAddress][('curtain_' + deviceResourceType.charAt(deviceResourceType.length - 1)) as AqaraS1ScenePanelConfigKey]) ||
-              (deviceResourceType === 'air_cond' && !this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac)
+              !panelConfigData ||
+              (deviceResourceType.startsWith('lights/') && isValidConfigKey(lightWithNo, panelConfigData) && !panelConfigData[lightWithNo]) ||
+              (deviceResourceType.startsWith('curtain') && isValidConfigKey(coverWithNo, panelConfigData) && !panelConfigData[coverWithNo]) ||
+              (deviceResourceType === 'air_cond' && !panelConfigData.ac)
             ) {
               // A device is configured on the panel, but shouldn't be there (removed from config...), so, we should remove its configuration...
               //

@@ -213,8 +213,17 @@ export class SwitchingController {
               ) {
                 // Don't process items which isn't configured in switches action and switches links... (see above, initially all devices is set to false, then the configured ones is set to true).
                 // if (devicesToListenToEvents[deviceIeee] === true) {
+
+                const lastStateValue = this.lastStates[deviceIeee][key];
                 this.log.info(
-                  (device === undefined ? deviceIeee : device.entityName) + ' value ' + key + ' changed from ' + this.lastStates[deviceIeee][key] + ' to ' + value + '.',
+                  (device === undefined ? deviceIeee : device.entityName) +
+                    ' value ' +
+                    key +
+                    ' changed from ' +
+                    (typeof lastStateValue === 'object' ? JSON.stringify(lastStateValue) : lastStateValue) +
+                    ' to ' +
+                    value +
+                    '.',
                 );
                 this.lastStates[deviceIeee][key] = value;
                 this.switchStateChanged(deviceIeee || '', key, value, payload);
