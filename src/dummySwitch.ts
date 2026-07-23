@@ -125,7 +125,7 @@ export class DummySwitch {
       this.callback(value);
     }
 
-    const delay = this.config.random ? randomize(this.config.time ?? 1000) : (this.config.time ?? 1) * 1000;
+    const delay = this.config.random ? randomize(this.config.time ?? 1000) : (this.config.time ?? 1000);
     let msg = 'Setting switch to ' + value;
     if (!this.config.stateful) {
       if ((value && !this.config.reverse) || (!value && this.config.reverse)) {
