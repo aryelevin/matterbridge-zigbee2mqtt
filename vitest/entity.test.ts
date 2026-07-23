@@ -36,6 +36,7 @@ import {
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from '../src/entity.js';
 import { ZigbeePlatform, type ZigbeePlatformConfig } from '../src/module.js';
 import type { Payload } from '../src/payloadTypes.js';
+import type { PublishRepeatConfig } from '../src/stateValidatorController.js';
 import { Zigbee2MQTT } from '../src/zigbee2mqtt.js';
 import type { BridgeDevice, BridgeGroup, BridgeInfo } from '../src/zigbee2mqttTypes.js';
 
@@ -103,6 +104,7 @@ describe('Test Entity', () => {
     postfix: 'JEST',
     debug: true,
     homeLocation: { longitude: 0, latitude: 0 },
+    publishRepeat: { repeatCount: 0, blackList: {} },
     unregisterOnShutdown: false,
   };
 

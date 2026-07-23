@@ -102,6 +102,7 @@ describe('TestPlatform', () => {
     postfix: 'JEST',
     debug: true,
     homeLocation: { longitude: 0, latitude: 0 },
+    publishRepeat: { repeatCount: 0, blackList: {} },
     unregisterOnShutdown: false,
   };
 
