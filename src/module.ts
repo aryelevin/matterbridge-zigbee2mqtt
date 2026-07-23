@@ -113,7 +113,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public platformControls: PlatformControls;
   public dummySwitchesAccessories: DummySwitch[] = [];
   public jewishCalendarSensors: JewishCalendarSensors | undefined;
-  public jewishCalendarEveSensors: JewishCalendarSensors | undefined;
   public shabbatModeDummySwitch: DummySwitch | undefined;
   public aqaraS1ScenePanelConroller: AqaraS1ScenePanelController;
   public switchingController: SwitchingController;
