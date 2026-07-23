@@ -44,10 +44,10 @@ interface AqaraS1ScenePanelCoverConfig extends AqaraS1ScenePanelControlledDevice
 }
 
 interface AqaraS1ScenePanelACConfig extends AqaraS1ScenePanelControlledDeviceConfig {
-  internal_thermostat: boolean;
+  internalThermostat: boolean;
   modes: AqaraS1ScenePanelACModes[];
-  fan_modes: AqaraS1ScenePanelFanModes[];
-  temperature_ranges: { [key in AqaraS1ScenePanelACModes]: { lowest: number; highest: number } };
+  fanModes: AqaraS1ScenePanelFanModes[];
+  temperatureRanges: { [key in AqaraS1ScenePanelACModes]: { lowest: number; highest: number } };
 }
 
 // interface AqaraS1ScenePanelTemperatureSensorConfig extends AqaraS1ScenePanelControlledDeviceConfig {
@@ -188,7 +188,7 @@ export class AqaraS1ScenePanelController {
           const targetTemperature =
             newPayload[(systemMode === 'cool' ? 'occupied_cooling_setpoint' : systemMode === 'heat' ? 'occupied_heating_setpoint' : '') + endpointSuffix] ?? 255;
           const currentTemperature = newPayload['local_temperature' + endpointSuffix] ?? 255;
-          const internalThermostat = this.aqaraS1ActionsConfigData[linkedPanels[0].split('/')[1]]?.ac?.internal_thermostat;
+          const internalThermostat = this.aqaraS1ActionsConfigData[linkedPanels[0].split('/')[1]]?.ac?.internalThermostat;
           if (device && typeof targetTemperature === 'number' && typeof currentTemperature === 'number')
             this.sendStateToPanels(
               device,
@@ -466,7 +466,7 @@ export class AqaraS1ScenePanelController {
         systemMode === Thermostat.SystemMode.Cool ? 'occupiedCoolingSetpoint' : systemMode === Thermostat.SystemMode.Heat ? 'occupiedHeatingSetpoint' : '',
       ) ?? 255;
     const currentTemperature = acEndpoint.getAttribute(Thermostat.id, 'localTemperature');
-    const internalThermostat = this.aqaraS1ActionsConfigData[deviceIeeeAddress]?.ac?.internal_thermostat;
+    const internalThermostat = this.aqaraS1ActionsConfigData[deviceIeeeAddress]?.ac?.internalThermostat;
     this.sendStateToPanel(
       deviceIeeeAddress,
       '6169725f636f6e64',
@@ -1081,8 +1081,8 @@ export class AqaraS1ScenePanelController {
                       slots[0].toString(16).padStart(2, '0') +
                       panelMACAddress +
                       deviceSerial +
-                      (acConfig.internal_thermostat ? ACStateIntTherm : ACStateExtTherm) +
-                      (acConfig.internal_thermostat ? '150a0608bfd8d6c6d7b4ccac000000000000012e0000' : '1708060abfd5b5f7d1b9cbf5d7b4000000000000012e0000'),
+                      (acConfig.internalThermostat ? ACStateIntTherm : ACStateExtTherm) +
+                      (acConfig.internalThermostat ? '150a0608bfd8d6c6d7b4ccac000000000000012e0000' : '1708060abfd5b5f7d1b9cbf5d7b4000000000000012e0000'),
                   );
                   // Online/Offline
                   commandsData.push(
@@ -1685,16 +1685,16 @@ export class AqaraS1ScenePanelController {
               const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac;
 
               let fanModesStr = '';
-              if (deviceConfig?.fan_modes.includes('low')) {
+              if (deviceConfig?.fanModes.includes('low')) {
                 fanModesStr += '00';
               }
-              if (deviceConfig?.fan_modes.includes('medium')) {
+              if (deviceConfig?.fanModes.includes('medium')) {
                 fanModesStr += '01';
               }
-              if (deviceConfig?.fan_modes.includes('high')) {
+              if (deviceConfig?.fanModes.includes('high')) {
                 fanModesStr += '02';
               }
-              if (deviceConfig?.fan_modes.includes('auto')) {
+              if (deviceConfig?.fanModes.includes('auto')) {
                 fanModesStr += '03';
               }
               this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, ACConfigFanModes, (fanModesStr.length / 2).toString(16).padStart(2, '0') + fanModesStr);
@@ -1703,25 +1703,25 @@ export class AqaraS1ScenePanelController {
               const deviceConfig = this.aqaraS1ActionsConfigData[deviceIeeeAddress].ac;
 
               let tempRangesStr = '';
-              if (deviceConfig?.modes.includes('heat') && deviceConfig.temperature_ranges?.heat) {
+              if (deviceConfig?.modes.includes('heat') && deviceConfig.temperatureRanges?.heat) {
                 tempRangesStr +=
-                  '00' + deviceConfig.temperature_ranges.heat.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.heat.highest.toString(16).padStart(2, '0');
+                  '00' + deviceConfig.temperatureRanges.heat.lowest.toString(16).padStart(2, '0') + deviceConfig.temperatureRanges.heat.highest.toString(16).padStart(2, '0');
               }
-              if (deviceConfig?.modes.includes('cool') && deviceConfig.temperature_ranges?.cool) {
+              if (deviceConfig?.modes.includes('cool') && deviceConfig.temperatureRanges?.cool) {
                 tempRangesStr +=
-                  '01' + deviceConfig.temperature_ranges.cool.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.cool.highest.toString(16).padStart(2, '0');
+                  '01' + deviceConfig.temperatureRanges.cool.lowest.toString(16).padStart(2, '0') + deviceConfig.temperatureRanges.cool.highest.toString(16).padStart(2, '0');
               }
-              if (deviceConfig?.modes.includes('auto') && deviceConfig.temperature_ranges?.auto) {
+              if (deviceConfig?.modes.includes('auto') && deviceConfig.temperatureRanges?.auto) {
                 tempRangesStr +=
-                  '02' + deviceConfig.temperature_ranges.auto.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.auto.highest.toString(16).padStart(2, '0');
+                  '02' + deviceConfig.temperatureRanges.auto.lowest.toString(16).padStart(2, '0') + deviceConfig.temperatureRanges.auto.highest.toString(16).padStart(2, '0');
               }
-              if (deviceConfig?.modes.includes('fan') && deviceConfig.temperature_ranges?.fan) {
+              if (deviceConfig?.modes.includes('fan') && deviceConfig.temperatureRanges?.fan) {
                 tempRangesStr +=
-                  '03' + deviceConfig.temperature_ranges.fan.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.fan.highest.toString(16).padStart(2, '0');
+                  '03' + deviceConfig.temperatureRanges.fan.lowest.toString(16).padStart(2, '0') + deviceConfig.temperatureRanges.fan.highest.toString(16).padStart(2, '0');
               }
-              if (deviceConfig?.modes.includes('dry') && deviceConfig.temperature_ranges?.dry) {
+              if (deviceConfig?.modes.includes('dry') && deviceConfig.temperatureRanges?.dry) {
                 tempRangesStr +=
-                  '04' + deviceConfig.temperature_ranges.dry.lowest.toString(16).padStart(2, '0') + deviceConfig.temperature_ranges.dry.highest.toString(16).padStart(2, '0');
+                  '04' + deviceConfig.temperatureRanges.dry.lowest.toString(16).padStart(2, '0') + deviceConfig.temperatureRanges.dry.highest.toString(16).padStart(2, '0');
               }
               this.sendStateToPanel(deviceIeeeAddress, deviceSerialStr, ACTemperatureRanges, (tempRangesStr.length / 2).toString(16).padStart(2, '0') + tempRangesStr);
             } else {

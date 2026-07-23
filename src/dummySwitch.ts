@@ -7,10 +7,10 @@
 
 import { bridgedNode, dimmableLight, MatterbridgeEndpoint, onOffLight, onOffPlugInUnit, onOffLightSwitch, powerSource } from 'matterbridge';
 import { OnOff } from 'matterbridge/matter/clusters';
+import { Pushover } from 'pushover-sdk';
 
 // import { OnOffBaseServer } from 'matterbridge/matter/behaviors';
 import type { ZigbeePlatform } from './module.js';
-import { Pushover } from './pushover.js';
 
 const p = new Pushover({
   user: 'u5purs1ef7xrxn7rnd3rrp5vzfzb71',
@@ -164,19 +164,16 @@ export class DummySwitch {
             priority: 1,
           };
 
-          const casigningcert = /* this._platform._configJson.caFile ? fs.readFileSync(this._platform._configJson.caFile) : */ undefined;
-          p.send(
-            paramsMsg,
-            (err, result) => {
-              if (err) {
-                throw err;
-              }
+          p.sendMessage(paramsMsg)
+            .then((result) => {
               if (result) {
-                this.device.log.info(result);
+                this.device.log.info('success push, receipt: ', result.receipt);
               }
-            },
-            casigningcert,
-          );
+              return;
+            })
+            .catch((err: unknown) => {
+              throw err;
+            });
 
           // Mute further notifications for specified time
           this.notificationMuted = true;
