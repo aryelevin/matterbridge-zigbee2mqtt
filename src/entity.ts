@@ -377,7 +377,7 @@ export class ZigbeeEntity extends EventEmitter {
           } else if (value === 'STOP' || value === 'stopped') {
             const status = WindowCovering.MovementStatus.Stopped;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
-            const position = 10000 - (payload.position as number) * 100; // this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
+            const position = 10000 - (typeof payload.position === 'number' ? payload.position : 0) * 100; // this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
             // this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', position);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
           }
@@ -752,12 +752,12 @@ export class ZigbeeEntity extends EventEmitter {
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const endpoint = isChildEndpoint ? ('_' + (data.endpoint.id.split('_')[1] || data.endpoint.id)) : ''; // For a separate endpoint of a device
     // Added by me: Arye Levin
-    if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
+    if (data.attributes.currentLevel && !this.platform.switchingController.deviceHasChangedMatterAttribute(
       this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
       isChildEndpoint ? endpoint : '',
       'currentLevel',
       data.request.level,
-      data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.id, 'currentLevel') will also works...
+      data.attributes.currentLevel, // data.endpoint.getAttribute(LevelControl.id, 'currentLevel') will also works...
       true,
     )) { return; }
     // End of Added by me: Arye Levin
@@ -808,12 +808,12 @@ export class ZigbeeEntity extends EventEmitter {
         // End of Added by me: Arye Levin
       }
       // Added by me: Arye Levin
-      if (!this.platform.switchingController.deviceHasChangedMatterAttribute(
+      if (data.attributes.currentLevel && !this.platform.switchingController.deviceHasChangedMatterAttribute(
         this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
         isChildEndpoint ? endpoint : '',
         'currentLevel',
         data.request.level,
-        data.attributes.currentLevel as number, // data.endpoint.getAttribute(LevelControl.id, 'currentLevel') will also works...
+        data.attributes.currentLevel, // data.endpoint.getAttribute(LevelControl.id, 'currentLevel') will also works...
         true,
       )) { return; }
       // End of Added by me: Arye Levin
@@ -1909,6 +1909,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         const actionNames = ['single', 'double', 'triple', 'hold_release', 'press_release', 'hold', 'press', 'release', 'click'];
         for (let a = 0; a < zigbeeDevice.actions.length; a++) {
           const actionItem = zigbeeDevice.actions[a];
+          // oxlint-disable-next-line unicorn/prefer-array-find
           const matchingSubstrings: string[] = actionNames.filter((substring) => actionItem.includes(substring));
           // zigbeeDevice.log.info(actionItem + ' matchingSubstrings: ' + JSON.stringify(matchingSubstrings));
           const actionName = matchingSubstrings[0] || actionItem;
@@ -2420,7 +2421,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
                 .get('system_mode' + endpointSuffix)
                 ?.values?.includes('cool') /* && zigbeeDevice.bridgedDevice?.getAttribute(Thermostat.id, 'systemMode', zigbeeDevice.log) === Thermostat.SystemMode.Cool*/
             )
-              zigbeeDevice.bridgedDevice?.setAttribute(Thermostat.id, 'occupiedCoolingSetpoint', newValue, zigbeeDevice.log).catch(() => {});
+              zigbeeDevice.bridgedDevice?.setAttribute(Thermostat.id, 'occupiedCoolingSetpoint', newValue, zigbeeDevice.log).catch(() => {
+                //
+              });
             // End of Added by me: Arye Levin
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
@@ -2480,17 +2483,33 @@ export class ZigbeeDevice extends ZigbeeEntity {
               // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 0, zigbeeDevice.log).catch(() => {});
               // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 0, zigbeeDevice.log).catch(() => {});
             } else if (newValue === FanControl.FanMode.Low) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 33, zigbeeDevice.log).catch(() => {});
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 33, zigbeeDevice.log).catch(() => {});
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 33, zigbeeDevice.log).catch(() => {
+                //
+              });
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 33, zigbeeDevice.log).catch(() => {
+                //
+              });
             } else if (newValue === FanControl.FanMode.Medium) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 66, zigbeeDevice.log).catch(() => {});
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 66, zigbeeDevice.log).catch(() => {});
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 66, zigbeeDevice.log).catch(() => {
+                //
+              });
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 66, zigbeeDevice.log).catch(() => {
+                //
+              });
             } else if (newValue === FanControl.FanMode.High) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 100, zigbeeDevice.log).catch(() => {});
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 100, zigbeeDevice.log).catch(() => {});
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 100, zigbeeDevice.log).catch(() => {
+                //
+              });
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 100, zigbeeDevice.log).catch(() => {
+                //
+              });
             } else if (newValue === FanControl.FanMode.Auto) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 10, zigbeeDevice.log).catch(() => {});
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 10, zigbeeDevice.log).catch(() => {});
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 10, zigbeeDevice.log).catch(() => {
+                //
+              });
+              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 10, zigbeeDevice.log).catch(() => {
+                //
+              });
             }
           },
           zigbeeDevice.log,
@@ -2507,19 +2526,25 @@ export class ZigbeeDevice extends ZigbeeEntity {
                 return input; // Or throw an error
               }
 
-              // Sort points for potentially better performance with large lists,
-              // though not strictly required for correctness with reduce.
+              // Sort points for consistency
               points.sort((a, b) => a - b);
 
-              return points.reduce((closest, current) => {
+              // Initialize accumulator with the first point
+              let closest = points[0];
+
+              // Loop through the rest of the array starting at index 1
+              for (let i = 1; i < points.length; i++) {
+                const current = points[i];
                 const distanceToCurrent = Math.abs(current - input);
                 const distanceToClosest = Math.abs(closest - input);
 
-                // If current point is closer, it becomes the new closest.
-                // If distances are equal, we might prefer the larger or smaller,
-                // here we keep the 'closest' found so far (effectively favoring earlier in sorted list).
-                return distanceToCurrent < distanceToClosest ? current : closest;
-              }, points[0]); // Start with the first point as the initial closest
+                // If current point is closer, update the accumulator
+                if (distanceToCurrent < distanceToClosest) {
+                  closest = current;
+                }
+              }
+
+              return closest;
             };
 
             const dataPoints = [10, 33, 66, 100];
@@ -2531,8 +2556,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
               if (fixedValue === oldValue) return;
               process.nextTick(() => {
                 zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', fixedValue, zigbeeDevice.log).catch(() => {});
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', fixedValue, zigbeeDevice.log).catch(() => {});
+                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', fixedValue, zigbeeDevice.log).catch(() => {
+                  //
+                });
+                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', fixedValue, zigbeeDevice.log).catch(() => {
+                  //
+                });
                 const fanModeSetting =
                   fixedValue === 33
                     ? FanControl.FanMode.Low
@@ -2541,7 +2570,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
                       : fixedValue === 100
                         ? FanControl.FanMode.High
                         : FanControl.FanMode.Auto;
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'fanMode', fanModeSetting, zigbeeDevice.log).catch(() => {});
+                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'fanMode', fanModeSetting, zigbeeDevice.log).catch(() => {
+                  //
+                });
               });
             }
           },
