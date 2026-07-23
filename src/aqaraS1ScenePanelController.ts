@@ -2086,9 +2086,30 @@ export class AqaraS1ScenePanelController {
               commandAction.toString(16),
           );
         }
+      } else if (commandType === 0x44) {
+        this.log.debug(
+          'Our own message from: ' +
+            deviceIeeeAddress +
+            ', Hex data: ' +
+            data +
+            ', Data array: ' +
+            dataArray +
+            ', Integrity: ' +
+            dataArray[integrityByteIndex] +
+            ', Signed integrity: ' +
+            this.getInt8(dataArray[integrityByteIndex]) +
+            ', Sum: ' +
+            sum +
+            ', commandCategory: 0x' +
+            commandCategory.toString(16) +
+            ', commandType: 0x' +
+            commandType.toString(16) +
+            ', commandAction: 0x' +
+            commandAction.toString(16),
+        );
       } else {
         this.log.error(
-          'Unknown message from: ' +
+          'Unknown commandType message from: ' +
             deviceIeeeAddress +
             ', Hex data: ' +
             data +
@@ -2110,7 +2131,7 @@ export class AqaraS1ScenePanelController {
       }
     } else {
       this.log.error(
-        'Unknown message from: ' +
+        'Wrong sum message from: ' +
           deviceIeeeAddress +
           ', Hex data: ' +
           data +
