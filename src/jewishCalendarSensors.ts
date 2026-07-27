@@ -12,7 +12,7 @@ import { bridgedNode, MatterbridgeEndpoint, modeSelect, powerSource } from 'matt
 import { HeDate } from './heDate.js';
 import { JewishCalendarSensor } from './jewishCalendarSensor.js';
 import type { ZigbeePlatform } from './module.js';
-import { SunCalc } from './suncalc.js';
+import { getTimes } from './suncalc.js';
 
 export interface JewishCalendarSensorsConfig {
   enabled: boolean;
@@ -297,8 +297,8 @@ export class JewishCalendarSensors {
     this.sensor.log.debug('updateJewishDay():  today=' + this.gDate.toISOString());
     this.sensor.log.debug('updateJewishDay(): midday=' + midday.toISOString());
 
-    const suntimes = SunCalc.getTimes(midday, this.lat, this.long);
-    this.sunset = this.config.useSunsetStart ? suntimes.sunsetStart : suntimes.sunset;
+    const suntimes = getTimes(midday, this.lat, this.long);
+    this.sunset = (this.config.useSunsetStart ? suntimes.sunsetStart : suntimes.sunset) ?? midday; // For locations with no sunset, use midday time (for now, later once such occation is really needed, check the halacha specifically needed).
 
     this.sensor.log.debug('Sunset Tonight: ' + this.sunset.toLocaleString());
 
