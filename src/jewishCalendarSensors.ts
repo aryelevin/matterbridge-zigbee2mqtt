@@ -8,11 +8,11 @@
 // import { debug } from 'node:console';
 
 import { bridgedNode, MatterbridgeEndpoint, modeSelect, powerSource } from 'matterbridge';
+import { getTimes } from 'suncalc';
 
 import { HeDate } from './heDate.js';
 import { JewishCalendarSensor } from './jewishCalendarSensor.js';
 import type { ZigbeePlatform } from './module.js';
-import { getTimes } from './suncalc.js';
 
 export interface JewishCalendarSensorsConfig {
   enabled: boolean;
