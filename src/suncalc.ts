@@ -4,8 +4,6 @@
  https://github.com/mourner/suncalc
 */
 
-// (function () { 'use strict';
-
 // shortcuts for easier to read formulas
 
 const PI = Math.PI,
@@ -102,29 +100,29 @@ const SunCalc: {
   getMoonTimes: (date: Date, lat: number, lng: number, inUTC: boolean) => { [key: string]: Date | boolean };
   times?: Array<[number, string, string]>;
 } = {
-  getPosition: function (_date: Date, _lat: number, _lng: number): { azimuth: number; altitude: number } {
+  getPosition: (_date: Date, _lat: number, _lng: number): { azimuth: number; altitude: number } => {
     throw new Error('Function not implemented.');
   },
-  getTimes: function (_date: Date, _lat: number, _lng: number, _height?: number) {
+  getTimes: (_date: Date, _lat: number, _lng: number, _height?: number) => {
     throw new Error('Function not implemented.');
   },
-  addTime: function (_angle: number, _riseName: string, _setName: string): void {
+  addTime: (_angle: number, _riseName: string, _setName: string): void => {
     throw new Error('Function not implemented.');
   },
-  getMoonPosition: function (_date: Date, _lat: number, _lng: number): { azimuth: number; altitude: number; distance: number; parallacticAngle: number } {
+  getMoonPosition: (_date: Date, _lat: number, _lng: number): { azimuth: number; altitude: number; distance: number; parallacticAngle: number } => {
     throw new Error('Function not implemented.');
   },
-  getMoonIllumination: function (_date: Date): { fraction: number; phase: number; angle: number } {
+  getMoonIllumination: (_date: Date): { fraction: number; phase: number; angle: number } => {
     throw new Error('Function not implemented.');
   },
-  getMoonTimes: function (_date: Date, _lat: number, _lng: number, _inUTC: boolean) {
+  getMoonTimes: (_date: Date, _lat: number, _lng: number, _inUTC: boolean) => {
     throw new Error('Function not implemented.');
   },
 };
 
 // calculates sun position for a given date and latitude/longitude
 
-SunCalc.getPosition = function (date: Date, lat: number, lng: number): { azimuth: number; altitude: number } {
+SunCalc.getPosition = (date: Date, lat: number, lng: number): { azimuth: number; altitude: number } => {
   const lw = rad * -lng,
     phi = rad * lat,
     d = toDays(date),
@@ -150,7 +148,7 @@ const times = (SunCalc.times = [
 
 // adds a custom time to the times config
 
-SunCalc.addTime = function (angle: number, riseName: string, setName: string): void {
+SunCalc.addTime = (angle: number, riseName: string, setName: string): void => {
   times.push([angle, riseName, setName]);
 };
 
@@ -186,7 +184,7 @@ function getSetJ(h: number, lw: number, phi: number, dec: number, n: number, M: 
 // calculates sun times for a given date, latitude/longitude, and, optionally,
 // the observer height (in meters) relative to the horizon
 
-SunCalc.getTimes = function (date: Date, lat: number, lng: number, height: number = 0): { [key: string]: Date } {
+SunCalc.getTimes = (date: Date, lat: number, lng: number, height: number = 0): { [key: string]: Date } => {
   const lw = rad * -lng,
     phi = rad * lat,
     dh = observerAngle(height),
@@ -237,7 +235,7 @@ function moonCoords(d: number): { ra: number; dec: number; dist: number } {
   };
 }
 
-SunCalc.getMoonPosition = function (date: Date, lat: number, lng: number): { azimuth: number; altitude: number; distance: number; parallacticAngle: number } {
+SunCalc.getMoonPosition = (date: Date, lat: number, lng: number): { azimuth: number; altitude: number; distance: number; parallacticAngle: number } => {
   const lw = rad * -lng,
     phi = rad * lat,
     d = toDays(date),
@@ -283,7 +281,7 @@ function hoursLater(date: Date, h: number): Date {
 
 // calculations for moon rise/set times are based on http://www.stargazing.net/kepler/moonrise.html article
 
-SunCalc.getMoonTimes = function (date: Date, lat: number, lng: number, inUTC: boolean): { [key: string]: Date | boolean } {
+SunCalc.getMoonTimes = (date: Date, lat: number, lng: number, inUTC: boolean): { [key: string]: Date | boolean } => {
   const t = new Date(date);
   if (inUTC) t.setUTCHours(0, 0, 0, 0);
   else t.setHours(0, 0, 0, 0);
@@ -352,7 +350,5 @@ SunCalc.getMoonTimes = function (date: Date, lat: number, lng: number, inUTC: bo
 // if (typeof exports === 'object' && typeof module !== 'undefined') module.exports = SunCalc;
 // else if (typeof define === 'function' && define.amd) define(SunCalc);
 // else window.SunCalc = SunCalc;
-
-// }());
 
 export { SunCalc };
