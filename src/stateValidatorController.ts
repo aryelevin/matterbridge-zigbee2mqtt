@@ -211,7 +211,7 @@ export class StateValidatorController {
     }
 
     setTimeout(() => {
-      this.heartbeat(beatNo + 1);
+      this.heartbeat(beatNo === Number.MAX_SAFE_INTEGER ? 0 : beatNo + 1); // Reset beatNo when reached Number.MAX_SAFE_INTEGER.
     }, 5000);
   }
 
@@ -219,7 +219,7 @@ export class StateValidatorController {
   // When actionSourceIsFromMatter is true, oldValue can be undefined...
   // If actionSourceIsFromMatter true, it means the change is from matter side (switching on/off from apps etc), if false, it means its from the device has changed (turned on on the physical device side or z2m FE for example)...
   // Make sure all calls to this method is after verified change of attribute value... (onOff changed from true to false etc..)
-  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number): boolean {
+  deviceHasChangedMatterAttribute(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, actionSourceIsFromMatter: boolean): boolean {
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
@@ -230,7 +230,10 @@ export class StateValidatorController {
       }
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
-      if (!this.config.blackList?.[deviceIeee] || (this.config.blackList?.[deviceIeee].length > 0 && !this.config.blackList[deviceIeee].includes(changedPropertyName + endpoint))) {
+      if (
+        actionSourceIsFromMatter &&
+        (!this.config.blackList?.[deviceIeee] || (this.config.blackList?.[deviceIeee].length > 0 && !this.config.blackList[deviceIeee].includes(changedPropertyName + endpoint)))
+      ) {
         const counterKey = deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint);
         this.monitoredEndpointsRepeatCounts[counterKey] = 0;
         // this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));

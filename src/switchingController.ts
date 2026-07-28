@@ -264,7 +264,7 @@ export class SwitchingController {
     oldValue: boolean | number,
     actionSourceIsFromMatter: boolean,
   ): boolean {
-    this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, value);
+    this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, value, actionSourceIsFromMatter);
     if (attribute === 'onOff' || attribute === 'currentLevel') {
       const z2mValue = attribute === 'onOff' ? (value ? 'ON' : 'OFF') : value;
       const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
@@ -354,7 +354,7 @@ export class SwitchingController {
             const device = this.getDeviceEntity(deviceIeee);
             process.nextTick(async () => {
               await device?.bridgedDevice?.setAttribute(attribute === 'onOff' ? OnOff.id : LevelControl.id, attribute, oldValue);
-              this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, oldValue);
+              this.platform.stateValidatorController.deviceHasChangedMatterAttribute(deviceIeee, endpoint, attribute, oldValue, actionSourceIsFromMatter);
             });
           } else {
             // It should revert the device state??? (It happens here when: Switch -> linked device -> linked device changes again for some reason [via device local control or any other way to control it aka z2m FE])...
