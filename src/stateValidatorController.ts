@@ -230,13 +230,8 @@ export class StateValidatorController {
       }
       this.lastStates[deviceIeee][changedPropertyName + endpoint] = z2mValue;
 
-      if (
-        actionSourceIsFromMatter &&
-        (!this.config.blackList?.[deviceIeee] || (this.config.blackList?.[deviceIeee].length > 0 && !this.config.blackList[deviceIeee].includes(changedPropertyName + endpoint)))
-      ) {
-        const counterKey = deviceIeee + '/' + (endpoint.length ? endpoint.substring(1) : endpoint);
-        this.monitoredEndpointsRepeatCounts[counterKey] = 0;
-        // this.log.info('Matter state recevied with monitored repeat counters: ' + JSON.stringify(this.monitoredEndpointsRepeatCounts));
+      if (actionSourceIsFromMatter) {
+        this.startRepeatPublishForEndpoint(deviceIeee, changedPropertyName, endpoint);
       }
     }
   }
