@@ -57,14 +57,14 @@ export class PlatformControls {
       this.switchesEnabledEndpoint.log.info('Enable Switches Command off called');
       this.switchesOnOffDidSet(false);
     });
-
-    if (this.platform.config.blackList.includes('Platform Controls')) {
-      void this.setSwitchesOnOff(true);
-    }
   }
 
   setPlatformControlsConfiguration(): void {
     this.switchesEnabled = this.switchesEnabledEndpoint.getAttribute(OnOff.id, 'onOff', this.switchesEnabledEndpoint.log);
+
+    if (!this.switchesEnabled && this.platform.config.blackList.includes('Platform Controls')) {
+      void this.setSwitchesOnOff(true);
+    }
   }
 
   private switchesOnOffDidSet(value: boolean): void {
