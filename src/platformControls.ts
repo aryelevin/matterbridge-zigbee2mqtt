@@ -57,6 +57,10 @@ export class PlatformControls {
       this.switchesEnabledEndpoint.log.info('Enable Switches Command off called');
       this.switchesOnOffDidSet(false);
     });
+
+    if (this.platform.config.blackList.includes('Platform Controls')) {
+      void this.setSwitchesOnOff(true);
+    }
   }
 
   setPlatformControlsConfiguration(): void {
