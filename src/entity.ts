@@ -2481,13 +2481,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.noUpdateTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
             }, zigbeeDevice.noUpdateTimeoutTime);
-            const speedVal = [-1, 33, 66, 100, -1, 10, -1][newValue];
-            process.nextTick(async () => {
-              if (speedVal && speedVal !== -1) {
-                await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', speedVal, zigbeeDevice.log);
-                await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', speedVal, zigbeeDevice.log);
-              }
-            });
+            // const speedVal = [-1, 33, 66, 100, -1, 10, -1][newValue];
+            // process.nextTick(async () => {
+            //   if (speedVal && speedVal !== -1) {
+            //     await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', speedVal, zigbeeDevice.log);
+            //     await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', speedVal, zigbeeDevice.log);
+            //   }
+            // });
           },
           zigbeeDevice.log,
         );
