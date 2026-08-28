@@ -2474,8 +2474,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.log.info(
               `Fan mode changed from ${fanModeLookup[oldValue]} (${oldValue}) to ${fanModeLookup[newValue]} (${newValue}) context: ${context.fabric === undefined ? 'offline' : 'online'}`,
             );
-            // if (context.fabric === undefined) return; // Do not set publish when offline (offline means that the change happened not from matter side)
-            if (context.fabric !== undefined && zigbeeDevice.propertyMap.has('fan_mode' + endpointSuffix) && newValue !== FanControl.FanMode.Off)
+            if (context.fabric === undefined) return; // Do not set publish when offline (offline means that the change happened not from matter side)
+            if (zigbeeDevice.propertyMap.has('fan_mode' + endpointSuffix) && newValue !== FanControl.FanMode.Off)
               zigbeeDevice.publishCommand('FanMode', device.friendly_name, { ['fan_mode' + endpointSuffix]: ['off', 'low', 'medium', 'high', 'on', 'auto'][newValue] || 'auto' });
           },
           zigbeeDevice.log,
