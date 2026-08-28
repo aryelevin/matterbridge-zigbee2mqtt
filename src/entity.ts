@@ -2531,20 +2531,20 @@ export class ZigbeeDevice extends ZigbeeEntity {
             if (isValidNumber(newValue, 0, 100)) {
               const fixedValue = roundToNearestPoint(newValue, dataPoints);
               if (fixedValue === oldValue) return;
-              process.nextTick(async () => {
-                zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
-                await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', fixedValue, zigbeeDevice.log);
-                await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
-                const fanModeSetting =
-                  fixedValue === 33
-                    ? FanControl.FanMode.Low
-                    : fixedValue === 66
-                      ? FanControl.FanMode.Medium
-                      : fixedValue === 100
-                        ? FanControl.FanMode.High
-                        : FanControl.FanMode.Auto;
-                await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'fanMode', fanModeSetting, zigbeeDevice.log);
-              });
+              // process.nextTick(async () => {
+              //   zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
+              //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', fixedValue, zigbeeDevice.log);
+              //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
+              //   const fanModeSetting =
+              //     fixedValue === 33
+              //       ? FanControl.FanMode.Low
+              //       : fixedValue === 66
+              //         ? FanControl.FanMode.Medium
+              //         : fixedValue === 100
+              //           ? FanControl.FanMode.High
+              //           : FanControl.FanMode.Auto;
+              //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'fanMode', fanModeSetting, zigbeeDevice.log);
+              // });
             }
           },
           zigbeeDevice.log,
