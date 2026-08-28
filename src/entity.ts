@@ -2190,7 +2190,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const fan_mode = zigbeeDevice.propertyMap.get('fan_mode' + endpointSuffix);
       const fan_mode_values = fan_mode?.values;
       if (fan_mode_values?.includes('auto')) {
-        zigbeeDevice.bridgedDevice.createMultiSpeedFanControlClusterServer(FanControl.FanMode.Auto, FanControl.FanModeSequence.OffLowMedHighAuto, 0, 0, 4, 0, 0);
+        zigbeeDevice.bridgedDevice.createMultiSpeedFanControlClusterServer(FanControl.FanMode.Auto, FanControl.FanModeSequence.OffLowMedHighAuto, 0, 0, 3, 0, 0);
         mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(FanControl.id), 1);
       }
     }
@@ -2477,10 +2477,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
             // if (context.fabric === undefined) return; // Do not set publish when offline (offline means that the change happened not from matter side)
             if (context.fabric !== undefined && zigbeeDevice.propertyMap.has('fan_mode' + endpointSuffix) && newValue !== FanControl.FanMode.Off)
               zigbeeDevice.publishCommand('FanMode', device.friendly_name, { ['fan_mode' + endpointSuffix]: ['off', 'low', 'medium', 'high', 'on', 'auto'][newValue] || 'auto' });
-            zigbeeDevice.noUpdate = true;
-            zigbeeDevice.noUpdateTimeout = setTimeout(() => {
-              zigbeeDevice.noUpdate = false;
-            }, zigbeeDevice.noUpdateTimeoutTime);
+            // zigbeeDevice.noUpdate = true;
+            // zigbeeDevice.noUpdateTimeout = setTimeout(() => {
+            //   zigbeeDevice.noUpdate = false;
+            // }, zigbeeDevice.noUpdateTimeoutTime);
             // const speedVal = [-1, 33, 66, 100, -1, 10, -1][newValue];
             // process.nextTick(async () => {
             //   if (speedVal && speedVal !== -1) {
@@ -2496,57 +2496,61 @@ export class ZigbeeDevice extends ZigbeeEntity {
         void zigbeeDevice.bridgedDevice.subscribeAttribute(
           FanControl.id,
           'percentSetting',
-          (newValue: number | null, oldValue: number | null, context) => {
-            if (newValue === oldValue) return;
-            const roundToNearestPoint = (input: number, points: number[]): number => {
-              if (points.length === 0) {
-                return input; // Or throw an error
-              }
+          (newValue: number | null, oldValue: number | null, context) =>
+            void (async (): Promise<void> => {
+              // if (newValue === oldValue) return;
+              // const roundToNearestPoint = (input: number, points: number[]): number => {
+              //   if (points.length === 0) {
+              //     return input; // Or throw an error
+              //   }
 
-              // Sort points for consistency
-              points.sort((a, b) => a - b);
+              //   // Sort points for consistency
+              //   points.sort((a, b) => a - b);
 
-              // Initialize accumulator with the first point
-              let closest = points[0];
+              //   // Initialize accumulator with the first point
+              //   let closest = points[0];
 
-              // Loop through the rest of the array starting at index 1
-              for (let i = 1; i < points.length; i++) {
-                const current = points[i];
-                const distanceToCurrent = Math.abs(current - input);
-                const distanceToClosest = Math.abs(closest - input);
+              //   // Loop through the rest of the array starting at index 1
+              //   for (let i = 1; i < points.length; i++) {
+              //     const current = points[i];
+              //     const distanceToCurrent = Math.abs(current - input);
+              //     const distanceToClosest = Math.abs(closest - input);
 
-                // If current point is closer, update the accumulator
-                if (distanceToCurrent < distanceToClosest) {
-                  closest = current;
-                }
-              }
+              //     // If current point is closer, update the accumulator
+              //     if (distanceToCurrent < distanceToClosest) {
+              //       closest = current;
+              //     }
+              //   }
 
-              return closest;
-            };
+              //   return closest;
+              // };
 
-            const dataPoints = [10, 33, 66, 100];
+              // const dataPoints = [10, 33, 66, 100];
 
-            zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.fabric === undefined ? 'offline' : 'online'}`);
-            // if (context.fabric === undefined) return; // Do not set publish when offline (offline means that the change happened not from matter side)
-            if (isValidNumber(newValue, 0, 100)) {
-              const fixedValue = roundToNearestPoint(newValue, dataPoints);
-              if (fixedValue === oldValue) return;
-              // process.nextTick(async () => {
-              //   zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
-              //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', fixedValue, zigbeeDevice.log);
-              //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
-              //   const fanModeSetting =
-              //     fixedValue === 33
-              //       ? FanControl.FanMode.Low
-              //       : fixedValue === 66
-              //         ? FanControl.FanMode.Medium
-              //         : fixedValue === 100
-              //           ? FanControl.FanMode.High
-              //           : FanControl.FanMode.Auto;
-              //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'fanMode', fanModeSetting, zigbeeDevice.log);
-              // });
-            }
-          },
+              zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.fabric === undefined ? 'offline' : 'online'}`);
+              if (context.fabric === undefined) return; // Do not set publish when offline (offline means that the change happened not from matter side)
+              // if (isValidNumber(newValue, 0, 100)) {
+              //   const fixedValue = roundToNearestPoint(newValue, dataPoints);
+              //   if (fixedValue === oldValue) return;
+              //   // process.nextTick(async () => {
+              //   //   zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
+              //   //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', fixedValue, zigbeeDevice.log);
+              //   //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', fixedValue, zigbeeDevice.log);
+              //   //   const fanModeSetting =
+              //   //     fixedValue === 33
+              //   //       ? FanControl.FanMode.Low
+              //   //       : fixedValue === 66
+              //   //         ? FanControl.FanMode.Medium
+              //   //         : fixedValue === 100
+              //   //           ? FanControl.FanMode.High
+              //   //           : FanControl.FanMode.Auto;
+              //   //   await zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'fanMode', fanModeSetting, zigbeeDevice.log);
+              //   // });
+              // }
+
+              if (newValue === null || isValidNumber(newValue, 0, 100))
+                await zigbeeDevice.bridgedDevice?.setAttribute(FanControl, 'percentCurrent', newValue ?? 50, zigbeeDevice.log);
+            })(),
           zigbeeDevice.log,
         );
     }
