@@ -2472,42 +2472,42 @@ export class ZigbeeDevice extends ZigbeeEntity {
           (newValue: FanControl.FanMode, oldValue: FanControl.FanMode, context) => {
             if (newValue === oldValue) return;
             zigbeeDevice.log.info(`Fan mode changed from ${fanModeLookup[oldValue]} to ${fanModeLookup[newValue]} context: ${context.fabric === undefined ? 'offline' : 'online'}`);
-            // if (context.fabric === undefined) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
-            if (zigbeeDevice.propertyMap.has('fan_mode' + endpointSuffix) && newValue !== FanControl.FanMode.Off)
+            // if (context.fabric === undefined) return; // Do not set publish when offline (offline means that the change happened not from matter side)
+            if (context.fabric !== undefined && zigbeeDevice.propertyMap.has('fan_mode' + endpointSuffix) && newValue !== FanControl.FanMode.Off)
               zigbeeDevice.publishCommand('FanMode', device.friendly_name, { ['fan_mode' + endpointSuffix]: ['off', 'low', 'medium', 'high', 'on', 'auto'][newValue] || 'auto' });
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.noUpdateTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
             }, zigbeeDevice.noUpdateTimeoutTime);
             if (newValue === FanControl.FanMode.Off) {
-              // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 0, zigbeeDevice.log).catch(() => {});
-              // zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 0, zigbeeDevice.log).catch(() => {});
+              // zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', 0, zigbeeDevice.log).catch(() => {});
+              // zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', 0, zigbeeDevice.log).catch(() => {});
             } else if (newValue === FanControl.FanMode.Low) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 33, zigbeeDevice.log).catch(() => {
+              zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', 33, zigbeeDevice.log).catch(() => {
                 //
               });
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 33, zigbeeDevice.log).catch(() => {
+              zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', 33, zigbeeDevice.log).catch(() => {
                 //
               });
             } else if (newValue === FanControl.FanMode.Medium) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 66, zigbeeDevice.log).catch(() => {
+              zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', 66, zigbeeDevice.log).catch(() => {
                 //
               });
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 66, zigbeeDevice.log).catch(() => {
+              zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', 66, zigbeeDevice.log).catch(() => {
                 //
               });
             } else if (newValue === FanControl.FanMode.High) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 100, zigbeeDevice.log).catch(() => {
+              zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', 100, zigbeeDevice.log).catch(() => {
                 //
               });
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 100, zigbeeDevice.log).catch(() => {
+              zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', 100, zigbeeDevice.log).catch(() => {
                 //
               });
             } else if (newValue === FanControl.FanMode.Auto) {
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', 10, zigbeeDevice.log).catch(() => {
+              zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', 10, zigbeeDevice.log).catch(() => {
                 //
               });
-              zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', 10, zigbeeDevice.log).catch(() => {
+              zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', 10, zigbeeDevice.log).catch(() => {
                 //
               });
             }
@@ -2550,16 +2550,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
             const dataPoints = [10, 33, 66, 100];
 
             zigbeeDevice.log.info(`Percent setting changed from ${oldValue} to ${newValue} context: ${context.fabric === undefined ? 'offline' : 'online'}`);
-            // if (context.fabric === undefined) return; // Do not set attributes when offline (offline means that the change happened not from matter side)
+            // if (context.fabric === undefined) return; // Do not set publish when offline (offline means that the change happened not from matter side)
             if (isValidNumber(newValue, 0, 100)) {
               const fixedValue = roundToNearestPoint(newValue, dataPoints);
               if (fixedValue === oldValue) return;
               process.nextTick(() => {
                 zigbeeDevice.log.info(`Percent setting adjusted from ${newValue} to ${fixedValue} by nearest point from 4 modes (0: Auto, 33: Low, 66: Medium, 100: High)`);
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentSetting', fixedValue, zigbeeDevice.log).catch(() => {
+                zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentSetting', fixedValue, zigbeeDevice.log).catch(() => {
                   //
                 });
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'percentCurrent', fixedValue, zigbeeDevice.log).catch(() => {
+                zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'percentCurrent', fixedValue, zigbeeDevice.log).catch(() => {
                   //
                 });
                 const fanModeSetting =
@@ -2570,7 +2570,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
                       : fixedValue === 100
                         ? FanControl.FanMode.High
                         : FanControl.FanMode.Auto;
-                zigbeeDevice.bridgedDevice?.setAttribute(FanControl.id, 'fanMode', fanModeSetting, zigbeeDevice.log).catch(() => {
+                zigbeeDevice.bridgedDevice?.updateAttribute(FanControl.id, 'fanMode', fanModeSetting, zigbeeDevice.log).catch(() => {
                   //
                 });
               });
