@@ -1120,7 +1120,7 @@ export class ZigbeeEntity extends EventEmitter {
     // Added by me: Arye Levin
     if ((attributeName === 'onOff' && typeof value === 'boolean') || (attributeName === 'currentLevel' && typeof value === 'number')) {
       // This is state or brightness set, send to switching controller for processing...
-      if (this.platform.platformControls.switchesEnabled) {
+      if (this.platform.platformControls.switchesEnabled || this.platform.switchingController.switchesOffLogicPause) {
         this.platform.switchingController.deviceHasChangedMatterAttribute(
           this.isDevice && this.device?.ieee_address ? this.device?.ieee_address : this.isGroup && this.group?.friendly_name ? this.group?.friendly_name : '',
           childEndpointName?.length ? '_' + childEndpointName : '',
