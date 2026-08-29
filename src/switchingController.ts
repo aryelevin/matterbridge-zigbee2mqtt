@@ -120,6 +120,9 @@ export class SwitchingController {
   linkedDevicesEndpointExecutionTimes: { [key: string]: number } = {}; // {'0x541234567890abcd/brightness': 1678283828}
   linkedSwitchesEndpointExecutionTimes: { [key: string]: number } = {}; // {'0x54abcd0987654321/brightness': 1678283828}
   linksLastExecutionTimes: { [key: string]: number } = {}; // {'0x54abcd0987654321/brightness': 1678283828}
+  lastSwitchesOffSwitchActionTime: number = 0;
+  switchesOffSwitchActionCount: number = 0;
+  switchesOffLogicPause: boolean = false;
 
   constructor(platform: ZigbeePlatform, switchesLinksConfig: SwitchingControllerSwitchLinkConfig[], switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }) {
     this.platform = platform;
@@ -199,7 +202,7 @@ export class SwitchingController {
         this.lastStates[deviceIeee] = {};
         const device = this.getDeviceEntity(deviceIeee);
         this.platform.z2m.on('MESSAGE-' + (device === undefined ? deviceIeee : device.entityName), (payload: Payload) => {
-          if (this.platform.platformControls.switchesEnabled) {
+          if (this.platform.platformControls.switchesEnabled || this.switchesOffLogicPause) {
             if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
             // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
             for (const key in payload) {
@@ -246,10 +249,27 @@ export class SwitchingController {
   }
 
   deviceHasChangedMatterAttributeInSwitchesOffMode(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number): void {
-    const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
-    // Enforce switch state when switchesOn is off...
-    const z2mOldValue = attribute === 'onOff' ? (oldValue ? 'ON' : 'OFF') : oldValue;
-    this.publishCommand(deviceIeee, { [changedPropertyName + endpoint]: z2mOldValue }); // change it back
+    if (!this.switchesOffLogicPause) {
+      // TODO: Should be implemented on switches links and switches actions (remotes) logic as well...
+      if (Date.now() - this.lastSwitchesOffSwitchActionTime > 5000) {
+        this.switchesOffSwitchActionCount = 0;
+        this.lastSwitchesOffSwitchActionTime = Date.now();
+      } else if (this.switchesOffSwitchActionCount < 10) {
+        this.switchesOffSwitchActionCount++;
+        this.lastSwitchesOffSwitchActionTime = Date.now();
+        if (this.switchesOffSwitchActionCount === 10) {
+          this.switchesOffLogicPause = true;
+          setTimeout(() => {
+            this.switchesOffLogicPause = false;
+          }, 300000); // 5 minutes
+          return;
+        }
+      }
+      const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
+      // Enforce switch state when switchesOn is off...
+      const z2mOldValue = attribute === 'onOff' ? (oldValue ? 'ON' : 'OFF') : oldValue;
+      this.publishCommand(deviceIeee, { [changedPropertyName + endpoint]: z2mOldValue }); // change it back
+    }
   }
 
   // Should be called when matter side changed (By incoming event from z2m by manual control or z2m frontend control of a switch or light, or when user uses matter to control z2m - actionSourceIsFromMatter is true then...)
