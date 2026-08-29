@@ -249,26 +249,24 @@ export class SwitchingController {
   }
 
   deviceHasChangedMatterAttributeInSwitchesOffMode(deviceIeee: string, endpoint: string, attribute: string, value: boolean | number, oldValue: boolean | number): void {
-    if (!this.switchesOffLogicPause) {
-      // TODO: Should be implemented on switches links and switches actions (remotes) logic as well...
-      if (Date.now() - this.lastSwitchesOffSwitchActionTime > 5000) {
-        this.switchesOffSwitchActionCount = 0;
-        this.lastSwitchesOffSwitchActionTime = Date.now();
-      } else if (this.switchesOffSwitchActionCount < 10) {
-        this.switchesOffSwitchActionCount++;
-        this.lastSwitchesOffSwitchActionTime = Date.now();
-        if (this.switchesOffSwitchActionCount === 10) {
-          this.switchesOffLogicPause = true;
-          setTimeout(() => {
-            this.switchesOffLogicPause = false;
-          }, 300000); // 5 minutes
-          return;
-        }
+    const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
+    // Enforce switch state when switchesOn is off...
+    const z2mOldValue = attribute === 'onOff' ? (oldValue ? 'ON' : 'OFF') : oldValue;
+    this.publishCommand(deviceIeee, { [changedPropertyName + endpoint]: z2mOldValue }); // change it back
+
+    // TODO: Should be implemented on switches links and switches actions (remotes) logic as well...
+    if (Date.now() - this.lastSwitchesOffSwitchActionTime > 5000) {
+      this.switchesOffSwitchActionCount = 0;
+      this.lastSwitchesOffSwitchActionTime = Date.now();
+    } else if (this.switchesOffSwitchActionCount < 10) {
+      this.switchesOffSwitchActionCount++;
+      this.lastSwitchesOffSwitchActionTime = Date.now();
+      if (this.switchesOffSwitchActionCount === 10) {
+        this.switchesOffLogicPause = true;
+        setTimeout(() => {
+          this.switchesOffLogicPause = false;
+        }, 300000); // 5 minutes
       }
-      const changedPropertyName = attribute === 'onOff' ? 'state' : 'brightness';
-      // Enforce switch state when switchesOn is off...
-      const z2mOldValue = attribute === 'onOff' ? (oldValue ? 'ON' : 'OFF') : oldValue;
-      this.publishCommand(deviceIeee, { [changedPropertyName + endpoint]: z2mOldValue }); // change it back
     }
   }
 
