@@ -122,7 +122,7 @@ export class SwitchingController {
   linksLastExecutionTimes: { [key: string]: number } = {}; // {'0x54abcd0987654321/brightness': 1678283828}
   lastSwitchesOffSwitchActionTime: number = 0;
   switchesOffSwitchActionCount: number = 0;
-  switchesOffLogicPause: boolean = false;
+  switchesOffLogicOverride: boolean = false;
 
   constructor(platform: ZigbeePlatform, switchesLinksConfig: SwitchingControllerSwitchLinkConfig[], switchesActionsConfig: { [key: string]: SwitchingControllerSwitchConfig }) {
     this.platform = platform;
@@ -202,7 +202,7 @@ export class SwitchingController {
         this.lastStates[deviceIeee] = {};
         const device = this.getDeviceEntity(deviceIeee);
         this.platform.z2m.on('MESSAGE-' + (device === undefined ? deviceIeee : device.entityName), (payload: Payload) => {
-          if (this.platform.platformControls.switchesEnabled || this.switchesOffLogicPause) {
+          if (this.platform.platformControls.switchesEnabled || this.switchesOffLogicOverride) {
             if (!payload.action && deepEqual(this.lastStates[deviceIeee], payload, ['linkquality', 'last_seen', 'communication'])) return;
             // For Zigbee2MQTT -> Settings -> Advanced -> cache_state = true
             for (const key in payload) {
@@ -262,9 +262,9 @@ export class SwitchingController {
       this.switchesOffSwitchActionCount++;
       this.lastSwitchesOffSwitchActionTime = Date.now();
       if (this.switchesOffSwitchActionCount === 10) {
-        this.switchesOffLogicPause = true;
+        this.switchesOffLogicOverride = true;
         setTimeout(() => {
-          this.switchesOffLogicPause = false;
+          this.switchesOffLogicOverride = false;
           this.switchesOffSwitchActionCount = 0;
         }, 300000); // 5 minutes
       }

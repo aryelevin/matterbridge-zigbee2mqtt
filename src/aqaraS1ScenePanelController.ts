@@ -1417,7 +1417,7 @@ export class AqaraS1ScenePanelController {
 
         // State of device is reported and should set the controlled device to this state (Turn on or change position for example).
         if (commandCategory === 0x72 && commandAction === 0x01) {
-          if (this.platform.platformControls.switchesEnabled || this.platform.switchingController.switchesOffLogicPause) {
+          if (this.platform.platformControls.switchesEnabled || this.platform.switchingController.switchesOffLogicOverride) {
             if (deviceResourceType === 'air_cond' && (stateParamInt32BE === 0x0e020055 || stateParamInt32BE === 0x0e200055)) {
               // Updated Air conditioner device state
               const onOff = dataArray[dataStartIndex + 21] >= 0x10;
@@ -1790,7 +1790,7 @@ export class AqaraS1ScenePanelController {
           // Might be i can just ignore it and let my timeout technique to resend the data...
           this.log.info('Light configuration notification received... from: ' + deviceIeeeAddress + ', Hex data: ' + data);
         } else if (commandCategory === 0x73 && commandAction === 0x03) {
-          if (this.platform.platformControls.switchesEnabled || this.platform.switchingController.switchesOffLogicPause) {
+          if (this.platform.platformControls.switchesEnabled || this.platform.switchingController.switchesOffLogicOverride) {
             const panelDevice = this.getDeviceEntity(deviceIeeeAddress);
             const sceneNo = Number.parseInt(data[data.length - 1]);
             const sceneConfigName = 'scene_' + sceneNo;
