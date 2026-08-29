@@ -256,7 +256,7 @@ export class SwitchingController {
 
     // TODO: Should be implemented on switches links and switches actions (remotes) logic as well...
     if (Date.now() - this.lastSwitchesOffSwitchActionTime > 5000) {
-      this.switchesOffSwitchActionCount = 0;
+      this.switchesOffSwitchActionCount = 1;
       this.lastSwitchesOffSwitchActionTime = Date.now();
     } else if (this.switchesOffSwitchActionCount < 10) {
       this.switchesOffSwitchActionCount++;
@@ -265,6 +265,7 @@ export class SwitchingController {
         this.switchesOffLogicPause = true;
         setTimeout(() => {
           this.switchesOffLogicPause = false;
+          this.switchesOffSwitchActionCount = 0;
         }, 300000); // 5 minutes
       }
     }
