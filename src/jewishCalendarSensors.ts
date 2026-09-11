@@ -362,7 +362,7 @@ export class JewishCalendarSensors {
       candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
       return this.gDate > candletime;
     }
-    return false;
+    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Elul, date: 29 }, { month: this.hebrewMonths.Tishri, date: 0 });
   }
 
   isRoshHashana(): boolean {
