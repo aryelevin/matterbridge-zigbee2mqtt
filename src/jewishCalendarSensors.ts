@@ -357,7 +357,14 @@ export class JewishCalendarSensors {
   }
 
   isRoshHashanaEve(): boolean {
-    return this._inHebrewHolidayDateRange({ month: this.hebrewMonths.Elul, date: 28 }, { month: this.hebrewMonths.Tishri, date: 0 });
+    if (this.hDate.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 28) {
+      const candletime = new Date(this.sunset);
+      candletime.setMinutes(this.sunset.getMinutes() - this.config.candlelighting);
+      return this.gDate > candletime;
+    } else if (this.hDate.getMonth() == this.hebrewMonths.Elul && this.hDate.getDate() == 29 && !this.isRoshHashana()) {
+      return true;
+    }
+    return false;
   }
 
   isRoshHashana(): boolean {
