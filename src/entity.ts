@@ -923,7 +923,10 @@ export class ZigbeeEntity extends EventEmitter {
           (this.platform.config.separateDeviceEndpoints?.[this.device.ieee_address]?.includes(this.bridgedDevice?.id.split('_')[1] || '')
             ? `_${this.bridgedDevice.id.split('_')[1]}`
             : ''), // To avoid duplicate names use the id so separate endpoints of single device will have different names
-        this.serial,
+        this.serial +
+          (this.platform.config.separateDeviceEndpoints?.[this.device.ieee_address]?.includes(this.bridgedDevice?.id.split('_')[1] || '')
+            ? `_${this.bridgedDevice.id.split('_')[1]}`
+            : ''), // To avoid duplicate serials use the id so separate endpoints of single device will have different serials
         0xfff1,
         this.device.definition ? this.device.definition.vendor : this.device.manufacturer,
         this.device.definition ? this.device.definition.model : this.device.model_id,
