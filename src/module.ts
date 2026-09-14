@@ -862,7 +862,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           deviceCopy.definition.exposes.splice(indexToRemove, 1);
         }
 
-        this.setSelectDevice(device.ieee_address, device.friendly_name + '_' + endpoint, undefined, 'wifi'); // This will register the endpoint in the devices list of the configuration...
+        this.setSelectDevice(device.ieee_address + '_' + endpoint, device.friendly_name + '_' + endpoint, undefined, 'wifi'); // This will register the endpoint in the devices list of the configuration...
         if (!this.validateDevice([device.friendly_name + '_' + endpoint, device.ieee_address + '_' + endpoint], true)) {
           continue;
         }
