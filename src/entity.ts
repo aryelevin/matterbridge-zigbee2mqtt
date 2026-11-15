@@ -1584,7 +1584,9 @@ const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: Math.round(value * 1000000) } } },
   { type: '', name: 'total_power', property: 'total_power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activePower', converter: (value) => { return Math.round(value * 1000) } },
   { type: '', name: 'power', property: 'power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activePower', converter: (value) => { return Math.round(value * 1000) } },
+  { type: '', name: 'avarage_voltage', property: 'avarage_voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'voltage', converter: (value) => { return Math.round(value * 1000) } },
   { type: '', name: 'voltage', property: 'voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'voltage', converter: (value) => { return Math.round(value * 1000) } },
+  { type: '', name: 'total_current', property: 'total_current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activeCurrent', converter: (value) => { return Math.round(value * 1000) } },
   { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activeCurrent', converter: (value) => { return Math.round(value * 1000) } },
 ];
 
