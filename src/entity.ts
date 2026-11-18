@@ -1584,7 +1584,7 @@ const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: Math.round(value * 1000000) } } },
   { type: '', name: 'total_power', property: 'total_power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activePower', converter: (value) => { return Math.round(value * 1000) } },
   { type: '', name: 'power', property: 'power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activePower', converter: (value) => { return Math.round(value * 1000) } },
-  { type: '', name: 'avarage_voltage', property: 'avarage_voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'voltage', converter: (value) => { return Math.round(value * 1000) } },
+  { type: '', name: 'average_voltage', property: 'average_voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'voltage', converter: (value) => { return Math.round(value * 1000) } },
   { type: '', name: 'voltage', property: 'voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'voltage', converter: (value) => { return Math.round(value * 1000) } },
   { type: '', name: 'total_current', property: 'total_current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activeCurrent', converter: (value) => { return Math.round(value * 1000) } },
   { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activeCurrent', converter: (value) => { return Math.round(value * 1000) } },
@@ -2197,6 +2197,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
       }
     }
 
+    // Create ElectricalPowerMeasurement with activePower = 0 instead of null, so HA doesn't drop the power entity before the first report
+    if (mainEndpoint.clusterServersIds.includes(ElectricalPowerMeasurement.id)) {
+      zigbeeDevice.bridgedDevice.createDefaultElectricalPowerMeasurementClusterServer(null, null, 0);
+      mainEndpoint.clusterServersIds = mainEndpoint.clusterServersIds.filter((id) => id !== ElectricalPowerMeasurement.id);
+    }
+    // if (mainEndpoint.clusterServersIds.includes(ElectricalEnergyMeasurement.id)) {
+    //   zigbeeDevice.bridgedDevice.createDefaultElectricalEnergyMeasurementClusterServer(0);
+    //   mainEndpoint.clusterServersIds = mainEndpoint.clusterServersIds.filter((id) => id !== ElectricalEnergyMeasurement.id);
+    // }
+
     // Add the cluster ids to the main endpoint
     zigbeeDevice.bridgedDevice.addClusterServers(mainEndpoint.clusterServersIds);
     zigbeeDevice.bridgedDevice.addRequiredClusters();
@@ -2207,14 +2217,19 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Create the child endpoints
     for (const [endpoint, device] of zigbeeDevice.mutableDevice) {
       if (endpoint === '') continue;
-      zigbeeDevice.bridgedDevice?.addChildDeviceTypeWithClusterServer(
+      const hasPower = device.clusterServersIds.includes(ElectricalPowerMeasurement.id);
+      // const hasEnergy = device.clusterServersIds.includes(ElectricalEnergyMeasurement.id);
+      const childClusterServersIds = device.clusterServersIds.filter((id) => id !== ElectricalPowerMeasurement.id /* && id !== ElectricalEnergyMeasurement.id*/);
+      const child = zigbeeDevice.bridgedDevice?.addChildDeviceTypeWithClusterServer(
         endpoint,
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         device.deviceTypes as AtLeastOne<DeviceTypeDefinition>,
-        device.clusterServersIds,
+        childClusterServersIds,
         { tagList: device.tagList },
         zigbeeDevice.log.logLevel === LogLevel.DEBUG,
       );
+      if (hasPower) child?.createDefaultElectricalPowerMeasurementClusterServer(null, null, 0);
+      // if (hasEnergy) child?.createDefaultElectricalEnergyMeasurementClusterServer(0);
     }
 
     // Verify the device

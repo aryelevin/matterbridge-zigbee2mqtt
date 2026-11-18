@@ -344,7 +344,10 @@ export class SwitchingController {
             const sourceSwitchIeee = sourceSwitchPathComponents[0];
             const paramToControl = sourceSwitchPathComponents[1];
 
-            // To avoid processing for no reason (can be after switchStateChanged() called for a source switch handling, which will lead to this deviceHasChangedMatterAttribute() method call after mqtt will report the new target device state from the switch action, can be avoided by this if statement or by adding matter attributes set on the switchStateChanged() method logic...)
+            // To avoid processing for no reason (can be after switchStateChanged() called for a source switch handling,
+            // which will lead to this deviceHasChangedMatterAttribute() method call after mqtt will report the new target
+            // device state from the switch action, can be avoided by this if statement or by adding matter attributes set
+            // on the switchStateChanged() method logic...)
             if (this.lastStates[sourceSwitchIeee]?.[paramToControl] !== z2mValue) {
               // Set now Date as last switch update time to avoid immedite action from the switch side itself after a change from matter side...
               this.linkedSwitchesEndpointExecutionTimes[sourceSwitchIeee + '/' + paramToControl] = this.linksLastExecutionTimes[sourceSwitchIeee + '/' + paramToControl] =
